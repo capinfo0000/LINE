@@ -19,6 +19,7 @@ require APP_ROOT . '/vendor/autoload.php';
 require __DIR__ . '/db.php';
 require __DIR__ . '/tenant.php';
 require __DIR__ . '/member.php';
+require __DIR__ . '/payment.php';
 require __DIR__ . '/mail.php';
 require __DIR__ . '/captcha.php';
 require __DIR__ . '/crypto.php';

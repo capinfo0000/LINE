@@ -156,6 +156,35 @@ function db_migrate(\PDO $pdo): void
             created_at INTEGER NOT NULL
         );
     SQL);
+
+    // ------- 入会金決済（Phase 2） -------
+
+    // 入会金の決済記録。stripe_checkout_session_id を一意にして二重プロビジョニングを防ぐ。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS payments (
+            id                         TEXT PRIMARY KEY,
+            member_id                  TEXT,                    -- プロビジョニング後に紐付く会員
+            stripe_checkout_session_id TEXT NOT NULL UNIQUE,    -- 冪等キー（1セッション=1決済）
+            stripe_payment_intent_id   TEXT,
+            stripe_customer_id         TEXT,
+            email                      TEXT,
+            amount                     INTEGER NOT NULL DEFAULT 0,
+            currency                   TEXT NOT NULL DEFAULT 'jpy',
+            status                     TEXT NOT NULL DEFAULT 'processing', -- processing/paid
+            created_at                 INTEGER NOT NULL,
+            paid_at                    INTEGER
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_payments_member ON payments(member_id);');
+
+    // Stripe Webhook イベントの冪等記録（同一 event.id の二重処理を防ぐ）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS stripe_events (
+            event_id     TEXT PRIMARY KEY,
+            type         TEXT,
+            processed_at INTEGER NOT NULL
+        );
+    SQL);
 }
 
 /**

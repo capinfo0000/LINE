@@ -1,14 +1,16 @@
 <?php
 
 /**
- * Stripe Webhook 受信エンドポイント（Phase 0 時点は土台のみ）。
+ * Stripe Webhook 受信エンドポイント。
  *
- * 署名検証だけ行い 200 を返す。入会金決済（checkout.session.completed / mode=payment）による
- * 会員化＋ID/PW発行の処理は Phase 2 でここに実装する（`stripe_events` による冪等化つき）。
+ * 入会金決済（checkout.session.completed / mode=payment）を受けて、会員化＋ID/PW発行を行う。
+ * 署名は「生ボディ」で検証し、event.id で冪等化する。会員化の二重発行防止は payment 層の
+ * claim-first（payments.stripe_checkout_session_id UNIQUE）でも担保している。
+ * Webhook を取りこぼしても bin/reconcile.php（cron）が同じ処理で救済する。
  *
  * ローカルでの試し方（Stripe CLI）:
  *   stripe listen --forward-to localhost:8000/webhook.php
- * 表示された whsec_... を .env の STRIPE_WEBHOOK_SECRET に設定してください。
+ *   stripe trigger checkout.session.completed
  */
 
 declare(strict_types=1);
@@ -35,11 +37,30 @@ try {
     exit;
 }
 
-// TODO(Phase 2): checkout.session.completed(mode=payment) を受けて
-//   - stripe_events で冪等化
-//   - members を active 化し、発行ID＋仮PW（must_change_pw=1）を発行
-//   - Bot 経由で ID/PW＋OpenChat URL を配布
-// を実装する。現時点では受領して 200 を返すのみ。
+try {
+    switch ($event->type) {
+        case 'checkout.session.completed':
+            $session = $event->data->object;
+            // 入会金以外（将来別用途を足す場合）はメタデータで振り分け可能にしておく。
+            $purpose = (string) ($session->metadata->purpose ?? 'join_fee');
+            if ($purpose === 'join_fee') {
+                // event.id で冪等化（重複配信は無視）。実処理側も claim-first で二重発行を防ぐ。
+                if (record_stripe_event_once((string) $event->id, (string) $event->type)) {
+                    provision_member_from_checkout_session(normalize_checkout_session($session));
+                }
+            }
+            break;
+
+        default:
+            // 未対応イベントは無視（200 を返す）。
+            break;
+    }
+} catch (\Throwable $e) {
+    // 失敗しても 500 を返すと Stripe が再送してくれる（冪等なので安全）。
+    error_log('webhook provisioning error: ' . $e->getMessage());
+    http_response_code(500);
+    exit;
+}
 
 http_response_code(200);
 echo 'ok';
