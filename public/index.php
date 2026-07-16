@@ -2,8 +2,8 @@
 
 /**
  * トップ（ランディング）。
- * 参加者は主催者から受け取った「イベントごとの申込リンク」（apply.php?event_id=...）
- * または公開イベント一覧（o.php）から申し込みます。ここは案内と運営者ログインへの入口。
+ * 会員は入金後に発行される ID/PW で会員サイトにログインする（会員エリアは Phase 1 で追加）。
+ * ここは案内と、運営者ログインへの入口。
  */
 
 declare(strict_types=1);
@@ -15,29 +15,30 @@ require dirname(__DIR__) . '/src/bootstrap.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>イベント事前決済サービス</title>
+    <title>AKマッチング</title>
     <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
 <div class="container">
-    <div class="brandbar">イベント事前決済</div>
-    <h1>イベント事前決済サービス</h1>
-    <p class="muted">小規模イベントの参加費を、事前決済（前払い）または当日支払いで集められるサービスです。</p>
+    <div class="brandbar">AKマッチング</div>
+    <h1>AKマッチング</h1>
+    <p class="muted">会員制の人脈マッチングサービスです。会員は専用サイトでプロフィールを登録し、
+       条件に合う相手を検索・おすすめから見つけてつながれます。</p>
 
     <div class="card">
-        <div class="card__title">参加者の方へ</div>
-        <p>主催者から受け取った<strong>申込リンク</strong>から、各イベントにお申し込みください。</p>
-        <p class="muted">カード情報の入力は決済代行 Stripe 上で行われ、主催者・当サービスは決済情報を保持しません。</p>
+        <div class="card__title">会員の方へ</div>
+        <p>入会手続き完了後にお渡しした<strong>ログインID・パスワード</strong>で会員サイトにログインしてください。</p>
+        <p class="muted">会員サイト（ログイン・プロフィール・ディレクトリ・おすすめ）は準備中です。</p>
     </div>
 
     <div class="card">
-        <div class="card__title">主催者の方へ</div>
-        <p>イベントの作成・参加者管理・返金は主催者ページから行えます。</p>
-        <p>
-            <a class="btn" href="admin/signup.php">無料で新規登録</a>
-            <a href="admin/login.php" style="margin-left:10px;">ログイン</a>
-        </p>
-        <p class="muted">メールアドレスとパスワードだけで、すぐに始められます。</p>
+        <div class="card__title">入会をご検討の方へ</div>
+        <p>公式LINEの案内に沿って、説明会・個別面談を経てご入会いただけます。</p>
+    </div>
+
+    <div class="card">
+        <div class="card__title">運営の方へ</div>
+        <p><a class="btn" href="admin/login.php">運営ログイン</a></p>
     </div>
 
     <p class="muted" style="margin-top:24px; border-top:1px solid var(--border); padding-top:14px;">

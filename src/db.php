@@ -1,25 +1,28 @@
 <?php
 
 /**
- * SQLite データ層。
+ * SQLite データ層（単一運営）。
  *
- * マルチテナント化に伴い、主催者アカウント・招待・イベントを永続化する。
- * （参加者の決済データは引き続き各テナントの Stripe が正。ここには保存しない。）
+ * 運営者アカウント（管理コンソール認証）・招待・認証補助テーブルを永続化する。
+ * 会員／プロフィール／マッチング等のドメインは後続フェーズで追加する（同じ冪等パターン）。
+ *
+ * ※ テーブル名 `tenants` は event 基盤からの流用で、本アプリでは「運営者アカウント」を表す
+ *    （単一運営でも複数スタッフを持てる）。マルチテナント固有の列（Stripe接続/プラン等）は撤去済み。
  *
  * DB ファイルは Web 公開領域の外（プロジェクト直下の data/）に置く。
  */
 
 declare(strict_types=1);
 
-/**
- * PDO(SQLite) のシングルトン。初回アクセス時にスキーマを作成する。
- */
 /** 使用する SQLite ファイルのパス（DB_PATH 指定が無ければ data/app.sqlite）。 */
 function current_db_path(): string
 {
     return env('DB_PATH', APP_ROOT . '/data/app.sqlite');
 }
 
+/**
+ * PDO(SQLite) のシングルトン。初回アクセス時にスキーマを作成する。
+ */
 function db(): \PDO
 {
     static $pdo = null;
@@ -64,57 +67,31 @@ function db(): \PDO
  */
 function db_migrate(\PDO $pdo): void
 {
+    // 運営者アカウント（管理コンソール認証）。
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS tenants (
-            id                TEXT PRIMARY KEY,
-            email             TEXT NOT NULL UNIQUE,
-            password_hash     TEXT NOT NULL,
-            display_name      TEXT NOT NULL DEFAULT '',
-            stripe_account_id TEXT,                       -- Connect で紐付く acct_...（未連携なら NULL）
-            is_admin           INTEGER NOT NULL DEFAULT 0, -- プラットフォーム管理者（招待を発行できる）
-            plan               TEXT NOT NULL DEFAULT 'free',-- 料金プラン（登録できるイベント数の上限）
-            stripe_customer_id TEXT,                        -- プラン課金用の顧客（プラットフォーム本体）
-            created_at         INTEGER NOT NULL
+            id            TEXT PRIMARY KEY,
+            email         TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            display_name  TEXT NOT NULL DEFAULT '',
+            is_admin      INTEGER NOT NULL DEFAULT 0,  -- 招待を発行できる管理者
+            created_at    INTEGER NOT NULL
         );
     SQL);
 
-    // 既存DB（列が無い）への後方互換マイグレーション
-    db_add_column_if_missing($pdo, 'tenants', 'plan', "TEXT NOT NULL DEFAULT 'free'");
-    db_add_column_if_missing($pdo, 'tenants', 'stripe_customer_id', 'TEXT'); // プラン課金用（プラットフォーム本体の顧客）
-    db_add_column_if_missing($pdo, 'tenants', 'stripe_secret_enc', 'TEXT');  // 主催者が画面登録した Stripe 秘密鍵（AES-256-GCM 暗号化）
-    db_add_column_if_missing($pdo, 'tenants', 'cancel_policy', 'TEXT');      // 主催者ごとのキャンセル・返金ポリシー本文（未設定なら既定文面）
-
+    // 運営者アカウントの招待（招待制サインアップ）。
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS invites (
             code       TEXT PRIMARY KEY,
             email      TEXT,            -- 招待先を限定したい場合（任意）
-            created_by TEXT,            -- 発行した管理者 tenant.id
+            created_by TEXT,            -- 発行した運営者 tenant.id
             used_by    TEXT,            -- 使用した tenant.id（未使用なら NULL）
             expires_at INTEGER,         -- 有効期限（NULL なら無期限）
             created_at INTEGER NOT NULL
         );
     SQL);
 
-    $pdo->exec(<<<'SQL'
-        CREATE TABLE IF NOT EXISTS events (
-            id            TEXT PRIMARY KEY,
-            tenant_id     TEXT NOT NULL,
-            name          TEXT NOT NULL,
-            description   TEXT NOT NULL DEFAULT '',
-            date          TEXT NOT NULL DEFAULT '',
-            place         TEXT NOT NULL DEFAULT '',
-            amount        INTEGER NOT NULL DEFAULT 0,   -- 事前決済の単価（最小通貨単位）
-            amount_onsite INTEGER NOT NULL DEFAULT 0,   -- 当日支払いの単価
-            currency      TEXT NOT NULL DEFAULT 'jpy',
-            capacity      INTEGER NOT NULL DEFAULT 0,
-            allow_prepay  INTEGER NOT NULL DEFAULT 1,
-            allow_onsite  INTEGER NOT NULL DEFAULT 0,
-            created_at    INTEGER NOT NULL,
-            FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
-        );
-    SQL);
-    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_events_tenant ON events(tenant_id);');
-
+    // パスワード再設定トークン。
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS password_resets (
             token      TEXT PRIMARY KEY,
@@ -125,6 +102,7 @@ function db_migrate(\PDO $pdo): void
         );
     SQL);
 
+    // ログイン試行の記録（総当たり対策）。
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS login_attempts (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,26 +117,16 @@ function db_migrate(\PDO $pdo): void
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS rate_events (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            action     TEXT NOT NULL,   -- 'signup' / 'forgot' / 'apply' など
+            action     TEXT NOT NULL,   -- 'signup' / 'forgot' / 'login' など
             identifier TEXT NOT NULL,   -- 通常は送信元IP
             created_at INTEGER NOT NULL
         );
     SQL);
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_rate_events ON rate_events(action, identifier, created_at);');
-
-    // 残席（headcount）の短時間キャッシュ。公開ページからの Stripe 全件取得の連打を防ぐ。
-    // ※あくまで「表示用」。定員の最終判定（checkout）はキャッシュを使わず都度算定する。
-    $pdo->exec(<<<'SQL'
-        CREATE TABLE IF NOT EXISTS headcount_cache (
-            event_id   TEXT PRIMARY KEY,
-            headcount  INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL
-        );
-    SQL);
 }
 
 /**
- * 指定テーブルに列が無ければ追加する（簡易マイグレーション用）。
+ * 指定テーブルに列が無ければ追加する（簡易マイグレーション用）。後続フェーズで使用。
  */
 function db_add_column_if_missing(\PDO $pdo, string $table, string $column, string $definition): void
 {

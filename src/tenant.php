@@ -127,9 +127,6 @@ function rate_limit_check(string $action, int $max, int $windowSec, ?string $ide
     if (random_int(1, 50) === 1) {
         $del = db()->prepare('DELETE FROM rate_events WHERE created_at < ?');
         $del->execute([time() - 86400]);
-        // 残席キャッシュの古い/不要なエントリも併せて掃除（1日以上更新なし）。
-        $delCache = db()->prepare('DELETE FROM headcount_cache WHERE updated_at < ?');
-        $delCache->execute([time() - 86400]);
     }
     return true;
 }
@@ -210,101 +207,6 @@ function create_tenant(string $email, string $password, string $displayName, boo
         time(),
     ]);
     return $id;
-}
-
-/** 主催者のキャンセル・返金ポリシー本文を保存する（空/null で既定文面に戻す）。 */
-function set_tenant_cancel_policy(string $tenantId, ?string $text): void
-{
-    $text = ($text !== null && trim($text) !== '') ? $text : null;
-    $stmt = db()->prepare('UPDATE tenants SET cancel_policy = ? WHERE id = ?');
-    $stmt->execute([$text, $tenantId]);
-}
-
-function set_tenant_stripe_account(string $tenantId, ?string $accountId): void
-{
-    $stmt = db()->prepare('UPDATE tenants SET stripe_account_id = ? WHERE id = ?');
-    $stmt->execute([$accountId, $tenantId]);
-}
-
-/**
- * 主催者の Stripe 鍵を保存するファイルのパス。
- * 既定は DB と同じディレクトリ（運用では DB ごと公開フォルダ外に置く前提）。
- * STRIPE_KEY_DIR で明示指定も可能。鍵は DB には保存しない（旧来の方式）。
- */
-function tenant_key_path(string $tenantId): string
-{
-    $dir = env('STRIPE_KEY_DIR', dirname(current_db_path()));
-    $safe = preg_replace('/[^a-zA-Z0-9_]/', '', $tenantId);
-    return rtrim($dir, '/') . '/stripe_' . $safe . '.key';
-}
-
-/**
- * 主催者の Stripe 鍵を「公開フォルダ外のファイル」に保存する。null/空で削除。
- * APP_KEY があれば暗号化（enc:）、無ければそのまま（raw:）保存する（ファイル自体が非公開前提）。
- */
-function set_tenant_stripe_key(string $tenantId, ?string $plainKey): void
-{
-    $path = tenant_key_path($tenantId);
-    if ($plainKey === null || $plainKey === '') {
-        if (is_file($path)) {
-            @unlink($path);
-        }
-        return;
-    }
-    $dir = dirname($path);
-    if (!is_dir($dir)) {
-        @mkdir($dir, 0700, true);
-    }
-    // 平文ディスク保存を避けるため、可能なら APP_KEY を用意して常に暗号化する。
-    ensure_app_key();
-    $payload = crypto_available() ? ('enc:' . app_encrypt($plainKey)) : ('raw:' . $plainKey);
-    file_put_contents($path, $payload, LOCK_EX);
-    @chmod($path, 0600);
-}
-
-/**
- * 主催者の Stripe 鍵（平文）を返す。未登録/復号不可なら null。決済処理にのみ使用（画面表示はマスク）。
- */
-function get_tenant_stripe_key(array $tenant): ?string
-{
-    $path = tenant_key_path((string) ($tenant['id'] ?? ''));
-    if (!is_file($path)) {
-        return null;
-    }
-    $data = (string) file_get_contents($path);
-    if (str_starts_with($data, 'enc:')) {
-        return app_decrypt(substr($data, 4));
-    }
-    if (str_starts_with($data, 'raw:')) {
-        return substr($data, 4);
-    }
-    return $data !== '' ? $data : null;
-}
-
-/** 主催者が Stripe 鍵を登録済みか。 */
-function tenant_has_stripe_key(array $tenant): bool
-{
-    return is_file(tenant_key_path((string) ($tenant['id'] ?? '')));
-}
-
-function set_tenant_plan(string $tenantId, string $plan): void
-{
-    $stmt = db()->prepare('UPDATE tenants SET plan = ? WHERE id = ?');
-    $stmt->execute([$plan, $tenantId]);
-}
-
-function set_tenant_billing_customer(string $tenantId, string $customerId): void
-{
-    $stmt = db()->prepare('UPDATE tenants SET stripe_customer_id = ? WHERE id = ?');
-    $stmt->execute([$customerId, $tenantId]);
-}
-
-function find_tenant_by_billing_customer(string $customerId): ?array
-{
-    $stmt = db()->prepare('SELECT * FROM tenants WHERE stripe_customer_id = ?');
-    $stmt->execute([$customerId]);
-    $row = $stmt->fetch();
-    return $row ?: null;
 }
 
 /* ------------------------- ログイン ------------------------- */

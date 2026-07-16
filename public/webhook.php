@@ -1,12 +1,10 @@
 <?php
 
 /**
- * Stripe Webhook 受信エンドポイント（任意・推奨）。
+ * Stripe Webhook 受信エンドポイント（Phase 0 時点は土台のみ）。
  *
- * 支払い完了などのイベントを Stripe から受け取り、署名検証のうえ
- * ローカルのログファイル（logs/payments.log）に記録します。
- * ※ カード情報は含まれません。記録するのは「イベント名・金額・メール・Stripeの決済ID」のみ。
- * ※ DB は使いません。正式な参加者名簿は Stripe ダッシュボードが正です。
+ * 署名検証だけ行い 200 を返す。入会金決済（checkout.session.completed / mode=payment）による
+ * 会員化＋ID/PW発行の処理は Phase 2 でここに実装する（`stripe_events` による冪等化つき）。
  *
  * ローカルでの試し方（Stripe CLI）:
  *   stripe listen --forward-to localhost:8000/webhook.php
@@ -37,53 +35,11 @@ try {
     exit;
 }
 
-/**
- * プラン課金（サブスクリプション）のイベントを処理して tenant.plan を同期する。
- * これらはプラットフォーム本体のアカウントのイベント（接続アカウントではない）。
- */
-switch ($event->type) {
-    case 'checkout.session.completed':
-        $session = $event->data->object;
-
-        if (($session->mode ?? '') === 'subscription') {
-            // プラン課金の完了：tenant にプランと課金顧客を反映
-            $tenantId = $session->client_reference_id
-                ?? ($session->metadata->tenant_id ?? '');
-            $plan = $session->metadata->plan ?? '';
-            if ($tenantId !== '' && $plan !== '' && find_tenant_by_id($tenantId) !== null) {
-                set_tenant_plan($tenantId, $plan);
-                if (!empty($session->customer)) {
-                    set_tenant_billing_customer($tenantId, (string) $session->customer);
-                }
-            }
-        }
-        break;
-
-    case 'customer.subscription.updated':
-        // プラン変更（アップグレード/ダウングレード）を価格IDから反映
-        $sub = $event->data->object;
-        $tenant = !empty($sub->customer) ? find_tenant_by_billing_customer((string) $sub->customer) : null;
-        if ($tenant !== null) {
-            $priceId = $sub->items->data[0]->price->id ?? '';
-            $plan = $priceId !== '' ? plan_for_price_id($priceId) : null;
-            // 解約予定/失効ステータスは無料へ
-            if (in_array($sub->status ?? '', ['canceled', 'unpaid', 'incomplete_expired'], true)) {
-                set_tenant_plan($tenant['id'], 'free');
-            } elseif ($plan !== null) {
-                set_tenant_plan($tenant['id'], $plan);
-            }
-        }
-        break;
-
-    case 'customer.subscription.deleted':
-        // 解約：無料プランに戻す
-        $sub = $event->data->object;
-        $tenant = !empty($sub->customer) ? find_tenant_by_billing_customer((string) $sub->customer) : null;
-        if ($tenant !== null) {
-            set_tenant_plan($tenant['id'], 'free');
-        }
-        break;
-}
+// TODO(Phase 2): checkout.session.completed(mode=payment) を受けて
+//   - stripe_events で冪等化
+//   - members を active 化し、発行ID＋仮PW（must_change_pw=1）を発行
+//   - Bot 経由で ID/PW＋OpenChat URL を配布
+// を実装する。現時点では受領して 200 を返すのみ。
 
 http_response_code(200);
 echo 'ok';

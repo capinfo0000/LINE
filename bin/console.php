@@ -5,10 +5,9 @@
  *
  * 使い方:
  *   php bin/console.php init                       … DB を作成（スキーマ初期化）
- *   php bin/console.php create-admin <email> <pw>  … プラットフォーム管理者を作成
+ *   php bin/console.php create-admin <email> <pw>  … 運営管理者を作成
  *   php bin/console.php make-invite <admin-email>  … 招待コードを発行して表示
- *   php bin/console.php list-tenants               … テナント一覧
- *   php bin/console.php set-plan <email> <plan>    … プラン変更（free/p5/p10/unlimited）
+ *   php bin/console.php list-operators             … 運営者アカウント一覧
  */
 
 declare(strict_types=1);
@@ -34,7 +33,7 @@ switch ($cmd) {
             exit("使い方: php bin/console.php create-admin <email> <password>\n");
         }
         try {
-            $id = create_tenant($email, $pw, 'プラットフォーム管理者', true);
+            $id = create_tenant($email, $pw, '運営管理者', true);
             echo "管理者を作成しました: {$email} (id={$id})\n";
         } catch (\Throwable $e) {
             exit('失敗: ' . $e->getMessage() . "\n");
@@ -53,29 +52,13 @@ switch ($cmd) {
         echo "サインアップURL: {$base}/admin/signup.php?invite={$code}\n";
         break;
 
-    case 'set-plan':
-        $email = $argv[2] ?? '';
-        $plan = $argv[3] ?? '';
-        $t = $email !== '' ? find_tenant_by_email($email) : null;
-        if ($t === null) {
-            exit("テナントが見つかりません: {$email}\n");
-        }
-        if (!isset(plan_catalog()[$plan])) {
-            exit('プランは ' . implode(' / ', array_keys(plan_catalog())) . " のいずれかを指定してください。\n");
-        }
-        set_tenant_plan($t['id'], $plan);
-        echo "プランを {$plan}（" . plan_label($plan) . "・上限 " .
-             (plan_max_events($plan) === PHP_INT_MAX ? '無制限' : plan_max_events($plan) . '件') . "）に変更しました。\n";
-        break;
-
-    case 'list-tenants':
-        foreach (db()->query('SELECT id, email, display_name, stripe_account_id, is_admin FROM tenants ORDER BY created_at') as $t) {
-            $connected = $t['stripe_account_id'] ? $t['stripe_account_id'] : '(未連携)';
+    case 'list-operators':
+        foreach (db()->query('SELECT id, email, display_name, is_admin FROM tenants ORDER BY created_at') as $t) {
             $role = $t['is_admin'] ? '[admin]' : '';
-            echo "{$t['id']}  {$t['email']}  {$connected}  {$role}\n";
+            echo "{$t['id']}  {$t['email']}  {$t['display_name']}  {$role}\n";
         }
         break;
 
     default:
-        echo "コマンド: init | create-admin | make-invite | list-tenants\n";
+        echo "コマンド: init | create-admin | make-invite | list-operators\n";
 }

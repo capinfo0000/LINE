@@ -17,14 +17,10 @@ $current = basename($_SERVER['SCRIPT_NAME'] ?? '');
 /** ナビ項目（active 判定用に対象スクリプト名の配列を持つ）。 */
 $navItems = [
     ['dashboard.php', '', 'ダッシュボード', ['dashboard.php']],
-    ['events.php',    '', 'イベント管理',   ['events.php']],
-    ['index.php',     '', '参加者管理',     ['index.php']],
-    ['stripe.php',    '', 'Stripe設定',    ['stripe.php', 'setup.php']],
-    ['policy_edit.php', '', 'キャンセルポリシー', ['policy_edit.php']],
     ['account.php',   '', 'アカウント設定', ['account.php']],
 ];
 if ((int) ($tenant['is_admin'] ?? 0) === 1) {
-    $navItems[] = ['invites.php', '', '招待を発行', ['invites.php']];
+    $navItems[] = ['invites.php', '', '運営者を招待', ['invites.php']];
 }
 ?>
 <!DOCTYPE html>
@@ -32,14 +28,14 @@ if ((int) ($tenant['is_admin'] ?? 0) === 1) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= e($pageTitle !== '' ? $pageTitle . ' - ' : '') ?>イベント事前決済</title>
+    <title><?= e($pageTitle !== '' ? $pageTitle . ' - ' : '') ?>AKマッチング 運営</title>
     <link rel="stylesheet" href="/assets/app.css">
     <script src="/assets/app.js" defer></script>
 </head>
 <body>
 <div class="app">
     <aside class="sidebar">
-        <div class="sidebar__brand">イベント決済</div>
+        <div class="sidebar__brand">AKマッチング</div>
         <nav class="nav">
             <?php foreach ($navItems as [$href, $icon, $label, $match]): ?>
                 <a href="<?= e($href) ?>" class="<?= in_array($current, $match, true) ? 'active' : '' ?>">
@@ -47,7 +43,6 @@ if ((int) ($tenant['is_admin'] ?? 0) === 1) {
                 </a>
             <?php endforeach; ?>
             <div class="nav__sep"></div>
-            <a href="../o.php?t=<?= e(urlencode($tenant['id'])) ?>" target="_blank">公開ページを見る</a>
             <a href="logout.php">ログアウト</a>
         </nav>
         <div class="sidebar__foot"><?= e($tenant['display_name'] ?? '') ?><br><?= e($tenant['email'] ?? '') ?></div>
