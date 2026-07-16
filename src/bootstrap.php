@@ -18,6 +18,7 @@ require APP_ROOT . '/vendor/autoload.php';
 // データ層・認証・メール・CAPTCHA・暗号のヘルパー。関数定義のみで、呼び出し時に env() を使う。
 require __DIR__ . '/db.php';
 require __DIR__ . '/tenant.php';
+require __DIR__ . '/member.php';
 require __DIR__ . '/mail.php';
 require __DIR__ . '/captcha.php';
 require __DIR__ . '/crypto.php';

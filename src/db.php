@@ -123,6 +123,39 @@ function db_migrate(\PDO $pdo): void
         );
     SQL);
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_rate_events ON rate_events(action, identifier, created_at);');
+
+    // ------- 会員ドメイン（Phase 1: 認証。プロフィール/マッチング等は後続で追加） -------
+
+    // 会員アカウント。login_id（発行ID）＋ password_hash で会員サイトにログインする。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS members (
+            id                 TEXT PRIMARY KEY,
+            login_id           TEXT NOT NULL UNIQUE,          -- 発行ログインID（例 ak8f3k9q2m）
+            password_hash      TEXT NOT NULL,
+            must_change_pw     INTEGER NOT NULL DEFAULT 1,    -- 初回ログイン時にPW強制変更
+            display_name       TEXT NOT NULL DEFAULT '',
+            email              TEXT,                          -- PW再発行・連絡用（面談〜決済で取得）
+            line_user_id       TEXT,                          -- 公式LINE Bot 紐付け（Phase 3）
+            status             TEXT NOT NULL DEFAULT 'active',-- lead/pending_payment/active/suspended/cancelled
+            approval_state     TEXT NOT NULL DEFAULT 'none',  -- none/approved（加入承認・Phase 3）
+            stripe_customer_id TEXT,                          -- 入会金決済の顧客（Phase 2）
+            joined_at          INTEGER,                       -- 会員化（入金）日時
+            created_at         INTEGER NOT NULL
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_members_email ON members(email);');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_members_line ON members(line_user_id);');
+
+    // 会員のパスワード再設定トークン（運営者用 password_resets とは分離）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS member_password_resets (
+            token      TEXT PRIMARY KEY,
+            member_id  TEXT NOT NULL,
+            expires_at INTEGER NOT NULL,
+            used       INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL
+        );
+    SQL);
 }
 
 /**

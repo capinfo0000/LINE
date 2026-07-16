@@ -59,6 +59,24 @@ switch ($cmd) {
         }
         break;
 
+    case 'make-member':
+        // 会員を作成し発行ID＋仮PWを表示する（Phase 2の入金Webhookが行う処理の手動版）。
+        $email = $argv[2] ?? '';
+        $name = $argv[3] ?? '';
+        $cred = issue_member_credentials($email !== '' ? $email : null, $name !== '' ? $name : null, 'active');
+        echo "会員を作成しました（active・初回PW強制変更）:\n";
+        echo "  member_id : {$cred['member_id']}\n";
+        echo "  ログインID : {$cred['login_id']}\n";
+        echo "  仮パスワード: {$cred['temp_password']}\n";
+        break;
+
+    case 'list-members':
+        foreach (db()->query('SELECT id, login_id, display_name, status, must_change_pw FROM members ORDER BY created_at') as $m) {
+            $mc = $m['must_change_pw'] ? '(要PW変更)' : '';
+            echo "{$m['id']}  {$m['login_id']}  {$m['status']}  {$m['display_name']}  {$mc}\n";
+        }
+        break;
+
     default:
-        echo "コマンド: init | create-admin | make-invite | list-operators\n";
+        echo "コマンド: init | create-admin | make-invite | list-operators | make-member | list-members\n";
 }

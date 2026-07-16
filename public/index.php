@@ -28,7 +28,7 @@ require dirname(__DIR__) . '/src/bootstrap.php';
     <div class="card">
         <div class="card__title">会員の方へ</div>
         <p>入会手続き完了後にお渡しした<strong>ログインID・パスワード</strong>で会員サイトにログインしてください。</p>
-        <p class="muted">会員サイト（ログイン・プロフィール・ディレクトリ・おすすめ）は準備中です。</p>
+        <p><a class="btn" href="/member/login.php">会員ログイン</a></p>
     </div>
 
     <div class="card">
