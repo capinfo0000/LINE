@@ -21,6 +21,7 @@ require __DIR__ . '/tenant.php';
 require __DIR__ . '/member.php';
 require __DIR__ . '/profile.php';
 require __DIR__ . '/directory.php';
+require __DIR__ . '/match.php';
 require __DIR__ . '/payment.php';
 require __DIR__ . '/zoom.php';
 require __DIR__ . '/booking.php';

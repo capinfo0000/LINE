@@ -337,6 +337,21 @@ function db_migrate(\PDO $pdo): void
         );
     SQL);
 
+    // 双方向マッチのおすすめ結果（Phase 6・週次バッチで再構築）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS recommendations (
+            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+            batch_id              TEXT NOT NULL,
+            member_id             TEXT NOT NULL,
+            recommended_member_id TEXT NOT NULL,
+            score                 INTEGER NOT NULL DEFAULT 0,
+            reason_json           TEXT NOT NULL DEFAULT '[]',
+            created_at            INTEGER NOT NULL,
+            UNIQUE (member_id, recommended_member_id, batch_id)
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_reco_member ON recommendations(member_id, score);');
+
     // タグマスタの初期投入（未投入時のみ）。
     seed_tag_master($pdo);
 }

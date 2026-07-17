@@ -28,6 +28,7 @@ require __DIR__ . '/_header.php';
     <p>あなたの情報・タグ・求める条件・LINE追加URLを登録すると、条件に合う相手とつながりやすくなります。</p>
     <p>
         <a class="btn" href="/member/profile.php">プロフィールを編集</a>
+        <a class="btn btn--ghost" href="/member/recommend.php">あなたへのおすすめ</a>
         <a class="btn btn--ghost" href="/member/directory.php">会員ディレクトリ</a>
     </p>
     <p class="muted">ログインID：<code><?= e($member['login_id']) ?></code></p>
