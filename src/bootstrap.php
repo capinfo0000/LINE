@@ -26,6 +26,7 @@ require __DIR__ . '/payment.php';
 require __DIR__ . '/zoom.php';
 require __DIR__ . '/booking.php';
 require __DIR__ . '/line.php';
+require __DIR__ . '/admin.php';
 require __DIR__ . '/mail.php';
 require __DIR__ . '/captcha.php';
 require __DIR__ . '/crypto.php';

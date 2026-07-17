@@ -17,6 +17,12 @@ $current = basename($_SERVER['SCRIPT_NAME'] ?? '');
 /** ナビ項目（active 判定用に対象スクリプト名の配列を持つ）。 */
 $navItems = [
     ['dashboard.php', '', 'ダッシュボード', ['dashboard.php']],
+    ['members.php',   '', '会員管理',       ['members.php', 'member_detail.php']],
+    ['photos.php',    '', '写真承認',       ['photos.php']],
+    ['slots.php',     '', '予約枠',         ['slots.php']],
+    ['broadcast.php', '', '一斉配信',       ['broadcast.php']],
+    ['openchat.php',  '', 'オープンチャット', ['openchat.php']],
+    ['tags.php',      '', 'タグ管理',       ['tags.php']],
     ['account.php',   '', 'アカウント設定', ['account.php']],
 ];
 if ((int) ($tenant['is_admin'] ?? 0) === 1) {
