@@ -16,7 +16,7 @@ declare(strict_types=1);
 function send_mail(string $to, string $subject, string $body): bool
 {
     $fromAddr = env('MAIL_FROM', 'no-reply@' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
-    $fromName = env('MAIL_FROM_NAME', 'AKマッチング');
+    $fromName = env('MAIL_FROM_NAME', 'Enlink');
 
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
     $encodedFromName = '=?UTF-8?B?' . base64_encode($fromName) . '?=';

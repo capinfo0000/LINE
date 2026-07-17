@@ -215,7 +215,7 @@ function deliver_member_credentials(array $member, string $loginId, string $temp
             . "仮パスワード: {$tempPassword}\n\n"
             . "はじめてのログイン時に、ご自身のパスワードへの変更をお願いします。\n"
             . "このメールは大切に保管し、第三者に共有しないでください。\n";
-        $delivered = send_mail($email, '【AKマッチング】会員サイトのログイン情報', $body) || $delivered;
+        $delivered = send_mail($email, '【Enlink】会員サイトのログイン情報', $body) || $delivered;
     }
 
     audit_log('credentials.delivered', [

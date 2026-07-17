@@ -130,7 +130,7 @@ function db_migrate(\PDO $pdo): void
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS members (
             id                 TEXT PRIMARY KEY,
-            login_id           TEXT NOT NULL UNIQUE,          -- 発行ログインID（例 ak8f3k9q2m）
+            login_id           TEXT NOT NULL UNIQUE,          -- 発行ログインID（例 el8f3k9q2m）
             password_hash      TEXT NOT NULL,
             must_change_pw     INTEGER NOT NULL DEFAULT 1,    -- 初回ログイン時にPW強制変更
             display_name       TEXT NOT NULL DEFAULT '',

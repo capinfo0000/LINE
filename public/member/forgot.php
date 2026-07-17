@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 . "以下のリンクから1時間以内に新しいパスワードを設定してください。\n"
                 . $link . "\n\n"
                 . "心当たりがない場合は、このメールは破棄してください。\n";
-            send_mail($email, '【AKマッチング】パスワード再設定のご案内', $body);
+            send_mail($email, '【Enlink】パスワード再設定のご案内', $body);
         }
     }
     $done = true; // 有無・制限に関わらず同じ応答

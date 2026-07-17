@@ -7,7 +7,7 @@
  * Push は課金対象。送信済みは claim_reminder で冪等化する。多重起動ロックあり。
  *
  * cron 例（php85cli・5分おき）:
- *   （分の欄に5分間隔を指定）  php85cli /home/<acct>/akmatching/bin/remind.php >> /home/<acct>/private/remind.log 2>&1
+ *   （分の欄に5分間隔を指定）  php85cli /home/<acct>/enlink/bin/remind.php >> /home/<acct>/private/remind.log 2>&1
  */
 
 declare(strict_types=1);

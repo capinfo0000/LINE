@@ -5,7 +5,7 @@
  * 会員サイトの表示はライブ計算だが、集計・分析用に永続化する。多重起動ロックあり。
  *
  * cron 例（php85cli・週次）:
- *   （毎週1回）  php85cli /home/<acct>/akmatching/bin/recommend.php >> /home/<acct>/private/recommend.log 2>&1
+ *   （毎週1回）  php85cli /home/<acct>/enlink/bin/recommend.php >> /home/<acct>/private/recommend.log 2>&1
  */
 
 declare(strict_types=1);

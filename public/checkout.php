@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'price_data' => [
                         'currency' => join_fee_currency(),
                         'unit_amount' => $amount,
-                        'product_data' => ['name' => 'AKマッチング 入会金'],
+                        'product_data' => ['name' => 'Enlink 入会金'],
                     ],
                 ]],
                 'metadata' => $metadata,
@@ -71,12 +71,12 @@ $token = csrf_token();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入会金のお支払い - AKマッチング</title>
+    <title>入会金のお支払い - Enlink</title>
     <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
 <div class="container container--narrow">
-    <div class="brandbar">AKマッチング</div>
+    <div class="brandbar">Enlink</div>
     <h1>入会金のお支払い</h1>
     <?php if ($error !== ''): ?><p class="err"><?= e($error) ?></p><?php endif; ?>
     <div class="card">

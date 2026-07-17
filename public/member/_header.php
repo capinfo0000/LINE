@@ -15,10 +15,10 @@ $wide = $wide ?? false;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= e($pageTitle !== '' ? $pageTitle . ' - ' : '') ?>AKマッチング 会員サイト</title>
+    <title><?= e($pageTitle !== '' ? $pageTitle . ' - ' : '') ?>Enlink 会員サイト</title>
     <link rel="stylesheet" href="/assets/app.css">
     <script src="/assets/app.js" defer></script>
 </head>
 <body>
 <div class="container<?= $wide ? '' : ' container--narrow' ?>">
-    <div class="brandbar">AKマッチング<?php if ($showLogout): ?><a href="/member/logout.php" style="float:right;font-size:.8rem;">ログアウト</a><?php endif; ?></div>
+    <div class="brandbar">Enlink<?php if ($showLogout): ?><a href="/member/logout.php" style="float:right;font-size:.8rem;">ログアウト</a><?php endif; ?></div>

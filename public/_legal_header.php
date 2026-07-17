@@ -22,6 +22,6 @@ $title = $title ?? '';
 </head>
 <body>
 <div class="container legal">
-    <div class="brandbar">AKマッチング</div>
+    <div class="brandbar">Enlink</div>
     <div class="card">
         <h1><?= e($title) ?></h1>

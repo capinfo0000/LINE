@@ -13,12 +13,12 @@ require dirname(__DIR__) . '/src/bootstrap.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>お支払いの中断 - AKマッチング</title>
+    <title>お支払いの中断 - Enlink</title>
     <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
 <div class="container container--narrow">
-    <div class="brandbar">AKマッチング</div>
+    <div class="brandbar">Enlink</div>
     <h1>お支払いは完了していません</h1>
     <div class="card">
         <p>お支払いがキャンセルされました。もう一度お手続きいただけます。</p>

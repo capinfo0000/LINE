@@ -1,4 +1,4 @@
-# AKマッチング — 確定実装プラン（既存「event」基盤を継承）
+# Enlink — 確定実装プラン（既存「event」基盤を継承）
 
 > 本ドキュメントは合意済みの確定仕様。実装はこのプランに従う。
 > ベース＝ユーザー提供の既存アプリ `event`（PHP+SQLite+Stripe・ペネトレ済み）を**基盤として継承**し、
@@ -108,7 +108,7 @@
 ## 7. デプロイ配置
 
 ```
-~/akmatching/            ← git clone 先（Web非公開）
+~/enlink/            ← git clone 先（Web非公開）
 ├── public/              ← ★docroot をここへ symlink
 │   ├── index.php        （会員サイト入口・ID/PWログイン）
 │   ├── member/          （会員エリア：プロフィール編集・ディレクトリ・検索・おすすめ）新規

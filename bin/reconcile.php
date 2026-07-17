@@ -7,7 +7,7 @@
  * まだ payments に記録の無いものを provision する。処理は冪等（claim-first）なので Webhook と競合しても安全。
  *
  * cron 例（php85cli・10分おき）:
- *   （分の欄に「10分間隔」を指定）  php85cli /home/<acct>/akmatching/bin/reconcile.php >> /home/<acct>/private/reconcile.log 2>&1
+ *   （分の欄に「10分間隔」を指定）  php85cli /home/<acct>/enlink/bin/reconcile.php >> /home/<acct>/private/reconcile.log 2>&1
  */
 
 declare(strict_types=1);

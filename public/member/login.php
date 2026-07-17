@@ -55,7 +55,7 @@ require __DIR__ . '/_header.php';
 <form method="post" class="card">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
     <label>ログインID</label>
-    <input type="text" name="login_id" required autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="例: ak8f3k9q2m">
+    <input type="text" name="login_id" required autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="例: el8f3k9q2m">
     <label>パスワード</label>
     <input type="password" name="password" required autocomplete="current-password">
     <?= captcha_widget_html() ?>

@@ -15,13 +15,13 @@ require dirname(__DIR__) . '/src/bootstrap.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AKマッチング</title>
+    <title>Enlink</title>
     <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
 <div class="container">
-    <div class="brandbar">AKマッチング</div>
-    <h1>AKマッチング</h1>
+    <div class="brandbar">Enlink</div>
+    <h1>Enlink</h1>
     <p class="muted">会員制の人脈マッチングサービスです。会員は専用サイトでプロフィールを登録し、
        条件に合う相手を検索・おすすめから見つけてつながれます。</p>
 

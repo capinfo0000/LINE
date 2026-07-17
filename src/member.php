@@ -34,11 +34,11 @@ function random_safe_string(int $len, string $alphabet = 'abcdefghjkmnpqrstuvwxy
     return $out;
 }
 
-/** 重複しない発行ログインID（例 ak8f3k9q2m）を生成する。 */
+/** 重複しない発行ログインID（例 el8f3k9q2m）を生成する。 */
 function generate_member_login_id(): string
 {
     do {
-        $id = 'ak' . random_safe_string(8);
+        $id = 'el' . random_safe_string(8);
     } while (find_member_by_login_id($id) !== null);
     return $id;
 }

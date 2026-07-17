@@ -79,7 +79,7 @@ function book_slot(string $slotId, string $kind, ?string $lineUserId, ?string $m
     $zoomUrl = $slot['zoom_url'] ?? null;
     if (($zoomUrl === null || $zoomUrl === '') && zoom_enabled()) {
         $duration = $kind === 'seminar' ? 40 : 30;
-        $topic = $kind === 'seminar' ? 'AKマッチング 説明会' : 'AKマッチング 個別面談';
+        $topic = $kind === 'seminar' ? 'Enlink 説明会' : 'Enlink 個別面談';
         $meeting = zoom_create_meeting($topic, (int) $slot['start_at'], $duration);
         if ($meeting !== null) {
             $zoomUrl = $meeting['join_url'];

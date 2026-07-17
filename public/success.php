@@ -14,12 +14,12 @@ require dirname(__DIR__) . '/src/bootstrap.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>お支払い完了 - AKマッチング</title>
+    <title>お支払い完了 - Enlink</title>
     <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
 <div class="container container--narrow">
-    <div class="brandbar">AKマッチング</div>
+    <div class="brandbar">Enlink</div>
     <h1>お支払いありがとうございます</h1>
     <div class="card">
         <p>ご入会手続きが完了しました。</p>

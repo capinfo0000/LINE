@@ -288,7 +288,7 @@ function line_handle_event(array $event): array
         get_or_create_line_contact($userId);
         set_line_contact_state($userId, 'added');
         return [
-            line_text('友だち追加ありがとうございます！AKマッチングです。\nまずは説明会（Zoom・約30分）にご参加ください。'),
+            line_text('友だち追加ありがとうございます！Enlinkです。\nまずは説明会（Zoom・約30分）にご参加ください。'),
             line_slots_message('seminar', 'ご希望の説明会の日程をお選びください。'),
         ];
     }
