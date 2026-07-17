@@ -26,8 +26,10 @@ require __DIR__ . '/_header.php';
 <div class="card">
     <div class="card__title">プロフィール</div>
     <p>あなたの情報・タグ・求める条件・LINE追加URLを登録すると、条件に合う相手とつながりやすくなります。</p>
-    <p><a class="btn" href="/member/profile.php">プロフィールを編集</a></p>
-    <p class="muted">会員ディレクトリの検索・双方向マッチのおすすめは順次ご利用いただけます（準備中）。</p>
+    <p>
+        <a class="btn" href="/member/profile.php">プロフィールを編集</a>
+        <a class="btn btn--ghost" href="/member/directory.php">会員ディレクトリ</a>
+    </p>
     <p class="muted">ログインID：<code><?= e($member['login_id']) ?></code></p>
 </div>
 
