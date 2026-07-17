@@ -39,7 +39,20 @@ git checkout claude/awaiting-plan-c7ctr8   # ← 本番反映するブランチ�
 composer install --no-dev -o        # 無ければ php composer.phar install --no-dev -o
 ```
 
-## 4. .env を作成
+## 4. 設定（.env 作成）
+
+### 方法A：ブラウザで設定（かんたん・推奨）
+
+手順6（docroot を public/ に向ける）まで先に済ませてから、ブラウザで
+`https://xxxx.coreserver.jp/install.php` を開き、フォームに入力するだけで
+**`.env` 生成・DB初期化・運営管理者作成**まで自動で行われます。完了すると
+`install.php` は自動削除されます（再取得しても「設定済み」で拒否）。
+
+- 未入力でも進められます（Stripe/LINE/Zoom は後から `.env` 編集で設定可）。
+- プロジェクト直下に書き込み権限が必要です（通常の suEXEC 環境なら自分の権限で書き込み可）。
+- これを使う場合、下の手順5は不要です（ウィザードが実行します）。
+
+### 方法B：手動で作成
 
 ```bash
 cp .env.example .env
