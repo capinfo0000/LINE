@@ -263,6 +263,133 @@ function db_migrate(\PDO $pdo): void
         );
     SQL);
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_line_messages_created ON line_messages(created_at);');
+
+    // ------- プロフィール・タグ・希望条件（Phase 4） -------
+
+    // プロフィール（自由記述・顔写真・表示制御）。member_id を主キーに 1:1。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS profiles (
+            member_id        TEXT PRIMARY KEY,
+            name_text        TEXT NOT NULL DEFAULT '',   -- 表示名（自由記述）
+            age_text         TEXT NOT NULL DEFAULT '',   -- 年齢（自由記述）
+            company_title    TEXT NOT NULL DEFAULT '',   -- 会社名／屋号・肩書き
+            headline         TEXT NOT NULL DEFAULT '',   -- ひとことPR
+            bio              TEXT NOT NULL DEFAULT '',   -- 自己紹介
+            photo_path       TEXT,                       -- 公開領域外の相対保存パス
+            photo_status     TEXT NOT NULL DEFAULT 'none',-- none/pending/approved/rejected
+            visibility_flags TEXT NOT NULL DEFAULT '{}', -- JSON（ディレクトリ掲載/リンク表示など）
+            updated_at       INTEGER,
+            FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+        );
+    SQL);
+
+    // リンク（LINE追加URL＋任意リンク）。1会員に複数。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS member_links (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            member_id  TEXT NOT NULL,
+            kind       TEXT NOT NULL DEFAULT 'other', -- line_add / other
+            label      TEXT NOT NULL DEFAULT '',
+            url        TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_member_links_member ON member_links(member_id);');
+
+    // タグのカテゴリとタグ（運営がマスタを追加可能）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS tag_categories (
+            key   TEXT PRIMARY KEY,   -- area / job / purpose / offer
+            label TEXT NOT NULL,
+            sort  INTEGER NOT NULL DEFAULT 0
+        );
+    SQL);
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS tags (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            category_key TEXT NOT NULL,
+            label        TEXT NOT NULL,
+            sort         INTEGER NOT NULL DEFAULT 0,
+            is_active    INTEGER NOT NULL DEFAULT 1,
+            UNIQUE (category_key, label)
+        );
+    SQL);
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS member_tags (
+            member_id TEXT NOT NULL,
+            tag_id    INTEGER NOT NULL,
+            PRIMARY KEY (member_id, tag_id),
+            FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_member_tags_tag ON member_tags(tag_id);');
+
+    // 求める条件（相手に求める。未指定＝問わない）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS match_preferences (
+            member_id    TEXT PRIMARY KEY,
+            seek_area    TEXT NOT NULL DEFAULT '[]',   -- JSON: tag_id 配列（area）
+            seek_job     TEXT NOT NULL DEFAULT '[]',   -- JSON: tag_id 配列（job）
+            seek_purpose TEXT NOT NULL DEFAULT '[]',   -- JSON: tag_id 配列（purpose）
+            updated_at   INTEGER,
+            FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+        );
+    SQL);
+
+    // タグマスタの初期投入（未投入時のみ）。
+    seed_tag_master($pdo);
+}
+
+/**
+ * タグのカテゴリ・初期タグを投入する（冪等・未投入時のみ）。運営はコンソール/管理画面で追加可能。
+ */
+function seed_tag_master(\PDO $pdo): void
+{
+    $count = (int) $pdo->query('SELECT COUNT(*) FROM tag_categories')->fetchColumn();
+    if ($count > 0) {
+        return;
+    }
+
+    $cats = [
+        ['area', '場所', 1],
+        ['job', '仕事ジャンル', 2],
+        ['purpose', '目的（求めること）', 3],
+        ['offer', '提供できること', 4],
+    ];
+    $insCat = $pdo->prepare('INSERT OR IGNORE INTO tag_categories (key, label, sort) VALUES (?,?,?)');
+    foreach ($cats as $c) {
+        $insCat->execute($c);
+    }
+
+    $prefectures = [
+        '北海道', '青森', '岩手', '宮城', '秋田', '山形', '福島',
+        '茨城', '栃木', '群馬', '埼玉', '千葉', '東京', '神奈川',
+        '新潟', '富山', '石川', '福井', '山梨', '長野', '岐阜', '静岡', '愛知',
+        '三重', '滋賀', '京都', '大阪', '兵庫', '奈良', '和歌山',
+        '鳥取', '島根', '岡山', '広島', '山口',
+        '徳島', '香川', '愛媛', '高知',
+        '福岡', '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島', '沖縄',
+    ];
+    $jobs = ['IT・Web', '製造', '建設', '飲食', '小売', '医療・福祉', '士業', '金融', '不動産', '教育', 'クリエイティブ', '広告・マーケ', 'コンサル', 'その他'];
+    // purpose と offer は同じ価値ボキャブラリを共有（求めること↔提供できること の重なりでマッチ）
+    $values = ['協業', '顧客紹介', '販路開拓', '仕入・調達', '資金・出資', '採用・人材', '技術・開発', 'ノウハウ提供', '情報交換', '仲間づくり'];
+
+    $insTag = $pdo->prepare('INSERT OR IGNORE INTO tags (category_key, label, sort) VALUES (?,?,?)');
+    $sort = 0;
+    foreach ($prefectures as $p) {
+        $insTag->execute(['area', $p, $sort++]);
+    }
+    $sort = 0;
+    foreach ($jobs as $j) {
+        $insTag->execute(['job', $j, $sort++]);
+    }
+    $sort = 0;
+    foreach ($values as $v) {
+        $insTag->execute(['purpose', $v, $sort]);
+        $insTag->execute(['offer', $v, $sort]);
+        $sort++;
+    }
 }
 
 /**

@@ -24,9 +24,10 @@ require __DIR__ . '/_header.php';
 <h1>ようこそ<?= $member['display_name'] !== '' ? '、' . e($member['display_name']) . ' さん' : '' ?></h1>
 
 <div class="card">
-    <div class="card__title">会員サイト</div>
-    <p>ご登録ありがとうございます。プロフィール編集・会員ディレクトリの検索・条件に合う相手のおすすめ表示は、
-       順次ご利用いただけるようになります（準備中）。</p>
+    <div class="card__title">プロフィール</div>
+    <p>あなたの情報・タグ・求める条件・LINE追加URLを登録すると、条件に合う相手とつながりやすくなります。</p>
+    <p><a class="btn" href="/member/profile.php">プロフィールを編集</a></p>
+    <p class="muted">会員ディレクトリの検索・双方向マッチのおすすめは順次ご利用いただけます（準備中）。</p>
     <p class="muted">ログインID：<code><?= e($member['login_id']) ?></code></p>
 </div>
 
