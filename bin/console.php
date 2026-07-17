@@ -77,6 +77,62 @@ switch ($cmd) {
         }
         break;
 
+    case 'create-slot':
+        // create-slot <seminar|interview> "YYYY-MM-DD HH:MM" [capacity]  ※時刻はJST
+        $kind = $argv[2] ?? '';
+        $when = $argv[3] ?? '';
+        $cap = (int) ($argv[4] ?? 1);
+        if (!in_array($kind, ['seminar', 'interview'], true) || $when === '') {
+            exit("使い方: php bin/console.php create-slot <seminar|interview> \"YYYY-MM-DD HH:MM\" [capacity]\n");
+        }
+        try {
+            $ts = (new DateTime($when, new DateTimeZone('Asia/Tokyo')))->getTimestamp();
+        } catch (\Throwable $e) {
+            exit("日時の形式が不正です（例: \"2026-08-01 19:00\"）。\n");
+        }
+        $id = create_slot($kind, $ts, $cap > 0 ? $cap : 1);
+        echo "枠を作成しました: {$id}  {$kind}  " . date('c', $ts) . "  capacity=" . ($cap > 0 ? $cap : 1) . "\n";
+        break;
+
+    case 'list-slots':
+        foreach (db()->query('SELECT id, kind, start_at, capacity, booked_count, is_open FROM slots ORDER BY start_at') as $s) {
+            echo "{$s['id']}  {$s['kind']}  " . date('c', (int) $s['start_at']) .
+                 "  {$s['booked_count']}/{$s['capacity']}  " . ($s['is_open'] ? 'open' : 'closed') . "\n";
+        }
+        break;
+
+    case 'add-openchat':
+        // add-openchat <invite_url> [name]
+        $url = $argv[2] ?? '';
+        $name = $argv[3] ?? 'オープンチャット';
+        if ($url === '') {
+            exit("使い方: php bin/console.php add-openchat <invite_url> [name]\n");
+        }
+        $gid = 'grp_' . bin2hex(random_bytes(5));
+        $stmt = db()->prepare("INSERT INTO groups (id, name, kind, invite_url, is_active, created_at) VALUES (?,?,'openchat',?,1,?)");
+        $stmt->execute([$gid, $name, $url, time()]);
+        echo "オープンチャットURLを登録しました: {$gid}\n";
+        break;
+
+    case 'approve-contact':
+        // approve-contact <line_user_id>  → 承認して決済リンクを Push
+        $lu = $argv[2] ?? '';
+        if ($lu === '' || find_line_contact($lu) === null) {
+            exit("line_contact が見つかりません: {$lu}\n");
+        }
+        set_line_contact_approved($lu, true);
+        $ok = send_payment_link_to_contact($lu);
+        echo $ok ? "承認し、決済リンクを送信しました。\n" : "承認しました（Push未設定のため送信はスキップ／要 LINE_CHANNEL_ACCESS_TOKEN）。\n";
+        break;
+
+    case 'list-contacts':
+        foreach (db()->query('SELECT line_user_id, onboarding_state, approved, email, member_id FROM line_contacts ORDER BY created_at') as $c) {
+            $ap = $c['approved'] ? '[approved]' : '';
+            echo "{$c['line_user_id']}  {$c['onboarding_state']}  {$ap}  " . ($c['email'] ?? '-') . "  " . ($c['member_id'] ?? '-') . "\n";
+        }
+        break;
+
     default:
-        echo "コマンド: init | create-admin | make-invite | list-operators | make-member | list-members\n";
+        echo "コマンド: init | create-admin | make-invite | list-operators | make-member | list-members\n"
+           . "        create-slot | list-slots | add-openchat | approve-contact | list-contacts\n";
 }

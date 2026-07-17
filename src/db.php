@@ -185,6 +185,84 @@ function db_migrate(\PDO $pdo): void
             processed_at INTEGER NOT NULL
         );
     SQL);
+
+    // ------- 公式LINE Bot オンボーディング・予約（Phase 3） -------
+
+    // Bot と友だちになった相手のファネル状態。会員化後は member_id が紐付く。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS line_contacts (
+            line_user_id    TEXT PRIMARY KEY,
+            member_id       TEXT,
+            display_name    TEXT,
+            onboarding_state TEXT NOT NULL DEFAULT 'added',
+              -- added/booked_seminar/seminar_done/booked_interview/interview_done/approved/payment_sent/paid
+            approved         INTEGER NOT NULL DEFAULT 0,  -- 運営の加入承認（決済リンク送信の任意ゲート）
+            email            TEXT,                        -- 面談〜決済で取得
+            credentials_sent INTEGER NOT NULL DEFAULT 0,  -- ID/PW配布の冪等ガード
+            created_at       INTEGER NOT NULL,
+            updated_at       INTEGER NOT NULL
+        );
+    SQL);
+
+    // 予約枠（説明会 / 個別面談）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS slots (
+            id              TEXT PRIMARY KEY,
+            kind            TEXT NOT NULL,               -- seminar / interview
+            start_at        INTEGER NOT NULL,
+            capacity        INTEGER NOT NULL DEFAULT 1,
+            booked_count    INTEGER NOT NULL DEFAULT 0,
+            zoom_meeting_id TEXT,
+            zoom_url        TEXT,
+            is_open         INTEGER NOT NULL DEFAULT 1,
+            created_at      INTEGER NOT NULL
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_slots_kind_open ON slots(kind, is_open, start_at);');
+
+    // 予約。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS bookings (
+            id           TEXT PRIMARY KEY,
+            kind         TEXT NOT NULL,                  -- seminar / interview
+            line_user_id TEXT,
+            member_id    TEXT,
+            slot_id      TEXT NOT NULL,
+            status       TEXT NOT NULL DEFAULT 'booked', -- booked/done/cancelled/noshow
+            zoom_url     TEXT,
+            remind_sent  INTEGER NOT NULL DEFAULT 0,
+            created_at   INTEGER NOT NULL,
+            FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE CASCADE
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_bookings_slot ON bookings(slot_id);');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_bookings_line ON bookings(line_user_id);');
+
+    // 交流グループ（オープンチャット）。招待URLは運営が手動登録し、Botが入金後に配信する。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS groups (
+            id         TEXT PRIMARY KEY,
+            name       TEXT NOT NULL DEFAULT '',
+            kind       TEXT NOT NULL DEFAULT 'openchat',
+            invite_url TEXT,
+            is_active  INTEGER NOT NULL DEFAULT 1,
+            created_at INTEGER NOT NULL
+        );
+    SQL);
+
+    // LINE 送受信の記録（通数コストの把握。push は課金、reply は無料）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS line_messages (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            line_user_id TEXT,
+            direction    TEXT NOT NULL,      -- in / out
+            channel      TEXT,               -- reply / push
+            type         TEXT,
+            billable     INTEGER NOT NULL DEFAULT 0,
+            created_at   INTEGER NOT NULL
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_line_messages_created ON line_messages(created_at);');
 }
 
 /**

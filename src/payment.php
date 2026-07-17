@@ -138,6 +138,12 @@ function provision_member_from_checkout_session(array $s): array
         $sc->execute([$customerId, $member['id']]);
     }
 
+    // LINE 経由で来た相手なら、ファネルを paid にして会員IDを紐付ける（Bot配布の下準備）。
+    if ($lineUserId !== '' && find_line_contact($lineUserId) !== null) {
+        link_line_contact_member($lineUserId, (string) $member['id']);
+        set_line_contact_state($lineUserId, 'paid');
+    }
+
     audit_log('payment.provisioned', [
         'session' => substr($sessionId, 0, 24),
         'member'  => $member['id'] ?? '-',
@@ -180,8 +186,28 @@ function deliver_member_credentials(array $member, string $loginId, string $temp
 {
     $delivered = false;
     $email = (string) ($member['email'] ?? '');
+    $lineUserId = (string) ($member['line_user_id'] ?? '');
     $loginUrl = base_url() . '/member/login.php';
+    $openChatUrl = active_openchat_url();
+    $viaLine = false;
 
+    // 公式LINE Bot（Push）で ID/PW＋OpenChat URL を1通にまとめて配信（通数節約）。
+    // 二重配布は line_contacts.credentials_sent の claim で防ぐ。
+    if ($lineUserId !== '' && find_line_contact($lineUserId) !== null && claim_credentials_send($lineUserId)) {
+        $text = "ご入会ありがとうございます。会員サイトのログイン情報をお送りします。\n\n"
+            . "ログインURL: {$loginUrl}\n"
+            . "ログインID: {$loginId}\n"
+            . "仮パスワード: {$tempPassword}\n\n"
+            . "初回ログイン時に、ご自身のパスワードへ変更してください。";
+        if ($openChatUrl !== null) {
+            $text .= "\n\n■ 交流用オープンチャットはこちら\n{$openChatUrl}";
+        }
+        $text .= "\n\n※この情報は第三者に共有しないでください。";
+        $viaLine = line_push($lineUserId, [line_text($text)]);
+        $delivered = $viaLine || $delivered;
+    }
+
+    // メールが分かれば併せて送付（LINE配布に失敗した場合の保険にもなる）。
     if ($email !== '') {
         $body = "ご入会ありがとうございます。会員サイトのログイン情報をお送りします。\n\n"
             . "ログインURL: {$loginUrl}\n"
@@ -192,10 +218,11 @@ function deliver_member_credentials(array $member, string $loginId, string $temp
         $delivered = send_mail($email, '【AKマッチング】会員サイトのログイン情報', $body) || $delivered;
     }
 
-    // TODO(Phase 3): $member['line_user_id'] があれば公式LINE Bot の Push で
-    //   ログインID＋仮パスワード＋OpenChat URL を1通にまとめて配信する（配布の冪等ガード付き）。
-
-    audit_log('credentials.delivered', ['member' => $member['id'] ?? '-', 'via_email' => $email !== '' ? 1 : 0]);
+    audit_log('credentials.delivered', [
+        'member' => $member['id'] ?? '-',
+        'via_email' => $email !== '' ? 1 : 0,
+        'via_line' => $viaLine ? 1 : 0,
+    ]);
     return $delivered;
 }
 
