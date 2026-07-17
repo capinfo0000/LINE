@@ -47,7 +47,7 @@ if (current_tenant() !== null) {
 $token = csrf_token();
 require __DIR__ . '/_auth_header.php';
 ?>
-<h1>主催者アカウント登録</h1>
+<h1>運営アカウント登録</h1>
 <?php if (!$signupOpen): ?>
     <div class="card"><p style="margin:0;">現在、新規登録の受付を停止しています。アカウントについては運営者へお問い合わせください。</p></div>
     <p class="muted">すでにアカウントをお持ちですか？ <a href="login.php">ログイン</a></p>
@@ -56,8 +56,8 @@ require __DIR__ . '/_auth_header.php';
 <?php if ($error !== ''): ?><p class="err"><?= e($error) ?></p><?php endif; ?>
 <form method="post" class="card">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
-    <label>表示名（団体・主催者名）</label>
-    <input type="text" name="display_name" maxlength="100" placeholder="〇〇イベント事務局">
+    <label>表示名（運営者名）</label>
+    <input type="text" name="display_name" maxlength="100" placeholder="運営 太郎">
     <label>メールアドレス</label>
     <input type="email" name="email" required autocomplete="email">
     <label>パスワード（8文字以上）</label>

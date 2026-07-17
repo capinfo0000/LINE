@@ -326,7 +326,7 @@ function consume_invite(string $code, string $tenantId): void
 function update_tenant_display_name(string $tenantId, string $name): void
 {
     $stmt = db()->prepare('UPDATE tenants SET display_name = ? WHERE id = ?');
-    $stmt->execute([$name !== '' ? $name : '主催者', $tenantId]);
+    $stmt->execute([$name !== '' ? $name : '運営者', $tenantId]);
 }
 
 /** パスワードを更新する（強度チェックあり）。 */

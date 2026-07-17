@@ -22,6 +22,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'メールアドレスの形式が正しくありません。';
+    } elseif (empty($_POST['agree'])) {
+        $error = '利用規約・プライバシーポリシー・返金ポリシーへの同意が必要です。';
     } elseif (!rate_limit_check('checkout', 10, 3600)) {
         $error = '試行が多すぎます。しばらく時間をおいてお試しください。';
     } else {
@@ -85,7 +87,13 @@ $token = csrf_token();
             <input type="hidden" name="lu" value="<?= e($lineUserId) ?>">
             <label>メールアドレス（ログイン情報の送付先）</label>
             <input type="email" name="email" value="<?= e($email) ?>" required autocomplete="email" placeholder="you@example.com">
-            <p style="margin-top:16px;"><button type="submit" class="btn">お支払いへ進む（Stripe）</button></p>
+            <p style="margin-top:12px;">
+                <label style="font-weight:normal;">
+                    <input type="checkbox" name="agree" value="1" required>
+                    <a href="terms.php" target="_blank">利用規約</a>・<a href="privacy.php" target="_blank">プライバシーポリシー</a>・<a href="policy.php" target="_blank">返金ポリシー</a>に同意します
+                </label>
+            </p>
+            <p style="margin-top:12px;"><button type="submit" class="btn">お支払いへ進む（Stripe）</button></p>
         </form>
     </div>
     <p class="muted">カード情報の入力・処理は Stripe 上で安全に行われます。当方はカード情報を保持しません。</p>

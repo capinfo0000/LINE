@@ -42,7 +42,7 @@ if (current_tenant() !== null) {
 $token = csrf_token();
 require __DIR__ . '/_auth_header.php';
 ?>
-<h1>主催者ログイン</h1>
+<h1>運営ログイン</h1>
 <?php if ($error !== ''): ?><p class="err"><?= e($error) ?></p><?php endif; ?>
 <form method="post" class="card">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
