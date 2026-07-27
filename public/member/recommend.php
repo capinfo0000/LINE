@@ -1,0 +1,74 @@
+<?php
+
+/**
+ * あなたへのおすすめ（双方向マッチ）。
+ * 「あなたの求める条件に相手が合致」かつ「相手の求める条件にあなたが合致」した相手のみ表示する。
+ */
+
+declare(strict_types=1);
+
+require dirname(__DIR__, 2) . '/src/bootstrap.php';
+
+$member = require_member();
+$recs = compute_recommendations_for($member['id'], 20);
+
+// 求める条件・属性が未設定だと双方向マッチは出にくい旨を案内する。
+$prefs = get_preferences($member['id']);
+$attrs = member_attributes($member['id']);
+$profileThin = ($prefs['seek_area'] === [] && $prefs['seek_job'] === [] && $prefs['seek_purpose'] === [])
+    || ($attrs['area'] === [] && $attrs['job'] === [] && $attrs['purpose'] === [] && $attrs['offer'] === []);
+
+$pageTitle = 'あなたへのおすすめ';
+$showLogout = true;
+$wide = true;
+require __DIR__ . '/_header.php';
+?>
+<h1>あなたへのおすすめ</h1>
+<p class="muted"><a href="/member/dashboard.php">← 会員トップ</a> ／ <a href="/member/directory.php">ディレクトリを検索</a></p>
+<p class="muted">「あなたの求める条件に合う」かつ「相手の求める条件にもあなたが合う」相手だけを表示しています。</p>
+
+<?php if ($profileThin): ?>
+    <div class="flash flash--ng">
+        プロフィールの<strong>タグ</strong>や<strong>求める条件</strong>が未設定だと、双方向マッチのおすすめが出にくくなります。
+        <a href="/member/profile.php">プロフィールを編集</a>してください。
+    </div>
+<?php endif; ?>
+
+<?php if ($recs === []): ?>
+    <div class="card"><p style="margin:0;">現在、条件が双方合致する相手が見つかりませんでした。条件を見直すか、時間をおいて再度ご確認ください。</p></div>
+<?php else: ?>
+    <?php foreach ($recs as $r):
+        $labels = member_tag_labels($r['member_id']);
+        $hasApprovedPhoto = ($r['photo_status'] ?? '') === 'approved';
+    ?>
+        <div class="card">
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+                <?php if ($hasApprovedPhoto): ?>
+                    <img src="/member/photo.php?id=<?= e($r['member_id']) ?>" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none;">
+                <?php endif; ?>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;">
+                        <a href="/member/member_view.php?id=<?= e($r['member_id']) ?>"><?= e($r['name'] !== '' ? $r['name'] : '会員') ?></a>
+                        <?php if (($r['age_text'] ?? '') !== ''): ?><span class="muted" style="font-weight:normal;">（<?= e($r['age_text']) ?>）</span><?php endif; ?>
+                        <span style="float:right;font-size:.78rem;color:#3730a3;">マッチ度 <?= (int) $r['score'] ?></span>
+                    </div>
+                    <?php if (($r['company_title'] ?? '') !== ''): ?><div class="muted"><?= e($r['company_title']) ?></div><?php endif; ?>
+                    <?php if (($r['headline'] ?? '') !== ''): ?><div style="margin:4px 0;"><?= e($r['headline']) ?></div><?php endif; ?>
+                    <ul style="margin:6px 0 0;padding-left:18px;">
+                        <?php foreach ($r['reasons'] as $reason): ?>
+                            <li style="font-size:.86rem;color:#374151;"><?= e($reason) ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <div style="margin-top:6px;">
+                        <?php foreach (['area', 'job', 'purpose', 'offer'] as $cat): ?>
+                            <?php foreach ($labels[$cat] ?? [] as $lb): ?>
+                                <span style="display:inline-block;background:#eef2ff;color:#3730a3;border-radius:10px;padding:1px 8px;font-size:.78rem;margin:2px 4px 2px 0;"><?= e($lb) ?></span>
+                            <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endforeach; ?>
+<?php endif; ?>
+<?php require __DIR__ . '/_footer.php'; ?>

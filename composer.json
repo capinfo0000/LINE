@@ -1,0 +1,15 @@
+{
+    "name": "capinfo/event",
+    "description": "小規模イベントの事前決済（前払い）申込アプリ。決済はStripe Checkoutに代行させ、カード情報は一切サーバーで扱わない。",
+    "type": "project",
+    "require": {
+        "php": ">=8.1",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "stripe/stripe-php": "^16.0"
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

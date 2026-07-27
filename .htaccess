@@ -1,0 +1,42 @@
+# 保険的防御: 万一ドキュメントルートがプロジェクト直下に誤設定された場合でも、
+# 機微なファイル/ディレクトリへの直接アクセスを拒否する。
+# 正しくは公開ディレクトリを public/ に設定すること（推奨）。
+
+# --- FTP フラット配置（ドキュメントルート = プロジェクト直下）用の内部ルーティング ---
+# CORESERVER V2 は docroot が /public_html/<サブドメイン> に固定のため、SSH でシンボリック
+# リンクを張れない場合は「プロジェクト一式をそのフォルダに置く」形になる。
+# その場合、全リクエストを実体のある public/ 配下へ内部転送する。
+# ※ SSH で docroot を public/ に向けている運用では、この .htaccess は docroot の外側に
+#    なり配信されないため、以下の Rewrite は無害（何も起きない）。
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # 既に public/ 宛ての内部URLは二重付与しない
+    RewriteCond %{REQUEST_URI} !^/public/
+    # 実ファイル/ディレクトリでも public/ 側を優先（src/ 等は public/ 配下に無いので404=隠蔽）
+    RewriteRule ^$ public/index.php [L]
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+
+# ドットファイル（.env 等）を隠す
+<FilesMatch "^\.">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# 環境設定・DB・ログ・ソース等の拡張子を直接配信しない
+<FilesMatch "\.(env|sqlite|sqlite3|db|log|sql|md|lock|json)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
