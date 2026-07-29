@@ -86,6 +86,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg = '.env の書き込みに失敗しました（プロジェクト直下の書き込み権限を確認してください）。';
             $msgType = 'ng';
         }
+    } elseif ($action === 'zoom_test') {
+        $d = zoom_diagnose();
+        $msg = 'Zoom: ' . $d['message'];
+        $msgType = $d['ok'] ? 'ok' : 'ng';
+    } elseif ($action === 'stripe_check') {
+        $d = stripe_diagnose();
+        $msg = $d['message'];
+        $msgType = $d['ok'] ? 'ok' : 'ng';
     } elseif ($action === 'selfdestruct') {
         @unlink(__FILE__);
         audit_log('settings.env_page_deleted', []);
@@ -121,6 +129,19 @@ require __DIR__ . '/_app_header.php';
             </div>
         <?php endforeach; ?>
         <p><button type="submit" class="btn">保存する</button></p>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card__title">接続チェック</div>
+    <p class="muted" style="margin-top:0;">保存した設定が正しく動くか確認できます（保存後にお試しください）。</p>
+    <form method="post" style="display:inline;margin-right:8px;">
+        <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="stripe_check">
+        <button type="submit" class="btn btn--ghost">Stripe設定チェック</button>
+    </form>
+    <form method="post" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="zoom_test">
+        <button type="submit" class="btn btn--ghost">Zoom接続テスト</button>
     </form>
 </div>
 

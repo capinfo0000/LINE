@@ -270,6 +270,50 @@ function normalize_checkout_session($session): array
     ];
 }
 
+/**
+ * Stripe 設定診断。キーの有効性・Priceの継続性・Webhook署名の有無を確認する。
+ *
+ * @return array{ok:bool, message:string}
+ */
+function stripe_diagnose(): array
+{
+    $key = (string) (env('STRIPE_SECRET_KEY') ?? '');
+    if ($key === '') {
+        return ['ok' => false, 'message' => 'STRIPE_SECRET_KEY が未設定です。'];
+    }
+    $mode = strpos($key, 'sk_live_') === 0 ? '本番(live)' : (strpos($key, 'sk_test_') === 0 ? 'テスト(test)' : '不明');
+    try {
+        init_stripe();
+        \Stripe\Account::retrieve(); // キーの有効性を検証
+    } catch (\Throwable $e) {
+        return ['ok' => false, 'message' => "Stripeキーが無効か接続に失敗しました（モード:{$mode}）: " . $e->getMessage()];
+    }
+
+    $priceId = (string) (env('STRIPE_PRICE_ID') ?? '');
+    if ($priceId === '') {
+        return ['ok' => false, 'message' => "キーOK（モード:{$mode}）。ただし STRIPE_PRICE_ID が未設定です。月額の継続Priceを設定してください。"];
+    }
+    try {
+        $price = \Stripe\Price::retrieve($priceId);
+    } catch (\Throwable $e) {
+        return ['ok' => false, 'message' => "キーOK（モード:{$mode}）。Price『{$priceId}』を取得できません。ID誤りか、test/live の不一致の可能性。"];
+    }
+    $recurring = isset($price->recurring) && $price->recurring !== null;
+    if (!$recurring) {
+        return ['ok' => false, 'message' => "Price は継続(recurring)ではありません。月額課金用の継続Priceを指定してください。"];
+    }
+    $amount = (int) ($price->unit_amount ?? 0);
+    $cur = strtoupper((string) ($price->currency ?? ''));
+    $interval = (string) ($price->recurring->interval ?? '');
+    $active = (bool) ($price->active ?? false);
+    $whset = env('STRIPE_WEBHOOK_SECRET') ? 'あり' : 'なし（未設定）';
+    $warn = $active ? '' : '　※注意: このPriceは無効(active=false)です。';
+    return [
+        'ok' => $active,
+        'message' => "Stripe設定OK。モード:{$mode} ／ Price: {$amount} {$cur}・毎{$interval} ／ Webhook署名: {$whset}{$warn}",
+    ];
+}
+
 /* ============================ サブスク（月額会費） ============================ */
 
 /** Stripe 顧客IDから会員を引く。 */
