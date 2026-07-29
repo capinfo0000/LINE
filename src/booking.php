@@ -55,6 +55,17 @@ function ensure_slot_zoom(array $slot): ?string
     if (!zoom_enabled()) {
         return null;
     }
+    $slotId = (string) $slot['id'];
+
+    // 手元の $slot は古い可能性がある。DB の最新値を再確認し、他の予約が既に発行済みなら
+    // それを共有する（＝集団の説明会で申込者ごとに別会議が作られるのを防ぐ）。
+    $cur = db()->prepare('SELECT zoom_url FROM slots WHERE id = ?');
+    $cur->execute([$slotId]);
+    $existing = $cur->fetchColumn();
+    if (is_string($existing) && $existing !== '') {
+        return $existing;
+    }
+
     $kind = (string) ($slot['kind'] ?? '');
     $duration = $kind === 'seminar' ? 40 : 30;
     $topic = $kind === 'seminar' ? 'Enlink 説明会' : 'Enlink 個別面談';
@@ -62,8 +73,18 @@ function ensure_slot_zoom(array $slot): ?string
     if ($meeting === null) {
         return null;
     }
-    $u = db()->prepare('UPDATE slots SET zoom_meeting_id = ?, zoom_url = ? WHERE id = ?');
-    $u->execute([$meeting['id'], $meeting['join_url'], (string) $slot['id']]);
+
+    // 未発行のときだけ確定する（同時実行で二重発行されても、先に確定した1つだけを全員で共有）。
+    $u = db()->prepare(
+        "UPDATE slots SET zoom_meeting_id = ?, zoom_url = ? WHERE id = ? AND (zoom_url IS NULL OR zoom_url = '')"
+    );
+    $u->execute([$meeting['id'], $meeting['join_url'], $slotId]);
+    if ($u->rowCount() === 0) {
+        // 競合で他が先に確定 → 確定済み URL を採用（自分が作った会議は使わず、集団で1つに統一）。
+        $cur->execute([$slotId]);
+        $winner = $cur->fetchColumn();
+        return is_string($winner) && $winner !== '' ? $winner : $meeting['join_url'];
+    }
     return $meeting['join_url'];
 }
 

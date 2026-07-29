@@ -341,8 +341,18 @@ function line_handle_event(array $event): array
             $slot = find_slot($slotId);
             $when = $slot !== null ? line_jst_label((int) $slot['start_at']) : '';
             set_line_contact_state($userId, $kind === 'seminar' ? 'booked_seminar' : 'booked_interview');
-            $label = $kind === 'seminar' ? '説明会' : '個別面談';
-            $msg = "{$label}のご予約を承りました。\n日時：{$when}\n";
+
+            if ($kind === 'seminar') {
+                // 集団の説明会：その説明会（枠）の共有 Zoom URL だけを短く送る。
+                // URL は枠作成時に1回だけ発行され、全申込者が同じものを受け取る（個別会議は作らない）。
+                if (!empty($result['zoom_url'])) {
+                    return [line_text("説明会のZoom URLです。\n日時：{$when}\n{$result['zoom_url']}")];
+                }
+                return [line_text("説明会のご予約を承りました。\n日時：{$when}\nZoom URLは追ってご案内します。")];
+            }
+
+            // 個別面談：従来どおりの案内。
+            $msg = "個別面談のご予約を承りました。\n日時：{$when}\n";
             if (!empty($result['zoom_url'])) {
                 $msg .= "参加URL：{$result['zoom_url']}\n";
             } else {
