@@ -352,6 +352,10 @@ function db_migrate(\PDO $pdo): void
     SQL);
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_reco_member ON recommendations(member_id, score);');
 
+    // 写真承認フロー廃止に伴う正規化（冪等）：承認待ちのまま残っている写真を公開状態にする。
+    // アップロードは即 'approved' になったため、既存の 'pending' のみを一度だけ引き上げる。
+    $pdo->exec("UPDATE profiles SET photo_status = 'approved' WHERE photo_status = 'pending'");
+
     // タグマスタの初期投入（未投入時のみ）。
     seed_tag_master($pdo);
 }

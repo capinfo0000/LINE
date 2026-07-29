@@ -1,7 +1,7 @@
 <?php
 
 /**
- * 会員詳細・操作（承認・入金状況・ID/PW再発行・写真承認・ステータス変更）。
+ * 会員詳細・操作（承認・入金状況・ID/PW再発行・ステータス変更）。
  */
 
 declare(strict_types=1);
@@ -27,14 +27,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'status':
             admin_set_member_status($id, (string) ($_POST['status'] ?? ''));
             $msg = 'ステータスを変更しました。';
-            break;
-        case 'photo_approve':
-            admin_moderate_photo($id, 'approved');
-            $msg = '写真を承認しました。';
-            break;
-        case 'photo_reject':
-            admin_moderate_photo($id, 'rejected');
-            $msg = '写真を却下しました。';
             break;
     }
     $member = find_member_by_id($id);
@@ -69,22 +61,10 @@ require __DIR__ . '/_app_header.php';
     <?php endforeach; endif; ?>
 </div>
 
-<?php if (($profile['photo_status'] ?? 'none') !== 'none'): ?>
+<?php if (!empty($profile['photo_path'])): ?>
 <div class="card">
-    <div class="card__title">顔写真（状態：<?= e($profile['photo_status']) ?>）</div>
-    <?php if ($profile['photo_status'] === 'pending' || $profile['photo_status'] === 'approved'): ?>
-        <p><img src="member_photo.php?id=<?= e($id) ?>" alt="" style="max-width:160px;border-radius:10px;"></p>
-    <?php endif; ?>
-    <?php if ($profile['photo_status'] === 'pending'): ?>
-        <form method="post" style="display:inline;">
-            <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>">
-            <button class="btn" name="action" value="photo_approve">承認</button>
-        </form>
-        <form method="post" style="display:inline;">
-            <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>">
-            <button class="btn btn--ghost" name="action" value="photo_reject">却下</button>
-        </form>
-    <?php endif; ?>
+    <div class="card__title">顔写真</div>
+    <p><img src="member_photo.php?id=<?= e($id) ?>" alt="" style="max-width:160px;border-radius:10px;"></p>
 </div>
 <?php endif; ?>
 

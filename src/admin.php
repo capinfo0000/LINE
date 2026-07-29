@@ -81,34 +81,6 @@ function admin_reissue_credentials(string $memberId): bool
     return deliver_member_credentials($fresh, (string) $fresh['login_id'], $temp);
 }
 
-/* ------------------------- 写真モデレーション ------------------------- */
-
-/** 顔写真を承認/却下する。却下時はファイルも削除する。 */
-function admin_moderate_photo(string $memberId, string $decision): void
-{
-    if ($decision === 'approved') {
-        $stmt = db()->prepare("UPDATE profiles SET photo_status = 'approved', updated_at = ? WHERE member_id = ?");
-        $stmt->execute([time(), $memberId]);
-        audit_log('admin.photo_approved', ['member' => $memberId]);
-    } elseif ($decision === 'rejected') {
-        delete_member_photo($memberId);
-        $stmt = db()->prepare("UPDATE profiles SET photo_status = 'rejected', updated_at = ? WHERE member_id = ?");
-        $stmt->execute([time(), $memberId]);
-        audit_log('admin.photo_rejected', ['member' => $memberId]);
-    }
-}
-
-/** モデレーション待ち（pending）の写真を持つ会員一覧。 */
-function pending_photo_members(): array
-{
-    return db()->query(
-        "SELECT p.member_id, p.photo_path, m.login_id, m.display_name
-           FROM profiles p JOIN members m ON m.id = p.member_id
-          WHERE p.photo_status = 'pending'
-          ORDER BY p.updated_at DESC"
-    )->fetchAll();
-}
-
 /* ------------------------- タグマスタ管理 ------------------------- */
 
 /** タグを追加する（既存は無視）。 */
@@ -175,7 +147,6 @@ function admin_stats(): array
         'members_active'  => $one("SELECT COUNT(*) FROM members WHERE status = 'active'"),
         'payments_paid'   => $one("SELECT COUNT(*) FROM payments WHERE status = 'paid'"),
         'revenue'         => $one("SELECT COALESCE(SUM(amount),0) FROM payments WHERE status = 'paid'"),
-        'pending_photos'  => $one("SELECT COUNT(*) FROM profiles WHERE photo_status = 'pending'"),
         'line_contacts'   => $one('SELECT COUNT(*) FROM line_contacts'),
         'upcoming_bookings' => $one('SELECT COUNT(*) FROM bookings b JOIN slots s ON s.id=b.slot_id WHERE b.status = "booked" AND s.start_at > ' . time()),
         'push_this_month' => $one("SELECT COUNT(*) FROM line_messages WHERE billable = 1 AND created_at >= strftime('%s', date('now','start of month'))"),

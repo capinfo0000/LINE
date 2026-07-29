@@ -253,7 +253,7 @@ function save_preferences(string $memberId, array $seekArea, array $seekJob, arr
  * アップロードされた顔写真を検証して保存する。成功で true。
  * - 画像形式（jpeg/png/webp）・サイズ（<= 4MB）を検証。
  * - 可能なら GD で再エンコードして埋め込みメタデータ/ペイロードを除去。
- * - 保存は公開領域外（data/uploads/）。photo_status は 'pending'（運営モデレーション）。
+ * - 保存は公開領域外（data/uploads/）。photo_status は 'approved'（承認フローは廃止・即公開）。
  *
  * @param array{tmp_name?:string,size?:int,error?:int} $file $_FILES のエントリ
  */
@@ -323,8 +323,8 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
     $rel = 'uploads/' . $filename;
     $stmt = db()->prepare(
         "INSERT INTO profiles (member_id, photo_path, photo_status, updated_at)
-         VALUES (:m,:p,'pending',:t)
-         ON CONFLICT(member_id) DO UPDATE SET photo_path=:p, photo_status='pending', updated_at=:t"
+         VALUES (:m,:p,'approved',:t)
+         ON CONFLICT(member_id) DO UPDATE SET photo_path=:p, photo_status='approved', updated_at=:t"
     );
     $stmt->execute([':m' => $memberId, ':p' => $rel, ':t' => time()]);
     return true;

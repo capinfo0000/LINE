@@ -114,7 +114,9 @@ function open_slots(string $kind, int $limit = 10): array
 
 /**
  * 枠を原子的に確保して予約を作成する。満席・無効なら null。
- * Zoom は枠単位で遅延生成（失敗時は枠だけ確定・zoom_url は null）。
+ * Zoom はここでは一切生成しない。枠作成時（create_slot）に発行済みの URL を
+ * そのまま予約者へ渡すだけ（説明会の申込ごとに個人会議が作られる事故を根絶）。
+ * 枠に URL が無ければ zoom_url = null のまま確定し、手動 URL 案内にフォールバックする。
  *
  * @return array{booking_id:string, zoom_url:?string}|null
  */
@@ -132,9 +134,9 @@ function book_slot(string $slotId, string $kind, ?string $lineUserId, ?string $m
 
     $slot = find_slot($slotId);
 
-    // 通常は create_slot 時に発行済み。未発行（Zoom を後から設定した等）ならここで再試行する。
-    // 失敗時は zoom_url = null のまま枠だけ確定し、手動 URL 案内にフォールバックする。
-    $zoomUrl = $slot !== null ? ensure_slot_zoom($slot) : null;
+    // 枠作成時に発行済みの共有 URL を渡すだけ。予約時に Zoom 会議は生成しない。
+    $zoomUrl = $slot['zoom_url'] ?? null;
+    $zoomUrl = is_string($zoomUrl) && $zoomUrl !== '' ? $zoomUrl : null;
 
     $bookingId = generate_booking_id();
     $ins = db()->prepare(
