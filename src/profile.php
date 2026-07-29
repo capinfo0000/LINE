@@ -322,8 +322,8 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
         }
         return false;
     }
-    if (($file['size'] ?? 0) > 20 * 1024 * 1024) {
-        $error = '画像サイズが大きすぎます（20MBまで）。';
+    if (($file['size'] ?? 0) > 10 * 1024 * 1024) {
+        $error = '画像サイズが大きすぎます（10MBまで）。';
         return false;
     }
     $tmp = (string) ($file['tmp_name'] ?? '');
@@ -344,7 +344,7 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
     }
     $fallbackExt = $extMap[$mime]; // GD 不可時に元形式で保存するための拡張子
     $dir = uploads_dir();
-    $targetPx = 512; // 出力の一辺（正方形）
+    $targetPx = 384; // 出力の一辺（正方形）。表示は最大160px程度なので384で十分・容量減。
 
     $processed = false;
     $outExt = null;
@@ -375,15 +375,21 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
             imagefilledrectangle($dst, 0, 0, $targetPx, $targetPx, $bg);
             imagecopyresampled($dst, $src, 0, 0, $sx, $sy, $targetPx, $targetPx, $side, $side);
 
+            // (B) 縮小で甘くなった輪郭を軽くシャープ化。低品質でも見栄えを保ち、結果として小さくできる。
+            // 係数の合計＝除数(1.0)。顔アバター用途向けの控えめな強さ。
+            if (function_exists('imageconvolution')) {
+                @imageconvolution($dst, [[0.0, -0.18, 0.0], [-0.18, 1.72, -0.18], [0.0, -0.18, 0.0]], 1.0, 0);
+            }
+
             if (!$useWebp) {
                 imageinterlace($dst, true); // JPEG フォールバックはプログレッシブで軽量＆表示良化
             }
             $outExt = $useWebp ? 'webp' : 'jpg';
             $dest = $dir . '/' . $memberId . '.' . $outExt;
-            // 「できるだけ小さく」：目標(既定80KB)以下になるまで品質を段階的に下げて再エンコード。
-            // 512px の顔写真なら通常は最初の品質で目標を満たす。品質は下限で打ち止め（画質保護）。
-            $targetBytes = 80 * 1024;
-            $qualities = $useWebp ? [72, 62, 52, 42] : [78, 68, 58, 48];
+            // (C)「できるだけ小さく」：目標(30KB)以下になるまで品質を段階的に下げて再エンコード。
+            // 384px の顔写真なら通常は上位の品質で目標を満たす。品質は下限で打ち止め（画質保護）。
+            $targetBytes = 30 * 1024;
+            $qualities = $useWebp ? [72, 64, 56, 48, 40, 32] : [80, 72, 64, 56, 48, 40];
             foreach ($qualities as $q) {
                 $processed = $useWebp ? imagewebp($dst, $dest, $q) : imagejpeg($dst, $dest, $q);
                 if (!$processed) {
