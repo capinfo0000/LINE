@@ -68,6 +68,7 @@ $renderChecks = function (array $tags, string $name, array $checked) {
     <?php foreach ($results as $r):
         $labels = member_tag_labels($r['member_id']);
         $hasApprovedPhoto = ($r['photo_status'] ?? '') === 'approved';
+        $bal = member_points($r['member_id']);
     ?>
         <div class="card">
             <div style="display:flex;gap:12px;align-items:flex-start;">
@@ -79,6 +80,7 @@ $renderChecks = function (array $tags, string $name, array $checked) {
                         <a href="/member/member_view.php?id=<?= e($r['member_id']) ?>"><?= e($r['name_text'] !== '' ? $r['name_text'] : '会員') ?></a>
                         <?php if (($r['age_text'] ?? '') !== ''): ?><span class="muted" style="font-weight:normal;">（<?= e($r['age_text']) ?>）</span><?php endif; ?>
                     </div>
+                    <div style="margin:3px 0;"><span class="badge badge--title"><?= e(points_title($bal)) ?></span> <span class="muted" style="font-size:.82rem;"><?= number_format($bal) ?> pt</span></div>
                     <?php if (($r['company_title'] ?? '') !== ''): ?><div class="muted"><?= e($r['company_title']) ?></div><?php endif; ?>
                     <?php if (($r['headline'] ?? '') !== ''): ?><div style="margin:4px 0;"><?= e($r['headline']) ?></div><?php endif; ?>
                     <div style="margin-top:6px;">

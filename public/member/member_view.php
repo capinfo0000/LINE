@@ -63,7 +63,7 @@ $iAmSelf = (string) $viewer['id'] === $targetId;
             <h1 style="margin:0 0 4px;"><?= e($profile['name_text'] !== '' ? $profile['name_text'] : '会員') ?>
                 <?php if (($profile['age_text'] ?? '') !== ''): ?><span class="muted" style="font-size:1rem;font-weight:normal;">（<?= e($profile['age_text']) ?>）</span><?php endif; ?>
             </h1>
-            <p style="margin:0 0 4px;"><span class="badge badge--title"><?= e($targetTitle) ?></span> <span class="muted" style="font-size:.85rem;">評価 <?= (int) $targetPraise ?> 件</span></p>
+            <p style="margin:0 0 4px;"><span class="badge badge--title"><?= e($targetTitle) ?></span> <strong style="font-size:.95rem;"><?= number_format($targetBalance) ?> pt</strong> <span class="muted" style="font-size:.85rem;">・評価 <?= (int) $targetPraise ?> 件</span></p>
             <?php if (($profile['company_title'] ?? '') !== ''): ?><div class="muted"><?= e($profile['company_title']) ?></div><?php endif; ?>
             <?php if (($profile['headline'] ?? '') !== ''): ?><p style="margin:6px 0 0;font-weight:600;"><?= e($profile['headline']) ?></p><?php endif; ?>
         </div>
