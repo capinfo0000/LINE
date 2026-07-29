@@ -26,6 +26,10 @@ $navItems = [
 ];
 if ((int) ($tenant['is_admin'] ?? 0) === 1) {
     $navItems[] = ['invites.php', '', '運営者を招待', ['invites.php']];
+    // 初期設定ページは存在する間だけ表示（自己削除後は自動的に消える）。
+    if (is_file(__DIR__ . '/settings_env.php')) {
+        $navItems[] = ['settings_env.php', '', '初期設定', ['settings_env.php']];
+    }
 }
 ?>
 <!DOCTYPE html>
