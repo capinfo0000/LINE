@@ -148,6 +148,55 @@ function book_slot(string $slotId, string $kind, ?string $lineUserId, ?string $m
     return ['booking_id' => $bookingId, 'zoom_url' => $zoomUrl];
 }
 
+/**
+ * 枠の Zoom 会議を「強制的に」再発行する（既存 URL があっても新規作成する）。
+ * 当日にリンクが壊れた等の復旧用。成功時は slots と当該枠の全予約(booked)の zoom_url を
+ * 新 URL に更新し、新 URL を返す。Zoom 未設定・作成失敗なら null。
+ */
+function regenerate_slot_zoom(string $slotId): ?string
+{
+    $slot = find_slot($slotId);
+    if ($slot === null || !zoom_enabled()) {
+        return null;
+    }
+    $kind = (string) $slot['kind'];
+    $duration = $kind === 'seminar' ? 40 : 30;
+    $topic = $kind === 'seminar' ? 'Enlink 説明会' : 'Enlink 個別面談';
+    $meeting = zoom_create_meeting($topic, (int) $slot['start_at'], $duration);
+    if ($meeting === null) {
+        return null;
+    }
+    db()->prepare('UPDATE slots SET zoom_meeting_id = ?, zoom_url = ? WHERE id = ?')
+        ->execute([$meeting['id'], $meeting['join_url'], $slotId]);
+    db()->prepare("UPDATE bookings SET zoom_url = ? WHERE slot_id = ? AND status = 'booked'")
+        ->execute([$meeting['join_url'], $slotId]);
+    return $meeting['join_url'];
+}
+
+/**
+ * 枠の予約者（booked）へ LINE 通知するための line_user_id 一覧（重複排除）。
+ * 予約に line_user_id が無い会員予約は members.line_user_id で補う。
+ *
+ * @return array<int,string>
+ */
+function slot_booking_line_users(string $slotId): array
+{
+    $stmt = db()->prepare(
+        "SELECT COALESCE(b.line_user_id, m.line_user_id) AS uid
+           FROM bookings b LEFT JOIN members m ON m.id = b.member_id
+          WHERE b.slot_id = ? AND b.status = 'booked'"
+    );
+    $stmt->execute([$slotId]);
+    $uids = [];
+    foreach ($stmt->fetchAll() as $r) {
+        $uid = $r['uid'] ?? null;
+        if (is_string($uid) && $uid !== '') {
+            $uids[$uid] = true;
+        }
+    }
+    return array_keys($uids);
+}
+
 /** 予約のステータスを更新する。 */
 function set_booking_status(string $bookingId, string $status): void
 {

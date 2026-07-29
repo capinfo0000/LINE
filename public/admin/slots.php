@@ -50,10 +50,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $d = zoom_diagnose();
         $msg = $d['message'];
         $msgType = $d['ok'] ? 'ok' : 'ng';
+    } elseif ($action === 'rezoom') {
+        // Zoomリンクを再発行し、既存の申込者（booked）へ新URLをLINEで送信する。
+        $sid = (string) ($_POST['slot_id'] ?? '');
+        if (!zoom_enabled()) {
+            $msg = 'Zoomが未設定のため再発行できません。.envのZoom設定を確認してください。';
+            $msgType = 'ng';
+        } else {
+            $newUrl = regenerate_slot_zoom($sid);
+            if ($newUrl === null) {
+                $msg = 'Zoom会議の再発行に失敗しました。時間をおいて再度お試しください。';
+                $msgType = 'ng';
+            } else {
+                $slot = find_slot($sid);
+                $when = $slot !== null ? date('Y-m-d H:i', (int) $slot['start_at'] + 9 * 3600) : '';
+                $label = ($slot['kind'] ?? '') === 'seminar' ? '説明会' : '個別面談';
+                $uids = slot_booking_line_users($sid);
+                $sent = 0;
+                foreach ($uids as $uid) {
+                    $text = "【{$label}】Zoom参加URLが変更されました。\n日時：{$when}\n新しいURL：{$newUrl}";
+                    if (line_push($uid, [line_text($text)])) {
+                        $sent++;
+                    }
+                }
+                $msg = 'Zoom会議URLを再発行しました。申込者 ' . count($uids) . ' 名中 ' . $sent . ' 名へ新URLをLINE送信しました。';
+                if ($sent < count($uids)) {
+                    $msg .= '（未送信分はLINE連携が無い等。新URL: ' . $newUrl . ' を手動でご案内ください）';
+                }
+            }
+        }
     }
 }
 
 $slots = db()->query('SELECT * FROM slots ORDER BY start_at DESC LIMIT 200')->fetchAll();
+// 開催3時間経過で「過去」扱い（当日・開催中はまだ操作対象に残す）。
+$pastCutoff = time() - 3 * 3600;
+$activeSlots = [];
+$pastSlots = [];
+foreach ($slots as $s) {
+    if ((int) $s['start_at'] >= $pastCutoff) {
+        $activeSlots[] = $s;
+    } else {
+        $pastSlots[] = $s;
+    }
+}
+// アクティブは開催が近い順（昇順）で見やすく。
+usort($activeSlots, static fn ($a, $b) => (int) $a['start_at'] <=> (int) $b['start_at']);
 $token = csrf_token();
 $pageTitle = '説明会・面談の設定';
 require __DIR__ . '/_app_header.php';
@@ -78,9 +120,10 @@ require __DIR__ . '/_app_header.php';
 </form>
 
 <div class="card">
+    <div class="card__title" style="margin-bottom:8px;">開催予定・開催中</div>
     <table style="width:100%;border-collapse:collapse;font-size:.88rem;">
-        <tr style="text-align:left;border-bottom:1px solid var(--border);"><th style="padding:6px;">種別</th><th>日時(JST)</th><th>予約</th><th>Zoom</th><th>受付</th><th></th></tr>
-        <?php foreach ($slots as $s):
+        <tr style="text-align:left;border-bottom:1px solid var(--border);"><th style="padding:6px;">種別</th><th>日時(JST)</th><th>申込</th><th>Zoom</th><th>受付</th><th></th></tr>
+        <?php foreach ($activeSlots as $s):
             $jst = date('Y-m-d H:i', (int) $s['start_at'] + 9 * 3600); ?>
             <tr style="border-bottom:1px solid var(--border);">
                 <td style="padding:6px;"><?= $s['kind'] === 'seminar' ? '説明会' : '個別面談' ?></td>
@@ -88,16 +131,44 @@ require __DIR__ . '/_app_header.php';
                 <td><?= (int) $s['booked_count'] ?>/<?= (int) $s['capacity'] ?></td>
                 <td><?php if (!empty($s['zoom_url'])): ?><a href="<?= e($s['zoom_url']) ?>" target="_blank" rel="noopener">会議URL</a><?php else: ?><span class="muted">未発行</span><?php endif; ?></td>
                 <td><?= (int) $s['is_open'] === 1 ? '受付中' : '停止' ?></td>
-                <td>
+                <td style="white-space:nowrap;">
                     <form method="post" style="display:inline;">
                         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="toggle">
                         <input type="hidden" name="slot_id" value="<?= e($s['id']) ?>"><input type="hidden" name="open" value="<?= (int) $s['is_open'] === 1 ? 0 : 1 ?>">
                         <button class="btn btn--ghost" style="padding:2px 8px;"><?= (int) $s['is_open'] === 1 ? '停止' : '再開' ?></button>
                     </form>
+                    <?php if ((int) $s['booked_count'] > 0): ?>
+                    <form method="post" style="display:inline;" data-confirm="Zoomリンクを再発行し、申込者<?= (int) $s['booked_count'] ?>名へ新URLをLINE送信します。よろしいですか？">
+                        <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="rezoom">
+                        <input type="hidden" name="slot_id" value="<?= e($s['id']) ?>">
+                        <button class="btn" style="padding:2px 8px;">リンク再発行＋送信</button>
+                    </form>
+                    <?php endif; ?>
                 </td>
             </tr>
         <?php endforeach; ?>
     </table>
-    <?php if ($slots === []): ?><p class="muted">枠がありません。</p><?php endif; ?>
+    <?php if ($activeSlots === []): ?><p class="muted">開催予定の枠がありません。</p><?php endif; ?>
 </div>
+
+<?php if ($pastSlots !== []): ?>
+<div class="card">
+    <details>
+        <summary style="cursor:pointer;font-weight:700;">過去の開催（<?= count($pastSlots) ?>件）</summary>
+        <p class="muted" style="margin:8px 0;">過去分のZoomリンクは表示しません。</p>
+        <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+            <tr style="text-align:left;border-bottom:1px solid var(--border);"><th style="padding:6px;">種別</th><th>日時(JST)</th><th>申込</th><th>受付</th></tr>
+            <?php foreach ($pastSlots as $s):
+                $jst = date('Y-m-d H:i', (int) $s['start_at'] + 9 * 3600); ?>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:6px;"><?= $s['kind'] === 'seminar' ? '説明会' : '個別面談' ?></td>
+                    <td><?= e($jst) ?></td>
+                    <td><?= (int) $s['booked_count'] ?>/<?= (int) $s['capacity'] ?></td>
+                    <td class="muted">終了</td>
+                </tr>
+            <?php endforeach; ?>
+        </table>
+    </details>
+</div>
+<?php endif; ?>
 <?php require __DIR__ . '/_app_footer.php'; ?>
