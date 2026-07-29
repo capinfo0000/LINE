@@ -1,7 +1,7 @@
 <?php
 
 /**
- * 予約枠管理：説明会/個別面談の枠を作成・一覧・開閉する。
+ * 説明会・面談の設定：説明会/個別面談の開催枠を作成・一覧・開閉する。
  */
 
 declare(strict_types=1);
@@ -28,12 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $sid = create_slot($kind, $ts, $cap > 0 ? $cap : 1);
                 $created = find_slot($sid);
                 if (!empty($created['zoom_url'])) {
-                    $msg = '予約枠を作成し、Zoom会議URLを発行しました。予約者にはこのURLが自動で届きます。';
+                    $msg = '枠を作成し、Zoom会議URLを発行しました。予約者にはこのURLが自動で届きます。';
                 } elseif (zoom_enabled()) {
-                    $msg = '予約枠を作成しました。ただしZoom会議の発行に失敗したため、最初の予約時に再発行を試みます。';
+                    $msg = '枠を作成しました。ただしZoom会議の発行に失敗したため、最初の予約時に再発行を試みます。';
                     $msgType = 'ng';
                 } else {
-                    $msg = '予約枠を作成しました（Zoom未設定のため会議URLは手動運用です）。';
+                    $msg = '枠を作成しました（Zoom未設定のため会議URLは手動運用です）。';
                 }
             } catch (\Throwable $e) {
                 $msg = '日時の形式が不正です。';
@@ -46,15 +46,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = db()->prepare('UPDATE slots SET is_open = ? WHERE id = ?');
         $stmt->execute([$open, $sid]);
         $msg = '枠の受付状態を変更しました。';
+    } elseif ($action === 'zoom_test') {
+        $d = zoom_diagnose();
+        $msg = $d['message'];
+        $msgType = $d['ok'] ? 'ok' : 'ng';
     }
 }
 
 $slots = db()->query('SELECT * FROM slots ORDER BY start_at DESC LIMIT 200')->fetchAll();
 $token = csrf_token();
-$pageTitle = '予約枠管理';
+$pageTitle = '説明会・面談の設定';
 require __DIR__ . '/_app_header.php';
 ?>
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
+
+<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+    <span class="muted">Zoom連携の状態を確認できます（.env設定後の切り分け用）。</span>
+    <form method="post" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="zoom_test">
+        <button type="submit" class="btn btn--ghost">Zoom接続テスト</button>
+    </form>
+</div>
 
 <form method="post" class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="create">

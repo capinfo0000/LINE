@@ -18,7 +18,7 @@ $current = basename($_SERVER['SCRIPT_NAME'] ?? '');
 $navItems = [
     ['dashboard.php', '', 'ダッシュボード', ['dashboard.php']],
     ['members.php',   '', '会員管理',       ['members.php', 'member_detail.php']],
-    ['slots.php',     '', '予約枠',         ['slots.php']],
+    ['slots.php',     '', '説明会・面談',   ['slots.php']],
     ['broadcast.php', '', '一斉配信',       ['broadcast.php']],
     ['openchat.php',  '', 'オープンチャット', ['openchat.php']],
     ['tags.php',      '', 'タグ管理',       ['tags.php']],

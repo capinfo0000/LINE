@@ -35,7 +35,7 @@ require __DIR__ . '/_app_header.php';
     <div class="card__title">運営メニュー</div>
     <p>
         <a class="btn btn--ghost" href="members.php">会員管理</a>
-        <a class="btn btn--ghost" href="slots.php">予約枠</a>
+        <a class="btn btn--ghost" href="slots.php">説明会・面談</a>
         <a class="btn btn--ghost" href="broadcast.php">一斉配信</a>
         <a class="btn btn--ghost" href="openchat.php">オープンチャット</a>
         <a class="btn btn--ghost" href="tags.php">タグ管理</a>

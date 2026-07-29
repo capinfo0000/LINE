@@ -40,7 +40,9 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 /* ---------- 管理画面シェル（サイドバー） ---------- */
-.app { display: flex; min-height: 100vh; }
+/* シェル（サイドバー＋上部バー）は固定し、コンテンツ領域だけを内部スクロールさせる。
+   これで画面を切り替えてもヘッダーは動かず、縦位置が毎回先頭へ飛ぶ現象を防ぐ。 */
+.app { display: flex; height: 100vh; overflow: hidden; }
 
 .sidebar {
   width: 240px; flex: 0 0 240px;
@@ -70,16 +72,16 @@ a:hover { text-decoration: underline; }
 .nav .nav__sep { height: 1px; background: rgba(255,255,255,.08); margin: 8px 6px; }
 .sidebar__foot { padding: 14px 16px; font-size: .78rem; color: #94a3b8; border-top: 1px solid rgba(255,255,255,.08); }
 
-.content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.content { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 .topbar {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   background: var(--surface); border-bottom: 1px solid var(--border);
-  padding: 16px 28px; position: sticky; top: 0; z-index: 5;
+  padding: 16px 28px; flex: 0 0 auto; z-index: 5;
 }
 .topbar__title { font-size: 1.25rem; font-weight: 800; margin: 0; }
 .topbar__sub { font-size: .82rem; color: var(--muted); margin: 2px 0 0; }
 .topbar__actions { display: flex; align-items: center; gap: 10px; }
-.page { padding: 28px; max-width: 1100px; width: 100%; }
+.page { padding: 28px; max-width: 1100px; width: 100%; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
 /* ---------- 参加者・認証ページ（中央寄せ） ---------- */
 .container { max-width: 680px; margin: 0 auto; padding: 28px 20px; }
@@ -176,15 +178,17 @@ tbody tr:hover { background: #fafbfc; }
 
 /* ---------- レスポンシブ ---------- */
 @media (max-width: 720px) {
-  .app { flex-direction: column; }
+  /* モバイルは固定シェルをやめ、通常のページ全体スクロールに戻す（横並びヘッダーが上に付く）。 */
+  .app { flex-direction: column; height: auto; overflow: visible; }
   .sidebar { width: 100%; flex: none; height: auto; position: static; flex-direction: row;
              align-items: center; overflow-x: auto; }
   .sidebar__brand { padding: 14px 16px; white-space: nowrap; }
   .nav { flex-direction: row; flex: 1; overflow-x: auto; padding: 8px; }
   .nav a { white-space: nowrap; }
   .nav .nav__sep, .sidebar__foot { display: none; }
-  .topbar { padding: 14px 18px; }
-  .page { padding: 18px; }
+  .content { height: auto; overflow: visible; }
+  .topbar { padding: 14px 18px; position: sticky; top: 0; }
+  .page { padding: 18px; overflow-y: visible; min-height: 0; }
 }
 
 /* ---------- モーダル（ポップアップ） ---------- */

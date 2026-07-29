@@ -123,3 +123,76 @@ function zoom_create_meeting(string $topic, int $startAtTs, int $duration = 40):
     }
     return ['id' => (string) $id, 'join_url' => $joinUrl];
 }
+
+/**
+ * Zoom 接続診断。設定の有無 → トークン取得 → API 呼び出し の順に検証し、詰まった箇所と
+ * HTTP コード・理由・対処ヒントを返す。管理画面の「Zoom接続テスト」から呼ぶ。
+ *
+ * @return array{ok:bool, message:string}
+ */
+function zoom_diagnose(): array
+{
+    $missing = [];
+    foreach (['ZOOM_ACCOUNT_ID', 'ZOOM_CLIENT_ID', 'ZOOM_CLIENT_SECRET'] as $k) {
+        $v = env($k);
+        if ($v === null || $v === '') {
+            $missing[] = $k;
+        }
+    }
+    if ($missing !== []) {
+        return ['ok' => false, 'message' => '.env のZoom設定が不足しています: ' . implode(' / ', $missing) . '（3つとも必要です）'];
+    }
+    if (!function_exists('curl_init')) {
+        return ['ok' => false, 'message' => 'サーバに cURL 拡張がありません。ホスト側で有効化が必要です。'];
+    }
+
+    // 1) アクセストークン取得（キャッシュを使わず生で検証）。
+    $accountId = (string) env('ZOOM_ACCOUNT_ID');
+    $clientId = (string) env('ZOOM_CLIENT_ID');
+    $clientSecret = (string) env('ZOOM_CLIENT_SECRET');
+    $ch = curl_init(ZOOM_OAUTH_ENDPOINT . '?grant_type=account_credentials&account_id=' . urlencode($accountId));
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_POST => true,
+        CURLOPT_USERPWD => $clientId . ':' . $clientSecret,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+        CURLOPT_POSTFIELDS => '',
+    ]);
+    $resp = curl_exec($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr = curl_error($ch);
+    curl_close($ch);
+
+    if ($resp === false) {
+        return ['ok' => false, 'message' => "Zoom(zoom.us)へ接続できません（ネットワーク/プロキシ）: {$curlErr}"];
+    }
+    $data = json_decode((string) $resp, true);
+    if ($code < 200 || $code >= 300 || !is_array($data) || !isset($data['access_token'])) {
+        $reason = is_array($data) ? (string) ($data['reason'] ?? $data['error'] ?? '') : '';
+        $hint = '';
+        if ($code === 400 || $code === 401) {
+            $hint = ' → アプリ種別が「Server-to-Server OAuth」であること、Account ID / Client ID / Client Secret が正しいことを確認してください（一般の OAuth アプリだとこの方式は使えません）。';
+        }
+        return ['ok' => false, 'message' => "トークン取得に失敗（HTTP {$code} {$reason}）。{$hint}"];
+    }
+
+    // 2) 会議作成に必要な権限の簡易確認（/users/me）。
+    $token = (string) $data['access_token'];
+    $ch = curl_init(ZOOM_API_BASE . '/users/me');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $token],
+    ]);
+    $resp2 = curl_exec($ch);
+    $code2 = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($code2 < 200 || $code2 >= 300) {
+        $d2 = json_decode((string) $resp2, true);
+        $reason2 = is_array($d2) ? (string) ($d2['message'] ?? '') : '';
+        return ['ok' => false, 'message' => "認証は成功しましたが API 呼び出しに失敗（HTTP {$code2} {$reason2}）。アプリのスコープに user:read:admin / meeting:write:admin（相当）を付与してください。"];
+    }
+
+    return ['ok' => true, 'message' => 'Zoom接続OK。認証・API呼び出しに成功しました。以後の枠作成で会議URLが自動発行されます。'];
+}
