@@ -126,7 +126,6 @@ $renderChecks = function (array $tags, string $name, array $checked) {
         <?php endif; ?>
         <label>写真をアップロード（JPEG/PNG/WebP）</label>
         <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
-        <p class="muted">大きな写真もそのままアップロードできます。サーバ側で向き補正・正方形に切り抜き・軽量化して保存します。</p>
     </div>
 
     <div class="card">
