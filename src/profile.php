@@ -6,6 +6,20 @@
 
 declare(strict_types=1);
 
+/** 画像処理パイプラインの版数。どのコードが動いているかを本番で切り分けるための目印。 */
+if (!defined('PHOTO_PIPELINE_VERSION')) {
+    define('PHOTO_PIPELINE_VERSION', 'square384-webp-exif-2026-07');
+}
+
+/** 稼働中の画像処理の版数と利用可能拡張を返す（プロフィール画面のHTMLコメントで表示）。 */
+function photo_pipeline_tag(): string
+{
+    return PHOTO_PIPELINE_VERSION
+        . ';gd=' . (function_exists('imagecreatefromstring') ? 1 : 0)
+        . ';webp=' . (function_exists('imagewebp') ? 1 : 0)
+        . ';exif=' . (function_exists('exif_read_data') ? 1 : 0);
+}
+
 /** 顔写真の保存ディレクトリ（公開領域外）。 */
 function uploads_dir(): string
 {

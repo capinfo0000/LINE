@@ -125,6 +125,7 @@ $renderChecks = function (array $tags, string $name, array $checked) {
 
     <div class="card">
         <div class="card__title">顔写真</div>
+        <!-- imgpipe: <?= e(photo_pipeline_tag()) ?> -->  <?php /* ↑ページのソース表示で稼働中の画像処理版数を確認できる */ ?>
         <?php if ($photoAbs !== null): ?>
             <p><img src="/member/photo.php" alt="現在の写真" style="max-width:140px;border-radius:10px;"></p>
             <label style="font-weight:normal;"><input type="checkbox" name="photo_delete" value="1"> この写真を削除する</label>
