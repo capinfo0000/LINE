@@ -250,13 +250,62 @@ function save_preferences(string $memberId, array $seekArea, array $seekJob, arr
 /* ------------------------- 顔写真 ------------------------- */
 
 /**
+ * JPEG の EXIF Orientation に従って GD 画像を正しい向きに補正して返す。
+ * スマホ写真は撮影向きが EXIF にだけ入っていることが多く、補正しないと横倒しで保存される。
+ *
+ * @param \GdImage|resource $img
+ * @return \GdImage|resource 補正後の画像（回転で新インスタンスになる場合あり）
+ */
+function gd_apply_exif_orientation($img, string $tmp, string $mime)
+{
+    if ($mime !== 'image/jpeg' || !function_exists('exif_read_data')) {
+        return $img;
+    }
+    $exif = @exif_read_data($tmp);
+    $orientation = (int) ($exif['Orientation'] ?? 0);
+    if ($orientation <= 1) {
+        return $img; // 補正不要
+    }
+    // imagerotate は反時計回り。向き 6/8 のスマホ縦写真を想定して補正する。
+    switch ($orientation) {
+        case 2:
+            imageflip($img, IMG_FLIP_HORIZONTAL);
+            break;
+        case 3:
+            $img = imagerotate($img, 180, 0);
+            break;
+        case 4:
+            imageflip($img, IMG_FLIP_VERTICAL);
+            break;
+        case 5:
+            $img = imagerotate($img, -90, 0);
+            imageflip($img, IMG_FLIP_HORIZONTAL);
+            break;
+        case 6:
+            $img = imagerotate($img, -90, 0);
+            break;
+        case 7:
+            $img = imagerotate($img, 90, 0);
+            imageflip($img, IMG_FLIP_HORIZONTAL);
+            break;
+        case 8:
+            $img = imagerotate($img, 90, 0);
+            break;
+    }
+    return $img;
+}
+
+/**
  * アップロードされた顔写真を検証して保存する。成功で true。
- * - 画像形式（jpeg/png/webp）・サイズ（<= 4MB）を検証。
- * - GD がある場合：中央を正方形にクロップ → 512px に縮小 → WebP に統一して保存
- *   （imagewebp が無い環境では JPEG にフォールバック）。再エンコードにより
- *   埋め込みメタデータ/ペイロードも同時に除去される。GD が無い場合は検証済みの
- *   元ファイルをそのまま保存（トリミング/変換なし）。
- * - 保存は公開領域外（data/uploads/）。photo_status は 'approved'（承認フローは廃止・即公開）。
+ * 巨大な原本を受け取ってよい（サーバの upload_max_filesize は .user.ini で引き上げ）。
+ * その上でサーバ側が以下の処理を行い、できるだけ小さくした1ファイルだけを残す：
+ * - 画像形式（jpeg/png/webp）と極端なサイズ上限（<= 20MB）を検証。
+ * - GD がある場合：EXIF の向きを補正 → 中央を正方形にクロップ → 512px に縮小 →
+ *   WebP に統一し、目標サイズ以下になるよう品質を段階的に下げて圧縮（imagewebp が
+ *   無ければ JPEG）。再エンコードで埋め込みメタデータ/ペイロードも除去。
+ *   GD が無い場合のみ、検証済みの元ファイルをそのまま保存（変換不可のフォールバック）。
+ * - 保存は公開領域外（data/uploads/）。会員あたり常に1ファイルのみで、原本は保存しない
+ *   （旧拡張子ファイルも削除）。photo_status は 'approved'（承認フローは廃止・即公開）。
  *
  * @param array{tmp_name?:string,size?:int,error?:int} $file $_FILES のエントリ
  */
@@ -264,17 +313,17 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
 {
     $errCode = $file['error'] ?? UPLOAD_ERR_NO_FILE;
     if ($errCode !== UPLOAD_ERR_OK) {
-        // サーバの upload_max_filesize 等で弾かれた場合は分かりやすく案内する
-        // （通常はブラウザ側の送信前縮小で回避されるが、JS 無効時のフォールバック）。
+        // サーバの upload_max_filesize / post_max_size を超えて弾かれた場合の案内。
+        // 上限は public/.user.ini で引き上げ済み。反映されていない可能性も添える。
         if ($errCode === UPLOAD_ERR_INI_SIZE || $errCode === UPLOAD_ERR_FORM_SIZE) {
-            $error = '画像の容量が大きすぎてアップロードできませんでした。もう少し小さい画像でお試しください。';
+            $error = '画像の容量が大きすぎてアップロードできませんでした（サーバ上限未反映の可能性）。時間をおくか、少し小さい画像でお試しください。';
         } else {
             $error = '画像のアップロードに失敗しました。';
         }
         return false;
     }
-    if (($file['size'] ?? 0) > 4 * 1024 * 1024) {
-        $error = '画像サイズが大きすぎます（4MBまで）。';
+    if (($file['size'] ?? 0) > 20 * 1024 * 1024) {
+        $error = '画像サイズが大きすぎます（20MBまで）。';
         return false;
     }
     $tmp = (string) ($file['tmp_name'] ?? '');
@@ -301,10 +350,11 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
     $outExt = null;
     $dest = null;
 
-    // GD があれば：中央正方形クロップ → 512px → WebP（無ければ JPEG）で保存。
+    // GD があれば：EXIF回転補正 → 中央正方形クロップ → 512px → WebP（無ければ JPEG）で保存。
     if (function_exists('imagecreatefromstring')) {
         $src = @imagecreatefromstring((string) file_get_contents($tmp));
         if ($src !== false) {
+            $src = gd_apply_exif_orientation($src, $tmp, $mime); // スマホ写真の横倒しを補正
             $w = imagesx($src);
             $h = imagesy($src);
             $side = max(1, min($w, $h));            // 短辺に合わせて正方形に
@@ -325,10 +375,25 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
             imagefilledrectangle($dst, 0, 0, $targetPx, $targetPx, $bg);
             imagecopyresampled($dst, $src, 0, 0, $sx, $sy, $targetPx, $targetPx, $side, $side);
 
+            if (!$useWebp) {
+                imageinterlace($dst, true); // JPEG フォールバックはプログレッシブで軽量＆表示良化
+            }
             $outExt = $useWebp ? 'webp' : 'jpg';
             $dest = $dir . '/' . $memberId . '.' . $outExt;
-            // 容量最小化のため品質はやや低め（顔アバター用途では十分）。
-            $processed = $useWebp ? imagewebp($dst, $dest, 78) : imagejpeg($dst, $dest, 80);
+            // 「できるだけ小さく」：目標(既定80KB)以下になるまで品質を段階的に下げて再エンコード。
+            // 512px の顔写真なら通常は最初の品質で目標を満たす。品質は下限で打ち止め（画質保護）。
+            $targetBytes = 80 * 1024;
+            $qualities = $useWebp ? [72, 62, 52, 42] : [78, 68, 58, 48];
+            foreach ($qualities as $q) {
+                $processed = $useWebp ? imagewebp($dst, $dest, $q) : imagejpeg($dst, $dest, $q);
+                if (!$processed) {
+                    break;
+                }
+                clearstatcache(true, $dest);
+                if (filesize($dest) <= $targetBytes) {
+                    break; // 目標達成
+                }
+            }
             imagedestroy($dst);
             imagedestroy($src);
         }

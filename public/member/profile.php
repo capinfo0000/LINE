@@ -125,8 +125,8 @@ $renderChecks = function (array $tags, string $name, array $checked) {
             <label style="font-weight:normal;"><input type="checkbox" name="photo_delete" value="1"> この写真を削除する</label>
         <?php endif; ?>
         <label>写真をアップロード（JPEG/PNG/WebP）</label>
-        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" data-max-dim="1024">
-        <p class="muted">大きな写真は送信前に自動で縮小して送信します。正方形に切り抜いて表示されます。</p>
+        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+        <p class="muted">大きな写真もそのままアップロードできます。サーバ側で向き補正・正方形に切り抜き・軽量化して保存します。</p>
     </div>
 
     <div class="card">
