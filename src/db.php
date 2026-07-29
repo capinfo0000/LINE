@@ -397,6 +397,21 @@ function db_migrate(\PDO $pdo): void
     SQL);
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_eval_target ON member_evaluations(target_id, kind);');
 
+    // サブスク（月額会費）用の会員カラム。
+    db_add_column_if_missing($pdo, 'members', 'stripe_subscription_id', 'TEXT');
+    db_add_column_if_missing($pdo, 'members', 'subscription_status', "TEXT NOT NULL DEFAULT ''"); // active/past_due/canceled
+
+    // 紹介者への月次ポイント配布の冪等記録（請求1件につき1回だけ付与）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS referral_payouts (
+            invoice_id  TEXT PRIMARY KEY,
+            referrer_id TEXT NOT NULL,
+            joiner_id   TEXT NOT NULL,
+            points      INTEGER NOT NULL,
+            created_at  INTEGER NOT NULL
+        );
+    SQL);
+
     // 写真承認フロー廃止に伴う正規化（冪等）：承認待ちのまま残っている写真を公開状態にする。
     // アップロードは即 'approved' になったため、既存の 'pending' のみを一度だけ引き上げる。
     $pdo->exec("UPDATE profiles SET photo_status = 'approved' WHERE photo_status = 'pending'");

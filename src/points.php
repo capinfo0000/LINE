@@ -14,7 +14,7 @@ declare(strict_types=1);
 /** 付与量（.env で上書き可）。 */
 function points_amount(string $key): int
 {
-    $defaults = ['referrer' => 100, 'joiner' => 50, 'praise' => 10, 'report_penalty' => 20];
+    $defaults = ['referrer' => 100, 'joiner' => 50, 'praise' => 10, 'report_penalty' => 20, 'referral_monthly' => 50];
     $env = env('POINTS_' . strtoupper($key));
     if ($env !== null && $env !== '' && is_numeric($env)) {
         return (int) $env;
@@ -88,6 +88,7 @@ function point_reason_label(string $reason): string
     return [
         'referral_referrer' => '紹介ボーナス（あなたの紹介で入会）',
         'referral_joiner'   => '紹介コード入力ボーナス',
+        'referral_monthly'  => '紹介継続ボーナス（毎月の課金継続）',
         'praise'            => '他の会員からの評価',
         'report_penalty'    => '通報による減点',
         'admin_adjust'      => '運営による調整',

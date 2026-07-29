@@ -14,22 +14,25 @@ require dirname(__DIR__) . '/src/bootstrap.php';
 
 $email = strtolower(trim((string) ($_GET['email'] ?? ($_POST['email'] ?? ''))));
 $lineUserId = trim((string) ($_GET['lu'] ?? ($_POST['lu'] ?? '')));
-$amount = join_fee_amount();
+$priceId = (string) (env('STRIPE_PRICE_ID') ?? '');
+$monthlyAmount = (int) env('MONTHLY_FEE_AMOUNT', '0'); // 表示用（0なら金額非表示）。実際の金額はStripeのPriceが基準。
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
 
-    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    if ($priceId === '') {
+        $error = '月額プラン（STRIPE_PRICE_ID）が未設定です。運営者にお問い合わせください。';
+    } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'メールアドレスの形式が正しくありません。';
     } elseif (empty($_POST['agree'])) {
-        $error = '利用規約・プライバシーポリシー・返金ポリシーへの同意が必要です。';
+        $error = '利用規約・プライバシーポリシー・特商法表記への同意が必要です。';
     } elseif (!rate_limit_check('checkout', 10, 3600)) {
         $error = '試行が多すぎます。しばらく時間をおいてお試しください。';
     } else {
         try {
             init_stripe();
-            $metadata = ['purpose' => 'join_fee'];
+            $metadata = ['purpose' => 'subscription'];
             if ($email !== '') {
                 $metadata['email'] = $email;
             }
@@ -37,17 +40,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $metadata['line_user_id'] = $lineUserId;
             }
             $params = [
-                'mode' => 'payment',
+                'mode' => 'subscription',
                 'line_items' => [[
                     'quantity' => 1,
-                    'price_data' => [
-                        'currency' => join_fee_currency(),
-                        'unit_amount' => $amount,
-                        'product_data' => ['name' => 'Enlink 入会金'],
-                    ],
+                    'price' => $priceId, // Stripe側で作成した「継続(月額)Price」のID
                 ]],
                 'metadata' => $metadata,
-                'payment_intent_data' => ['metadata' => $metadata],
+                'subscription_data' => ['metadata' => $metadata],
                 'success_url' => base_url() . '/success.php?session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => base_url() . '/cancel.php',
             ];
@@ -71,17 +70,17 @@ $token = csrf_token();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入会金のお支払い - Enlink</title>
+    <title>月額会費のお申し込み - Enlink</title>
     <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
 <div class="container container--narrow">
     <div class="brandbar">Enlink</div>
-    <h1>入会金のお支払い</h1>
+    <h1>月額会費のお申し込み</h1>
     <?php if ($error !== ''): ?><p class="err"><?= e($error) ?></p><?php endif; ?>
     <div class="card">
-        <p>入会金（買い切り・一回払い）：<strong><?= e(format_amount($amount)) ?></strong></p>
-        <p class="muted">お支払い完了後、会員サイトのログイン情報をお送りします（初回ログイン時にパスワード変更をお願いします）。</p>
+        <p>月額会費（サブスクリプション）<?php if ($monthlyAmount > 0): ?>：<strong><?= e(format_amount($monthlyAmount)) ?> / 月</strong><?php endif; ?></p>
+        <p class="muted">毎月自動で更新されます。いつでも解約できます。お申し込み完了後、会員サイトのログイン情報をお送りします（初回ログイン時にパスワード変更をお願いします）。</p>
         <form method="post">
             <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
             <input type="hidden" name="lu" value="<?= e($lineUserId) ?>">

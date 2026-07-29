@@ -68,8 +68,9 @@ function provision_member_from_checkout_session(array $s): array
     if ($sessionId === '') {
         return ['status' => 'ignored', 'member_id' => null, 'issued' => false];
     }
-    // 入会金決済（mode=payment）かつ支払い済みのみ対象。
-    if (($s['mode'] ?? 'payment') !== 'payment') {
+    // 買い切り(mode=payment) または サブスク(mode=subscription) の支払い済みを対象。
+    $mode = (string) ($s['mode'] ?? 'payment');
+    if ($mode !== 'payment' && $mode !== 'subscription') {
         return ['status' => 'ignored', 'member_id' => null, 'issued' => false];
     }
     if (($s['payment_status'] ?? 'paid') !== 'paid') {
@@ -136,6 +137,12 @@ function provision_member_from_checkout_session(array $s): array
     if (($member['id'] ?? '') !== '' && $customerId !== '') {
         $sc = db()->prepare('UPDATE members SET stripe_customer_id = COALESCE(stripe_customer_id, ?) WHERE id = ?');
         $sc->execute([$customerId, $member['id']]);
+    }
+    // サブスクなら subscription ID と状態(active)を保存。
+    $subId = (string) ($s['subscription'] ?? '');
+    if (($member['id'] ?? '') !== '' && $subId !== '') {
+        db()->prepare("UPDATE members SET stripe_subscription_id = ?, subscription_status = 'active' WHERE id = ?")
+            ->execute([$subId, $member['id']]);
     }
 
     // LINE 経由で来た相手なら、ファネルを paid にして会員IDを紐付ける（Bot配布の下準備）。
@@ -254,10 +261,98 @@ function normalize_checkout_session($session): array
         'mode'           => (string) $get($session, 'mode', 'payment'),
         'payment_status' => (string) $get($session, 'payment_status', ''),
         'payment_intent' => (string) $get($session, 'payment_intent', ''),
+        'subscription'   => (string) $get($session, 'subscription', ''),
         'customer'       => (string) $get($session, 'customer', ''),
         'amount_total'   => (int) $get($session, 'amount_total', 0),
         'currency'       => (string) $get($session, 'currency', 'jpy'),
         'email'          => (string) ($email ?: ''),
         'metadata'       => $meta,
     ];
+}
+
+/* ============================ サブスク（月額会費） ============================ */
+
+/** Stripe 顧客IDから会員を引く。 */
+function find_member_by_customer(string $customerId): ?array
+{
+    if ($customerId === '') {
+        return null;
+    }
+    $stmt = db()->prepare('SELECT * FROM members WHERE stripe_customer_id = ? LIMIT 1');
+    $stmt->execute([$customerId]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+/**
+ * invoice.paid（毎月の課金成功）を処理する。
+ * - 会員を有効維持（active / subscription_status=active）。
+ * - 紹介者へ「継続ボーナス」を付与（請求1件につき1回だけ・冪等）。
+ */
+function handle_invoice_paid(array $invoice): void
+{
+    $customerId = (string) ($invoice['customer'] ?? '');
+    $invoiceId = (string) ($invoice['id'] ?? '');
+    $member = find_member_by_customer($customerId);
+    if ($member === null) {
+        return; // 会員未特定（初回はcheckout側でプロビジョニング済みになる）
+    }
+    $memberId = (string) $member['id'];
+
+    // 課金継続 → 会員を有効に戻す/維持。
+    db()->prepare("UPDATE members SET status = 'active', subscription_status = 'active', joined_at = COALESCE(joined_at, ?) WHERE id = ?")
+        ->execute([time(), $memberId]);
+
+    // 紹介者への継続ボーナス（この会員=入会者を紹介した人へ）。
+    award_monthly_referral($memberId, $invoiceId);
+}
+
+/**
+ * 入会者(=$joinerId)の課金継続に対して、紹介者へ月次ポイントを付与する（冪等）。
+ * invoice_id 単位で二重付与を防ぐ。
+ */
+function award_monthly_referral(string $joinerId, string $invoiceId): void
+{
+    if ($invoiceId === '') {
+        return;
+    }
+    $stmt = db()->prepare('SELECT referrer_id FROM referrals WHERE joiner_id = ? LIMIT 1');
+    $stmt->execute([$joinerId]);
+    $referrerId = $stmt->fetchColumn();
+    if ($referrerId === false || $referrerId === null || $referrerId === '') {
+        return; // 紹介者未登録
+    }
+    $points = points_amount('referral_monthly');
+    if ($points <= 0) {
+        return;
+    }
+    // invoice_id を PK にした claim-first で二重付与を防止。
+    $ins = db()->prepare('INSERT OR IGNORE INTO referral_payouts (invoice_id, referrer_id, joiner_id, points, created_at) VALUES (?,?,?,?,?)');
+    $ins->execute([$invoiceId, (string) $referrerId, $joinerId, $points, time()]);
+    if ($ins->rowCount() === 0) {
+        return; // 既に付与済み
+    }
+    add_points((string) $referrerId, $points, 'referral_monthly', $joinerId);
+}
+
+/**
+ * サブスクの状態変更を会員へ反映する。
+ * - canceled/unpaid → 会員を停止（suspended）。
+ * - past_due → subscription_status のみ更新（猶予・停止はしない）。
+ */
+function handle_subscription_status(string $customerId, string $subStatus, string $subscriptionId = ''): void
+{
+    $member = find_member_by_customer($customerId);
+    if ($member === null) {
+        return;
+    }
+    $memberId = (string) $member['id'];
+    if (in_array($subStatus, ['canceled', 'unpaid', 'incomplete_expired'], true)) {
+        db()->prepare("UPDATE members SET status = 'suspended', subscription_status = ? WHERE id = ?")
+            ->execute([$subStatus, $memberId]);
+        audit_log('subscription.suspended', ['member' => $memberId, 'status' => $subStatus]);
+    } else {
+        db()->prepare('UPDATE members SET subscription_status = ? WHERE id = ?')
+            ->execute([$subStatus, $memberId]);
+    }
 }

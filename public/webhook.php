@@ -41,13 +41,43 @@ try {
     switch ($event->type) {
         case 'checkout.session.completed':
             $session = $event->data->object;
-            // 入会金以外（将来別用途を足す場合）はメタデータで振り分け可能にしておく。
+            // 買い切り(join_fee) / サブスク(subscription) の初回決済 → 会員化＋ID/PW発行。
             $purpose = (string) ($session->metadata->purpose ?? 'join_fee');
-            if ($purpose === 'join_fee') {
+            if ($purpose === 'join_fee' || $purpose === 'subscription') {
                 // event.id で冪等化（重複配信は無視）。実処理側も claim-first で二重発行を防ぐ。
                 if (record_stripe_event_once((string) $event->id, (string) $event->type)) {
                     provision_member_from_checkout_session(normalize_checkout_session($session));
                 }
+            }
+            break;
+
+        case 'invoice.paid':
+        case 'invoice.payment_succeeded':
+            // 毎月の課金成功 → 会員を有効維持＋紹介者へ継続ボーナス（invoice単位で冪等）。
+            if (record_stripe_event_once((string) $event->id, (string) $event->type)) {
+                $inv = $event->data->object;
+                handle_invoice_paid([
+                    'id'           => (string) ($inv->id ?? ''),
+                    'customer'     => (string) ($inv->customer ?? ''),
+                    'subscription' => (string) ($inv->subscription ?? ''),
+                ]);
+            }
+            break;
+
+        case 'invoice.payment_failed':
+            // 未払い → subscription_status を past_due に（停止は subscription.deleted で行う）。
+            if (record_stripe_event_once((string) $event->id, (string) $event->type)) {
+                $inv = $event->data->object;
+                handle_subscription_status((string) ($inv->customer ?? ''), 'past_due');
+            }
+            break;
+
+        case 'customer.subscription.deleted':
+        case 'customer.subscription.updated':
+            // 解約/失効 → 会員停止。past_due 等は状態のみ更新。
+            if (record_stripe_event_once((string) $event->id, (string) $event->type)) {
+                $sub = $event->data->object;
+                handle_subscription_status((string) ($sub->customer ?? ''), (string) ($sub->status ?? ''), (string) ($sub->id ?? ''));
             }
             break;
 
