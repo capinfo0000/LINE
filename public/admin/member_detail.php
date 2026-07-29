@@ -83,7 +83,7 @@ $myReports = $myReports->fetchAll();
 <div class="card">
     <div class="card__title">ポイント・称号</div>
     <p><strong style="font-size:1.3rem;"><?= number_format($pBalance) ?></strong> pt　<span class="badge badge--title"><?= e(points_title($pBalance)) ?></span>
-       <span class="muted">／ 受けた評価 <?= (int) praise_count($id) ?> 件・紹介 <?= (int) referral_count($id) ?> 名</span></p>
+       <span class="muted">／ 受けた評価 <?= (int) praise_count($id) ?> 件・通報 <?= (int) report_count($id) ?> 件・紹介 <?= (int) referral_count($id) ?> 名</span></p>
     <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="action" value="points_adjust">
         <div><label>調整（±）</label><input type="number" name="delta" value="0" style="max-width:110px;"></div>

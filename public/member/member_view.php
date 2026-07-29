@@ -74,7 +74,7 @@ $iAmSelf = (string) $viewer['id'] === $targetId;
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="praise">
             <button class="btn" <?= has_evaluated((string) $viewer['id'], $targetId, 'praise') ? 'disabled' : '' ?>>👍 評価する<?= has_evaluated((string) $viewer['id'], $targetId, 'praise') ? '（済）' : '' ?></button>
         </form>
-        <form method="post" style="margin:0;" data-confirm="この会員を通報します。運営が確認します。よろしいですか？">
+        <form method="post" style="margin:0;" data-confirm="この会員を通報します（1回のみ・取り消せません）。よろしいですか？">
             <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="report">
             <button class="btn btn--ghost" <?= has_evaluated((string) $viewer['id'], $targetId, 'report') ? 'disabled' : '' ?>>⚠ 通報<?= has_evaluated((string) $viewer['id'], $targetId, 'report') ? '（済）' : '' ?></button>
         </form>

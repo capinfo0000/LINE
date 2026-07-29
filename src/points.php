@@ -188,8 +188,9 @@ function evaluate_member(string $raterId, string $targetId, string $kind, string
     if (has_evaluated($raterId, $targetId, $kind)) {
         return ['ok' => false, 'message' => $kind === 'praise' ? 'この会員は評価済みです。' : 'この会員は通報済みです。'];
     }
+    // 承認フローは廃止。評価も通報もユーザー操作で即時にポイントへ反映する（handled=1）。
     try {
-        db()->prepare('INSERT INTO member_evaluations (rater_id, target_id, kind, note, handled, created_at) VALUES (?,?,?,?,0,?)')
+        db()->prepare('INSERT INTO member_evaluations (rater_id, target_id, kind, note, handled, created_at) VALUES (?,?,?,?,1,?)')
             ->execute([$raterId, $targetId, $kind, mb_substr($note, 0, 300), time()]);
     } catch (\Throwable $e) {
         return ['ok' => false, 'message' => 'すでに登録済みです。'];
@@ -198,13 +199,23 @@ function evaluate_member(string $raterId, string $targetId, string $kind, string
         add_points($targetId, points_amount('praise'), 'praise', $raterId);
         return ['ok' => true, 'message' => '評価しました。相手に ' . points_amount('praise') . 'pt を付与しました。'];
     }
-    return ['ok' => true, 'message' => '通報を受け付けました。運営が内容を確認します。'];
+    // 通報：即時に減点（1人1回なので、多人数の通報ほど下がる）。
+    add_points($targetId, -abs(points_amount('report_penalty')), 'report_penalty', $raterId);
+    return ['ok' => true, 'message' => '通報を受け付けました。ご協力ありがとうございます。'];
 }
 
 /** 会員が受けた評価(praise)数。 */
 function praise_count(string $memberId): int
 {
     $stmt = db()->prepare("SELECT COUNT(*) FROM member_evaluations WHERE target_id = ? AND kind = 'praise'");
+    $stmt->execute([$memberId]);
+    return (int) $stmt->fetchColumn();
+}
+
+/** 会員が受けた通報(report)数（運営の濫用検知・オーバービュー用）。 */
+function report_count(string $memberId): int
+{
+    $stmt = db()->prepare("SELECT COUNT(*) FROM member_evaluations WHERE target_id = ? AND kind = 'report'");
     $stmt->execute([$memberId]);
     return (int) $stmt->fetchColumn();
 }
