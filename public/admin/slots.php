@@ -25,8 +25,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 $ts = (new DateTime($when, new DateTimeZone('Asia/Tokyo')))->getTimestamp();
-                create_slot($kind, $ts, $cap > 0 ? $cap : 1);
-                $msg = '予約枠を作成しました。';
+                $sid = create_slot($kind, $ts, $cap > 0 ? $cap : 1);
+                $created = find_slot($sid);
+                if (!empty($created['zoom_url'])) {
+                    $msg = '予約枠を作成し、Zoom会議URLを発行しました。予約者にはこのURLが自動で届きます。';
+                } elseif (zoom_enabled()) {
+                    $msg = '予約枠を作成しました。ただしZoom会議の発行に失敗したため、最初の予約時に再発行を試みます。';
+                    $msgType = 'ng';
+                } else {
+                    $msg = '予約枠を作成しました（Zoom未設定のため会議URLは手動運用です）。';
+                }
             } catch (\Throwable $e) {
                 $msg = '日時の形式が不正です。';
                 $msgType = 'ng';
@@ -66,7 +74,7 @@ require __DIR__ . '/_app_header.php';
                 <td style="padding:6px;"><?= $s['kind'] === 'seminar' ? '説明会' : '個別面談' ?></td>
                 <td><?= e($jst) ?></td>
                 <td><?= (int) $s['booked_count'] ?>/<?= (int) $s['capacity'] ?></td>
-                <td><?= $s['zoom_url'] ? '<span class="muted">発行済</span>' : '-' ?></td>
+                <td><?php if (!empty($s['zoom_url'])): ?><a href="<?= e($s['zoom_url']) ?>" target="_blank" rel="noopener">会議URL</a><?php else: ?><span class="muted">未発行</span><?php endif; ?></td>
                 <td><?= (int) $s['is_open'] === 1 ? '受付中' : '停止' ?></td>
                 <td>
                     <form method="post" style="display:inline;">

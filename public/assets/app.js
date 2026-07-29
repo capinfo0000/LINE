@@ -7,6 +7,18 @@
     else { document.addEventListener('DOMContentLoaded', fn); }
   }
   ready(function () {
+    // モバイル時のヘッダーナビ（横スクロール）は、ページ遷移のたびに scrollLeft が 0 に戻り
+    // 選択中の項目が画面外へ隠れてしまう。読み込み時にアクティブ項目が見える位置へ横スクロールを
+    // 復元する（縦スクロールには一切触れない）。デスクトップの縦サイドバーでは横スクロールが無く無害。
+    (function keepActiveNavVisible() {
+      var nav = document.querySelector('.nav');
+      var active = nav && nav.querySelector('a.active');
+      if (!nav || !active) { return; }
+      if (nav.scrollWidth <= nav.clientWidth) { return; } // 横スクロール不要（デスクトップ等）
+      var target = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
+      nav.scrollLeft = Math.max(0, target); // 中央寄せ（縦位置は不変）
+    })();
+
     // クリックで入力値を全選択（コピー用テキスト欄）
     document.querySelectorAll('.js-select').forEach(function (el) {
       el.addEventListener('click', function () { el.select(); });

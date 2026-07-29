@@ -20,7 +20,11 @@ function generate_booking_id(): string
     return 'bk_' . bin2hex(random_bytes(6));
 }
 
-/** 予約枠を作成する。 */
+/**
+ * 予約枠を作成する。Zoom 設定済みなら「枠作成の時点で」会議を発行して枠に保存する
+ * （予約者はブッキング時に即その URL を受け取れる＝手渡し）。未設定・失敗時は枠だけ作成し、
+ * book_slot 側でのフォールバック（予約時に再試行）に委ねる。
+ */
 function create_slot(string $kind, int $startAt, int $capacity = 1): string
 {
     $id = generate_slot_id();
@@ -28,7 +32,39 @@ function create_slot(string $kind, int $startAt, int $capacity = 1): string
         'INSERT INTO slots (id, kind, start_at, capacity, booked_count, is_open, created_at) VALUES (?,?,?,?,0,1,?)'
     );
     $stmt->execute([$id, $kind, $startAt, max(1, $capacity), time()]);
+
+    // 枠作成と同時に Zoom 会議を発行（設定済みのとき）。失敗は握りつぶし、予約時に再試行される。
+    $slot = find_slot($id);
+    if ($slot !== null) {
+        ensure_slot_zoom($slot);
+    }
     return $id;
+}
+
+/**
+ * 枠に紐づく Zoom 会議を用意する。未生成かつ Zoom 設定済みなら会議を作成して
+ * slots.zoom_meeting_id / zoom_url に保存し、その join_url を返す。
+ * 既に発行済みならその URL を、Zoom 未設定・作成失敗なら null を返す（フォールバック）。
+ */
+function ensure_slot_zoom(array $slot): ?string
+{
+    $zoomUrl = $slot['zoom_url'] ?? null;
+    if (is_string($zoomUrl) && $zoomUrl !== '') {
+        return $zoomUrl; // 既に発行済み（重複作成を防ぐ）
+    }
+    if (!zoom_enabled()) {
+        return null;
+    }
+    $kind = (string) ($slot['kind'] ?? '');
+    $duration = $kind === 'seminar' ? 40 : 30;
+    $topic = $kind === 'seminar' ? 'Enlink 説明会' : 'Enlink 個別面談';
+    $meeting = zoom_create_meeting($topic, (int) ($slot['start_at'] ?? time()), $duration);
+    if ($meeting === null) {
+        return null;
+    }
+    $u = db()->prepare('UPDATE slots SET zoom_meeting_id = ?, zoom_url = ? WHERE id = ?');
+    $u->execute([$meeting['id'], $meeting['join_url'], (string) $slot['id']]);
+    return $meeting['join_url'];
 }
 
 function find_slot(string $slotId): ?array
@@ -75,18 +111,9 @@ function book_slot(string $slotId, string $kind, ?string $lineUserId, ?string $m
 
     $slot = find_slot($slotId);
 
-    // Zoom 会議を枠単位で遅延生成（未生成かつ設定済みのとき）。失敗はフォールバック。
-    $zoomUrl = $slot['zoom_url'] ?? null;
-    if (($zoomUrl === null || $zoomUrl === '') && zoom_enabled()) {
-        $duration = $kind === 'seminar' ? 40 : 30;
-        $topic = $kind === 'seminar' ? 'Enlink 説明会' : 'Enlink 個別面談';
-        $meeting = zoom_create_meeting($topic, (int) $slot['start_at'], $duration);
-        if ($meeting !== null) {
-            $zoomUrl = $meeting['join_url'];
-            $u = db()->prepare('UPDATE slots SET zoom_meeting_id = ?, zoom_url = ? WHERE id = ?');
-            $u->execute([$meeting['id'], $zoomUrl, $slotId]);
-        }
-    }
+    // 通常は create_slot 時に発行済み。未発行（Zoom を後から設定した等）ならここで再試行する。
+    // 失敗時は zoom_url = null のまま枠だけ確定し、手動 URL 案内にフォールバックする。
+    $zoomUrl = $slot !== null ? ensure_slot_zoom($slot) : null;
 
     $bookingId = generate_booking_id();
     $ins = db()->prepare(
