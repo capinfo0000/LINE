@@ -252,7 +252,10 @@ function save_preferences(string $memberId, array $seekArea, array $seekJob, arr
 /**
  * アップロードされた顔写真を検証して保存する。成功で true。
  * - 画像形式（jpeg/png/webp）・サイズ（<= 4MB）を検証。
- * - 可能なら GD で再エンコードして埋め込みメタデータ/ペイロードを除去。
+ * - GD がある場合：中央を正方形にクロップ → 512px に縮小 → WebP に統一して保存
+ *   （imagewebp が無い環境では JPEG にフォールバック）。再エンコードにより
+ *   埋め込みメタデータ/ペイロードも同時に除去される。GD が無い場合は検証済みの
+ *   元ファイルをそのまま保存（トリミング/変換なし）。
  * - 保存は公開領域外（data/uploads/）。photo_status は 'approved'（承認フローは廃止・即公開）。
  *
  * @param array{tmp_name?:string,size?:int,error?:int} $file $_FILES のエントリ
@@ -283,44 +286,66 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
         $error = '対応していない画像形式です（JPEG/PNG/WebP のみ）。';
         return false;
     }
-    $ext = $extMap[$mime];
+    $fallbackExt = $extMap[$mime]; // GD 不可時に元形式で保存するための拡張子
     $dir = uploads_dir();
-    $filename = $memberId . '.' . $ext;
-    $dest = $dir . '/' . $filename;
+    $targetPx = 512; // 出力の一辺（正方形）
 
-    $saved = false;
-    // GD があれば再エンコードでメタデータ/埋め込みを除去。
+    $processed = false;
+    $outExt = null;
+    $dest = null;
+
+    // GD があれば：中央正方形クロップ → 512px → WebP（無ければ JPEG）で保存。
     if (function_exists('imagecreatefromstring')) {
-        $img = @imagecreatefromstring((string) file_get_contents($tmp));
-        if ($img !== false) {
-            if ($mime === 'image/png') {
-                $saved = imagepng($img, $dest);
-            } elseif ($mime === 'image/webp' && function_exists('imagewebp')) {
-                $saved = imagewebp($img, $dest);
+        $src = @imagecreatefromstring((string) file_get_contents($tmp));
+        if ($src !== false) {
+            $w = imagesx($src);
+            $h = imagesy($src);
+            $side = max(1, min($w, $h));            // 短辺に合わせて正方形に
+            $sx = (int) (($w - $side) / 2);         // 中央基準の切り出し原点
+            $sy = (int) (($h - $side) / 2);
+
+            $dst = imagecreatetruecolor($targetPx, $targetPx);
+            $useWebp = function_exists('imagewebp');
+            if ($useWebp) {
+                // WebP は透過を保持できるので、背景を透明で初期化。
+                imagealphablending($dst, false);
+                imagesavealpha($dst, true);
+                $bg = imagecolorallocatealpha($dst, 0, 0, 0, 127);
             } else {
-                $saved = imagejpeg($img, $dest, 85);
+                // JPEG は透過不可 → 白背景で平坦化。
+                $bg = imagecolorallocate($dst, 255, 255, 255);
             }
-            imagedestroy($img);
+            imagefilledrectangle($dst, 0, 0, $targetPx, $targetPx, $bg);
+            imagecopyresampled($dst, $src, 0, 0, $sx, $sy, $targetPx, $targetPx, $side, $side);
+
+            $outExt = $useWebp ? 'webp' : 'jpg';
+            $dest = $dir . '/' . $memberId . '.' . $outExt;
+            // 容量最小化のため品質はやや低め（顔アバター用途では十分）。
+            $processed = $useWebp ? imagewebp($dst, $dest, 78) : imagejpeg($dst, $dest, 80);
+            imagedestroy($dst);
+            imagedestroy($src);
         }
     }
-    if (!$saved) {
-        // GD 不可の場合はそのまま保存（形式は検証済み）。
-        $saved = @copy($tmp, $dest);
-    }
-    if (!$saved) {
-        $error = '画像の保存に失敗しました。';
-        return false;
+
+    if (!$processed) {
+        // GD 不可：検証済みの元ファイルをそのまま保存（トリミング/変換なし）。
+        $outExt = $fallbackExt;
+        $dest = $dir . '/' . $memberId . '.' . $outExt;
+        if (!@copy($tmp, $dest)) {
+            $error = '画像の保存に失敗しました。';
+            return false;
+        }
     }
     @chmod($dest, 0600);
 
     // 既存の別拡張子ファイルを掃除。
     foreach (['jpg', 'png', 'webp'] as $e2) {
-        if ($e2 !== $ext) {
+        if ($e2 !== $outExt) {
             @unlink($dir . '/' . $memberId . '.' . $e2);
         }
     }
 
-    $rel = 'uploads/' . $filename;
+    $rel = 'uploads/' . $memberId . '.' . $outExt;
     $stmt = db()->prepare(
         "INSERT INTO profiles (member_id, photo_path, photo_status, updated_at)
          VALUES (:m,:p,'approved',:t)
