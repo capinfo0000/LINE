@@ -50,32 +50,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $d = zoom_diagnose();
         $msg = $d['message'];
         $msgType = $d['ok'] ? 'ok' : 'ng';
-    } elseif ($action === 'rezoom') {
-        // Zoomリンクを再発行し、既存の申込者（booked）へ新URLをLINEで送信する。
+    } elseif ($action === 'issue' || $action === 'rezoom') {
+        // issue  : 未発行の枠にZoomリンクを新規発行（既存があれば何もしない）。
+        // rezoom : 発行済みリンクが壊れた等の際に強制再発行。
+        // どちらも「正しく発行できた場合のみ」申込者へLINE送信する。
         $sid = (string) ($_POST['slot_id'] ?? '');
+        $slot = find_slot($sid);
         if (!zoom_enabled()) {
-            $msg = 'Zoomが未設定のため再発行できません。.envのZoom設定を確認してください。';
+            $msg = 'Zoomが未設定のため発行できません。.envのZoom設定を確認してください。';
             $msgType = 'ng';
+        } elseif ($slot === null) {
+            $msg = '対象の枠が見つかりません。';
+            $msgType = 'ng';
+        } elseif ($action === 'issue' && !empty($slot['zoom_url'])) {
+            $msg = 'この枠は既にZoom発行済みです。（壊れている場合は「再発行」をお使いください）';
         } else {
-            $newUrl = regenerate_slot_zoom($sid);
+            // issue は未発行のみ発行（ensure=冪等）、rezoom は強制再発行。
+            $newUrl = $action === 'issue' ? ensure_slot_zoom($slot) : regenerate_slot_zoom($sid);
             if ($newUrl === null) {
-                $msg = 'Zoom会議の再発行に失敗しました。時間をおいて再度お試しください。';
+                $msg = 'Zoom会議の発行に失敗しました。時間をおいて再度お試しください。（送信は行っていません）';
                 $msgType = 'ng';
             } else {
-                $slot = find_slot($sid);
-                $when = $slot !== null ? date('Y-m-d H:i', (int) $slot['start_at'] + 9 * 3600) : '';
-                $label = ($slot['kind'] ?? '') === 'seminar' ? '説明会' : '個別面談';
-                $uids = slot_booking_line_users($sid);
-                $sent = 0;
-                foreach ($uids as $uid) {
-                    $text = "【{$label}】Zoom参加URLが変更されました。\n日時：{$when}\n新しいURL：{$newUrl}";
-                    if (line_push($uid, [line_text($text)])) {
-                        $sent++;
+                // 発行成功 → 当該枠の予約(booked)にもURLを反映し、申込者へ送信。
+                db()->prepare("UPDATE bookings SET zoom_url = ? WHERE slot_id = ? AND status = 'booked'")
+                    ->execute([$newUrl, $sid]);
+                $r = push_zoom_url_to_slot_bookings($sid, $newUrl);
+                $head = $action === 'issue' ? 'Zoom会議URLを発行しました。' : 'Zoom会議URLを再発行しました。';
+                if ($r['total'] === 0) {
+                    $msg = $head . '（申込者はまだいません。以後の予約者には自動で届きます）';
+                } else {
+                    $msg = $head . ' 申込者 ' . $r['total'] . ' 名中 ' . $r['sent'] . ' 名へLINE送信しました。';
+                    if ($r['sent'] < $r['total']) {
+                        $msg .= '（未送信分はLINE連携が無い等。URL: ' . $newUrl . ' を手動でご案内ください）';
                     }
-                }
-                $msg = 'Zoom会議URLを再発行しました。申込者 ' . count($uids) . ' 名中 ' . $sent . ' 名へ新URLをLINE送信しました。';
-                if ($sent < count($uids)) {
-                    $msg .= '（未送信分はLINE連携が無い等。新URL: ' . $newUrl . ' を手動でご案内ください）';
                 }
             }
         }
@@ -137,7 +144,16 @@ require __DIR__ . '/_app_header.php';
                         <input type="hidden" name="slot_id" value="<?= e($s['id']) ?>"><input type="hidden" name="open" value="<?= (int) $s['is_open'] === 1 ? 0 : 1 ?>">
                         <button class="btn btn--ghost" style="padding:2px 8px;"><?= (int) $s['is_open'] === 1 ? '停止' : '再開' ?></button>
                     </form>
-                    <?php if ((int) $s['booked_count'] > 0): ?>
+                    <?php if (empty($s['zoom_url'])):
+                        $cf = (int) $s['booked_count'] > 0
+                            ? 'Zoomリンクを発行し、申込者' . (int) $s['booked_count'] . '名へLINE送信します。よろしいですか？'
+                            : 'Zoomリンクを発行します。よろしいですか？'; ?>
+                    <form method="post" style="display:inline;" data-confirm="<?= e($cf) ?>">
+                        <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="issue">
+                        <input type="hidden" name="slot_id" value="<?= e($s['id']) ?>">
+                        <button class="btn" style="padding:2px 8px;">Zoom発行</button>
+                    </form>
+                    <?php elseif ((int) $s['booked_count'] > 0): ?>
                     <form method="post" style="display:inline;" data-confirm="Zoomリンクを再発行し、申込者<?= (int) $s['booked_count'] ?>名へ新URLをLINE送信します。よろしいですか？">
                         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="rezoom">
                         <input type="hidden" name="slot_id" value="<?= e($s['id']) ?>">

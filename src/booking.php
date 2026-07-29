@@ -197,6 +197,31 @@ function slot_booking_line_users(string $slotId): array
     return array_keys($uids);
 }
 
+/**
+ * 枠の申込者(booked)へ Zoom 参加URLを LINE 送信する。送信可能な宛先数と実送信数を返す。
+ * 送信前に呼び出し側で「発行に成功していること」を確認すること。
+ *
+ * @return array{total:int, sent:int}
+ */
+function push_zoom_url_to_slot_bookings(string $slotId, string $url): array
+{
+    $slot = find_slot($slotId);
+    if ($slot === null) {
+        return ['total' => 0, 'sent' => 0];
+    }
+    $when = date('Y-m-d H:i', (int) $slot['start_at'] + 9 * 3600);
+    $label = ($slot['kind'] ?? '') === 'seminar' ? '説明会' : '個別面談';
+    $uids = slot_booking_line_users($slotId);
+    $sent = 0;
+    foreach ($uids as $uid) {
+        $text = "【{$label}】Zoom参加URLのご案内です。\n日時：{$when}（JST）\n参加URL：{$url}";
+        if (line_push($uid, [line_text($text)])) {
+            $sent++;
+        }
+    }
+    return ['total' => count($uids), 'sent' => $sent];
+}
+
 /** 予約のステータスを更新する。 */
 function set_booking_status(string $bookingId, string $status): void
 {
