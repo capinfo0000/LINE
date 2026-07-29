@@ -223,6 +223,26 @@ tbody tr:hover { background: #fafbfc; }
 .perm__pills { display: flex; gap: 4px; flex: none; }
 .pill { border: 1px solid var(--border); border-radius: 6px; padding: 2px 9px; font-size: .76rem; color: var(--muted); background: #fff; }
 .pill--on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+/* ---------- タグ選択（チップ / ピル型トグル） ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; align-items: center; margin: 0;
+  padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--border); background: #fff;
+  color: var(--text); font-size: .88rem; font-weight: 600; line-height: 1.2;
+  cursor: pointer; user-select: none;
+  transition: background .12s, border-color .12s, color .12s, box-shadow .12s;
+}
+.chip:hover { border-color: var(--accent); }
+/* ネイティブのチェックボックスは視覚的に隠す（機能は従来どおり） */
+.chip input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.chip span { display: inline-flex; align-items: center; }
+/* 選択時：アクセント色で塗り、先頭にチェック✓を出す */
+.chip:has(input:checked) { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip:has(input:checked) span::before { content: "\2713"; margin-right: 5px; font-weight: 800; }
+/* キーボード操作のフォーカス可視化 */
+.chip:focus-within { box-shadow: 0 0 0 3px rgba(37, 99, 235, .25); }
 .mockfield { display: flex; gap: 6px; align-items: center; margin: 6px 0; }
 .mockfield input { flex: 1; margin: 0; }
 .mockfield .btn { white-space: nowrap; }

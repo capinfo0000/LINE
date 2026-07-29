@@ -89,13 +89,18 @@ require __DIR__ . '/_header.php';
 
 /** チェックボックス群を描画するヘルパー。 */
 $renderChecks = function (array $tags, string $name, array $checked) {
+    if ($tags === []) {
+        return;
+    }
+    echo '<div class="chips">';
     foreach ($tags as $t) {
         $id = (int) $t['id'];
         $isC = isset($checked[$id]);
-        echo '<label style="display:inline-block;margin:2px 8px 2px 0;font-weight:normal;">'
-            . '<input type="checkbox" name="' . e($name) . '[]" value="' . $id . '"' . ($isC ? ' checked' : '') . '> '
-            . e($t['label']) . '</label>';
+        echo '<label class="chip">'
+            . '<input type="checkbox" name="' . e($name) . '[]" value="' . $id . '"' . ($isC ? ' checked' : '') . '>'
+            . '<span>' . e($t['label']) . '</span></label>';
     }
+    echo '</div>';
 };
 ?>
 <h1>プロフィール編集</h1>
