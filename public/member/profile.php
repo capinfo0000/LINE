@@ -121,13 +121,12 @@ $renderChecks = function (array $tags, string $name, array $checked) {
     <div class="card">
         <div class="card__title">顔写真</div>
         <?php if ($photoAbs !== null): ?>
-            <p><img src="/member/photo.php" alt="現在の写真" style="max-width:140px;border-radius:10px;">
-               <span class="muted">状態: <?= e($profile['photo_status']) ?></span></p>
+            <p><img src="/member/photo.php" alt="現在の写真" style="max-width:140px;border-radius:10px;"></p>
             <label style="font-weight:normal;"><input type="checkbox" name="photo_delete" value="1"> この写真を削除する</label>
         <?php endif; ?>
-        <label>写真をアップロード（JPEG/PNG/WebP・4MBまで）</label>
-        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
-        <p class="muted">アップロードした写真は運営確認後に会員一覧へ表示されます。</p>
+        <label>写真をアップロード（JPEG/PNG/WebP）</label>
+        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" data-max-dim="1024">
+        <p class="muted">大きな写真は送信前に自動で縮小して送信します。正方形に切り抜いて表示されます。</p>
     </div>
 
     <div class="card">

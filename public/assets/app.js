@@ -27,6 +27,62 @@
     document.querySelectorAll('.js-autosubmit').forEach(function (el) {
       el.addEventListener('change', function () { if (el.form) { el.form.submit(); } });
     });
+    // 画像アップロードは送信前にブラウザで縮小する（元の形式のまま・長辺を data-max-dim に収める）。
+    // これで大きなスマホ写真も PHP の upload_max_filesize を超えずに送れる。縮小後、サーバ側で
+    // 正方形クロップ＋WebP化される。DataTransfer/canvas 非対応の古い環境では元ファイルのまま送る。
+    function shrinkImageFile(file, maxDim, quality) {
+      return new Promise(function (resolve) {
+        if (!file || !/^image\/(jpeg|png|webp)$/.test(file.type) ||
+            typeof document.createElement('canvas').toBlob !== 'function' ||
+            typeof window.DataTransfer === 'undefined') {
+          resolve(file); return;
+        }
+        var url = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = function () {
+          var w = img.naturalWidth, h = img.naturalHeight;
+          var scale = Math.min(1, maxDim / Math.max(w, h));
+          if (scale >= 1) { URL.revokeObjectURL(url); resolve(file); return; } // 既に十分小さい
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.round(w * scale);
+          canvas.height = Math.round(h * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          canvas.toBlob(function (blob) {
+            if (!blob || blob.size >= file.size) { resolve(file); return; } // 小さくならなければ元のまま
+            try {
+              resolve(new File([blob], file.name, { type: file.type, lastModified: file.lastModified }));
+            } catch (e) { resolve(file); }
+          }, file.type, quality);
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+        img.src = url;
+      });
+    }
+    document.querySelectorAll('form').forEach(function (form) {
+      var inputs = form.querySelectorAll('input[type="file"][data-max-dim]');
+      if (!inputs.length) { return; }
+      var shrunk = false;
+      form.addEventListener('submit', function (e) {
+        if (shrunk) { return; } // 2回目（縮小済み）はそのまま送信
+        var jobs = [];
+        inputs.forEach(function (inp) {
+          if (!inp.files || !inp.files[0]) { return; }
+          var maxDim = parseInt(inp.getAttribute('data-max-dim'), 10) || 1024;
+          jobs.push(shrinkImageFile(inp.files[0], maxDim, 0.82).then(function (f) {
+            if (f && f !== inp.files[0]) {
+              var dt = new DataTransfer();
+              dt.items.add(f);
+              inp.files = dt.files;
+            }
+          }));
+        });
+        if (!jobs.length) { return; } // 送信対象の画像なし
+        e.preventDefault();
+        Promise.all(jobs).then(function () { shrunk = true; form.submit(); });
+      });
+    });
+
     // data-confirm を持つフォームは送信前に確認ダイアログ
     document.querySelectorAll('form[data-confirm]').forEach(function (f) {
       f.addEventListener('submit', function (e) {

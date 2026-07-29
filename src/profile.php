@@ -262,8 +262,15 @@ function save_preferences(string $memberId, array $seekArea, array $seekJob, arr
  */
 function save_member_photo(string $memberId, array $file, string &$error = ''): bool
 {
-    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-        $error = '画像のアップロードに失敗しました。';
+    $errCode = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+    if ($errCode !== UPLOAD_ERR_OK) {
+        // サーバの upload_max_filesize 等で弾かれた場合は分かりやすく案内する
+        // （通常はブラウザ側の送信前縮小で回避されるが、JS 無効時のフォールバック）。
+        if ($errCode === UPLOAD_ERR_INI_SIZE || $errCode === UPLOAD_ERR_FORM_SIZE) {
+            $error = '画像の容量が大きすぎてアップロードできませんでした。もう少し小さい画像でお試しください。';
+        } else {
+            $error = '画像のアップロードに失敗しました。';
+        }
         return false;
     }
     if (($file['size'] ?? 0) > 4 * 1024 * 1024) {
