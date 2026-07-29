@@ -352,6 +352,51 @@ function db_migrate(\PDO $pdo): void
     SQL);
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_reco_member ON recommendations(member_id, score);');
 
+    // ポイント台帳（増減を1行ずつ記録。残高は合計で求める）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS point_ledger (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            member_id     TEXT NOT NULL,
+            delta         INTEGER NOT NULL,
+            reason        TEXT NOT NULL,
+            ref_member_id TEXT,
+            note          TEXT NOT NULL DEFAULT '',
+            created_at    INTEGER NOT NULL,
+            FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_ledger_member ON point_ledger(member_id, id);');
+
+    // 紹介（1入会者につき紹介者は1人）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS referrals (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            referrer_id TEXT NOT NULL,
+            joiner_id   TEXT NOT NULL UNIQUE,
+            created_at  INTEGER NOT NULL,
+            FOREIGN KEY (referrer_id) REFERENCES members(id) ON DELETE CASCADE,
+            FOREIGN KEY (joiner_id)   REFERENCES members(id) ON DELETE CASCADE
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id);');
+
+    // 会員間の評価(praise)・通報(report)。同一ペア・同一種別は1回のみ。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS member_evaluations (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            rater_id   TEXT NOT NULL,
+            target_id  TEXT NOT NULL,
+            kind       TEXT NOT NULL,          -- praise / report
+            note       TEXT NOT NULL DEFAULT '',
+            handled    INTEGER NOT NULL DEFAULT 0, -- report のレビュー済みフラグ
+            created_at INTEGER NOT NULL,
+            UNIQUE (rater_id, target_id, kind),
+            FOREIGN KEY (rater_id)  REFERENCES members(id) ON DELETE CASCADE,
+            FOREIGN KEY (target_id) REFERENCES members(id) ON DELETE CASCADE
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_eval_target ON member_evaluations(target_id, kind);');
+
     // 写真承認フロー廃止に伴う正規化（冪等）：承認待ちのまま残っている写真を公開状態にする。
     // アップロードは即 'approved' になったため、既存の 'pending' のみを一度だけ引き上げる。
     $pdo->exec("UPDATE profiles SET photo_status = 'approved' WHERE photo_status = 'pending'");

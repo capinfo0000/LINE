@@ -23,6 +23,15 @@ require __DIR__ . '/_header.php';
 
 <h1>ようこそ<?= $member['display_name'] !== '' ? '、' . e($member['display_name']) . ' さん' : '' ?></h1>
 
+<?php $__bal = member_points((string) $member['id']); ?>
+<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+    <div>
+        <div class="card__title" style="margin:0;">ポイント</div>
+        <p style="margin:.2rem 0;"><strong style="font-size:1.4rem;"><?= number_format($__bal) ?></strong> pt　<span class="badge badge--title"><?= e(points_title($__bal)) ?></span></p>
+    </div>
+    <a class="btn btn--ghost" href="/member/points.php">ポイント・紹介</a>
+</div>
+
 <div class="card">
     <div class="card__title">プロフィール</div>
     <p>あなたの情報・タグ・求める条件・LINE追加URLを登録すると、条件に合う相手とつながりやすくなります。</p>

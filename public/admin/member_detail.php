@@ -28,6 +28,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             admin_set_member_status($id, (string) ($_POST['status'] ?? ''));
             $msg = 'ステータスを変更しました。';
             break;
+        case 'points_adjust':
+            $delta = (int) ($_POST['delta'] ?? 0);
+            $note = (string) ($_POST['note'] ?? '');
+            if ($delta !== 0) {
+                add_points($id, $delta, 'admin_adjust', null, $note);
+                audit_log('admin.points_adjust', ['member' => $id, 'delta' => $delta]);
+                $msg = 'ポイントを調整しました（' . ($delta > 0 ? '+' : '') . $delta . 'pt）。';
+            }
+            break;
+        case 'resolve_report':
+            resolve_report((int) ($_POST['report_id'] ?? 0), (int) ($_POST['penalty'] ?? 0));
+            $msg = '通報を処理しました。';
+            break;
     }
     $member = find_member_by_id($id);
 }
@@ -60,6 +73,49 @@ require __DIR__ . '/_app_header.php';
            <span class="muted"><?= e($p['stripe_checkout_session_id']) ?></span></p>
     <?php endforeach; endif; ?>
 </div>
+
+<?php
+$pBalance = member_points($id);
+$myReports = db()->prepare("SELECT e.id, e.note, e.created_at, r.login_id AS rater_login FROM member_evaluations e LEFT JOIN members r ON r.id = e.rater_id WHERE e.target_id = ? AND e.kind = 'report' AND e.handled = 0 ORDER BY e.id DESC");
+$myReports->execute([$id]);
+$myReports = $myReports->fetchAll();
+?>
+<div class="card">
+    <div class="card__title">ポイント・称号</div>
+    <p><strong style="font-size:1.3rem;"><?= number_format($pBalance) ?></strong> pt　<span class="badge badge--title"><?= e(points_title($pBalance)) ?></span>
+       <span class="muted">／ 受けた評価 <?= (int) praise_count($id) ?> 件・紹介 <?= (int) referral_count($id) ?> 名</span></p>
+    <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
+        <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="action" value="points_adjust">
+        <div><label>調整（±）</label><input type="number" name="delta" value="0" style="max-width:110px;"></div>
+        <div style="flex:1;min-width:160px;"><label>メモ（任意）</label><input type="text" name="note" maxlength="200"></div>
+        <div><button class="btn">ポイント調整</button></div>
+    </form>
+</div>
+
+<?php if ($myReports !== []): ?>
+<div class="card">
+    <div class="card__title">この会員への通報（未処理 <?= count($myReports) ?> 件）</div>
+    <?php foreach ($myReports as $rp): ?>
+        <div style="border-bottom:1px solid var(--border);padding:8px 0;">
+            <div class="muted" style="font-size:.82rem;"><?= e(date('Y-m-d H:i', (int) $rp['created_at'] + 9 * 3600)) ?>　通報者: <?= e($rp['rater_login'] ?? '-') ?></div>
+            <?php if (($rp['note'] ?? '') !== ''): ?><p style="margin:4px 0;white-space:pre-wrap;"><?= e($rp['note']) ?></p><?php endif; ?>
+            <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+                <form method="post" style="display:flex;gap:8px;align-items:end;margin:0;" data-confirm="通報を確認し、対象会員を減点して処理します。よろしいですか？">
+                    <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="action" value="resolve_report">
+                    <input type="hidden" name="report_id" value="<?= (int) $rp['id'] ?>">
+                    <div><label>減点</label><input type="number" name="penalty" value="<?= points_amount('report_penalty') ?>" min="0" style="max-width:100px;"></div>
+                    <button class="btn">減点して処理</button>
+                </form>
+                <form method="post" style="margin:0;" data-confirm="この通報を減点なしで処理（却下）します。よろしいですか？">
+                    <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="action" value="resolve_report">
+                    <input type="hidden" name="report_id" value="<?= (int) $rp['id'] ?>"><input type="hidden" name="penalty" value="0">
+                    <button class="btn btn--ghost">却下（減点なし）</button>
+                </form>
+            </div>
+        </div>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
 
 <?php if (!empty($profile['photo_path'])): ?>
 <div class="card">

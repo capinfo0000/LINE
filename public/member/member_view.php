@@ -10,6 +10,18 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $viewer = require_member();
 $targetId = (string) ($_GET['id'] ?? '');
+$evalMsg = '';
+$evalType = 'ok';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $targetId !== '') {
+    csrf_verify($_POST['csrf_token'] ?? null);
+    $act = (string) ($_POST['action'] ?? '');
+    if ($act === 'praise' || $act === 'report') {
+        $r = evaluate_member((string) $viewer['id'], $targetId, $act, (string) ($_POST['note'] ?? ''));
+        $evalMsg = $r['message'];
+        $evalType = $r['ok'] ? 'ok' : 'ng';
+    }
+}
 
 $view = $targetId !== '' ? viewable_member_profile($targetId) : null;
 if ($view === null) {
@@ -34,6 +46,13 @@ $showLogout = true;
 require __DIR__ . '/_header.php';
 ?>
 <p class="muted"><a href="/member/directory.php">← ディレクトリへ戻る</a></p>
+<?php if ($evalMsg !== ''): ?><div class="flash <?= $evalType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($evalMsg) ?></div><?php endif; ?>
+<?php
+$targetBalance = member_points($targetId);
+$targetTitle = points_title($targetBalance);
+$targetPraise = praise_count($targetId);
+$iAmSelf = (string) $viewer['id'] === $targetId;
+?>
 
 <div class="card">
     <div style="display:flex;gap:14px;align-items:flex-start;">
@@ -44,10 +63,23 @@ require __DIR__ . '/_header.php';
             <h1 style="margin:0 0 4px;"><?= e($profile['name_text'] !== '' ? $profile['name_text'] : '会員') ?>
                 <?php if (($profile['age_text'] ?? '') !== ''): ?><span class="muted" style="font-size:1rem;font-weight:normal;">（<?= e($profile['age_text']) ?>）</span><?php endif; ?>
             </h1>
+            <p style="margin:0 0 4px;"><span class="badge badge--title"><?= e($targetTitle) ?></span> <span class="muted" style="font-size:.85rem;">評価 <?= (int) $targetPraise ?> 件</span></p>
             <?php if (($profile['company_title'] ?? '') !== ''): ?><div class="muted"><?= e($profile['company_title']) ?></div><?php endif; ?>
             <?php if (($profile['headline'] ?? '') !== ''): ?><p style="margin:6px 0 0;font-weight:600;"><?= e($profile['headline']) ?></p><?php endif; ?>
         </div>
     </div>
+    <?php if (!$iAmSelf): ?>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        <form method="post" style="margin:0;" data-confirm="この会員を評価します（＋<?= points_amount('praise') ?>pt）。よろしいですか？">
+            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="praise">
+            <button class="btn" <?= has_evaluated((string) $viewer['id'], $targetId, 'praise') ? 'disabled' : '' ?>>👍 評価する<?= has_evaluated((string) $viewer['id'], $targetId, 'praise') ? '（済）' : '' ?></button>
+        </form>
+        <form method="post" style="margin:0;" data-confirm="この会員を通報します。運営が確認します。よろしいですか？">
+            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="report">
+            <button class="btn btn--ghost" <?= has_evaluated((string) $viewer['id'], $targetId, 'report') ? 'disabled' : '' ?>>⚠ 通報<?= has_evaluated((string) $viewer['id'], $targetId, 'report') ? '（済）' : '' ?></button>
+        </form>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php if (($profile['bio'] ?? '') !== ''): ?>

@@ -31,6 +31,21 @@ require __DIR__ . '/_app_header.php';
     <div class="stat"><span class="stat__num"><?= (int) $stats['push_this_month'] ?></span><span class="stat__label">今月のPush(課金)</span></div>
 </div>
 
+<?php $__reports = pending_reports(50); ?>
+<?php if ($__reports !== []): ?>
+<div class="card">
+    <div class="card__title">未処理の通報（<?= count($__reports) ?> 件）</div>
+    <?php foreach ($__reports as $rp): ?>
+        <p style="margin:6px 0;border-bottom:1px solid var(--border);padding-bottom:6px;">
+            <a href="member_detail.php?id=<?= e($rp['target_id']) ?>"><code><?= e($rp['target_login'] ?? '-') ?></code></a> への通報
+            <span class="muted" style="font-size:.82rem;">（通報者 <?= e($rp['rater_login'] ?? '-') ?>・<?= e(date('m/d H:i', (int) $rp['created_at'] + 9 * 3600)) ?>）</span>
+            <?php if (($rp['note'] ?? '') !== ''): ?><br><span class="muted" style="font-size:.85rem;"><?= e(mb_substr((string) $rp['note'], 0, 80)) ?></span><?php endif; ?>
+        </p>
+    <?php endforeach; ?>
+    <p class="muted" style="font-size:.82rem;">各会員の詳細画面で「減点して処理／却下」できます。</p>
+</div>
+<?php endif; ?>
+
 <div class="card">
     <div class="card__title">運営メニュー</div>
     <p>
