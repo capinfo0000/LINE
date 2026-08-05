@@ -244,17 +244,75 @@ function line_onboarding_messages(): array
     ];
 }
 
-function line_slots_message(string $kind, string $prompt): array
+/**
+ * 予約可能な枠を「カード型（Flexカルーセル）」で返す。各カードに「この日程を選ぶ」ボタン付き。
+ * $kinds に複数種別を渡すと、説明会・個別面談をまとめて1つのカルーセルにする。
+ */
+function line_slots_flex(array $kinds, string $altText = 'ご予約日程のご案内'): array
 {
-    $slots = open_slots($kind, 13);
-    if ($slots === []) {
+    $bubbles = [];
+    foreach ($kinds as $kind) {
+        $kind = $kind === 'interview' ? 'interview' : 'seminar';
+        $label = $kind === 'seminar' ? '説明会' : '個別面談';
+        foreach (open_slots($kind, 12) as $s) {
+            if (count($bubbles) >= 12) {
+                break 2; // カルーセルは最大12枚
+            }
+            $when = line_jst_label((int) $s['start_at']);
+            $remain = max(0, (int) $s['capacity'] - (int) $s['booked_count']);
+            $bubbles[] = [
+                'type' => 'bubble', 'size' => 'kilo',
+                'body' => ['type' => 'box', 'layout' => 'vertical', 'spacing' => 'sm', 'contents' => [
+                    ['type' => 'text', 'text' => $label, 'size' => 'sm', 'weight' => 'bold', 'color' => '#2563eb'],
+                    ['type' => 'text', 'text' => $when, 'size' => 'lg', 'weight' => 'bold', 'wrap' => true],
+                    ['type' => 'text', 'text' => '残り ' . $remain . ' 席', 'size' => 'sm', 'color' => '#6b7280'],
+                ]],
+                'footer' => ['type' => 'box', 'layout' => 'vertical', 'contents' => [
+                    ['type' => 'button', 'style' => 'primary', 'color' => '#2563eb', 'height' => 'sm',
+                     'action' => ['type' => 'postback', 'label' => 'この日程を選ぶ', 'data' => 'pick:' . $kind . ':' . $s['id'], 'displayText' => $when . ' を選択']],
+                ]],
+            ];
+        }
+    }
+    if ($bubbles === []) {
         return line_text('現在ご案内できる日程がありません。恐れ入りますが、日程が公開されるまでお待ちください。');
     }
-    $items = [];
-    foreach ($slots as $s) {
-        $items[] = ['label' => line_jst_label((int) $s['start_at']), 'data' => 'book:' . $kind . ':' . $s['id']];
+    return ['type' => 'flex', 'altText' => $altText, 'contents' => ['type' => 'carousel', 'contents' => $bubbles]];
+}
+
+/** 単一種別の日程メッセージ（カード型）。既存呼び出しの互換用。 */
+function line_slots_message(string $kind, string $prompt): array
+{
+    return line_slots_flex([$kind], $prompt);
+}
+
+/** 予約確認カード（「この日程を選ぶ」後に表示）。はい→book / やめる→cancel。 */
+function line_booking_confirm(string $kind, string $slotId): array
+{
+    $slot = find_slot($slotId);
+    if ($slot === null) {
+        return line_text('恐れ入りますが、その日程は見つかりませんでした。もう一度お選びください。');
     }
-    return line_text_quickreply($prompt, $items);
+    $kind = $kind === 'interview' ? 'interview' : 'seminar';
+    $label = $kind === 'seminar' ? '説明会' : '個別面談';
+    $when = line_jst_label((int) $slot['start_at']);
+    return [
+        'type' => 'flex', 'altText' => '予約の確認',
+        'contents' => [
+            'type' => 'bubble',
+            'body' => ['type' => 'box', 'layout' => 'vertical', 'spacing' => 'md', 'contents' => [
+                ['type' => 'text', 'text' => '【予約の確認】', 'weight' => 'bold'],
+                ['type' => 'text', 'text' => $label . "\n" . $when, 'weight' => 'bold', 'size' => 'lg', 'wrap' => true],
+                ['type' => 'text', 'text' => 'この日程で予約しますか？', 'size' => 'sm', 'color' => '#6b7280'],
+            ]],
+            'footer' => ['type' => 'box', 'layout' => 'vertical', 'spacing' => 'sm', 'contents' => [
+                ['type' => 'button', 'style' => 'primary', 'color' => '#2563eb', 'height' => 'sm',
+                 'action' => ['type' => 'postback', 'label' => 'はい、予約する', 'data' => 'book:' . $kind . ':' . $slotId, 'displayText' => 'はい、予約する']],
+                ['type' => 'button', 'style' => 'secondary', 'height' => 'sm',
+                 'action' => ['type' => 'postback', 'label' => 'やめる', 'data' => 'cancel', 'displayText' => 'やめる']],
+            ]],
+        ],
+    ];
 }
 
 /* ------------------------- 決済リンク配信（承認後） ------------------------- */
@@ -344,6 +402,17 @@ function line_handle_event(array $event): array
             $kind = ($parts[1] ?? '') === 'interview' ? 'interview' : 'seminar';
             $prompt = $kind === 'seminar' ? 'ご希望の説明会の日程をお選びください。' : 'ご希望の個別面談の日程をお選びください。';
             return [line_slots_message($kind, $prompt)];
+        }
+
+        if ($action === 'pick') {
+            // 「この日程を選ぶ」→ 予約確認カードを表示（確定は「はい、予約する」）。
+            $kind = ($parts[1] ?? '') === 'interview' ? 'interview' : 'seminar';
+            $slotId = $parts[2] ?? '';
+            return [line_booking_confirm($kind, $slotId)];
+        }
+
+        if ($action === 'cancel') {
+            return [line_text('承知しました。ご希望の日程が決まりましたら、いつでもお選びください。')];
         }
 
         if ($action === 'book') {

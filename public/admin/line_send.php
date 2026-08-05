@@ -111,6 +111,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_onboarding'])) {
         $msg = "初回メッセージを送信しました（送信 {$sent} 件 / 対象 " . count($targetUids) . " 件）。";
         $uids = [];
     }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_slots'])) {
+    // 日程（予約ボタン付きカード）を選択宛先へ手動送信。
+    csrf_verify($_POST['csrf_token'] ?? null);
+    if ($targetUids === []) {
+        $msg = '宛先を1件以上選択してください。';
+        $msgType = 'ng';
+    } else {
+        $flex = line_slots_flex(['seminar', 'interview'], 'ご予約日程のご案内');
+        $lead = line_text('ご予約可能な日程です。ご希望の日程の「この日程を選ぶ」からお進みください。');
+        $sent = 0;
+        foreach ($targetUids as $uid) {
+            if (line_push($uid, [$lead, $flex])) {
+                $sent++;
+            }
+        }
+        audit_log('line.slots_send', ['targets' => count($targetUids), 'sent' => $sent]);
+        $msg = "予約ボタン付きの日程を送信しました（送信 {$sent} 件 / 対象 " . count($targetUids) . " 件）。";
+        $uids = [];
+    }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
     $finalText = line_send_compose($text, $slotId);
@@ -246,9 +265,14 @@ require __DIR__ . '/_app_header.php';
         <div class="card">
             <p class="muted" style="margin-top:0;"><strong>宛先1件ごとに1通課金</strong>されます。送信前に確認画面が出ます。</p>
             <button type="submit" class="btn">確認画面へ</button>
+            <button type="submit" name="do_slots" value="1" class="btn btn--ghost"
+                    data-confirm="選択した宛先へ『日程（予約ボタン付きカード）』を送信します。よろしいですか？">📅 日程を送る（予約ボタン付き）</button>
             <button type="submit" name="do_onboarding" value="1" class="btn btn--ghost"
                     data-confirm="選択した宛先へ『初回メッセージ（あいさつ＋説明会の日程・予約ボタン付き）』を送信します。よろしいですか？">初回メッセージを送る</button>
-            <p class="muted" style="font-size:.82rem;margin:8px 0 0;">「初回メッセージを送る」＝友だち追加時と同じ、あいさつ＋説明会の予約ボタン付きメッセージを、選択宛先へ手動送信します（本文・添付は使いません）。</p>
+            <p class="muted" style="font-size:.82rem;margin:8px 0 0;">
+                「📅 日程を送る」＝説明会・面談の日程を<strong>カード＋予約ボタン付き</strong>で送信（相手はタップで日程を選んで予約）。<br>
+                「初回メッセージを送る」＝友だち追加時と同じ、あいさつ＋説明会の予約ボタン付きメッセージ。<br>
+                （どちらも本文・添付は使いません）</p>
         </div>
     </form>
 <?php endif; ?>
