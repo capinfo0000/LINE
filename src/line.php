@@ -318,7 +318,7 @@ function line_booking_confirm(string $kind, string $slotId): array
 /* ------------------------- 決済リンク配信（承認後） ------------------------- */
 
 /**
- * 承認済みの相手に入会金の決済リンクを Push する（任意の承認ゲート）。
+ * 承認済みの相手に月額会費の決済リンクを Push する（任意の承認ゲート）。
  * 未承認・連絡先不明なら false。
  */
 function send_payment_link_to_contact(string $userId): bool
@@ -334,10 +334,11 @@ function send_payment_link_to_contact(string $userId): bool
     if (!empty($c['email'])) {
         $url .= '&email=' . rawurlencode((string) $c['email']);
     }
-    $amount = format_amount(join_fee_amount());
+    $monthly = (int) env('MONTHLY_FEE_AMOUNT', '0');
+    $amountLabel = $monthly > 0 ? '（' . format_amount($monthly) . '／月）' : '';
     $text = "ご入会手続きのご案内です。\n\n"
-        . "下記より入会金（{$amount}・買い切り）のお支払いをお願いします。\n{$url}\n\n"
-        . "お支払い完了後、会員サイトのログイン情報をこのトークにお送りします。";
+        . "下記より月額会費{$amountLabel}のご登録をお願いします。\n{$url}\n\n"
+        . "ご登録完了後、会員サイトのログイン情報をこのトークにお送りします。\nいつでも解約いただけます。";
     $ok = line_push($userId, [line_text($text)]);
     set_line_contact_state($userId, 'payment_sent');
     return $ok;

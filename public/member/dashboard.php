@@ -45,6 +45,9 @@ require __DIR__ . '/_header.php';
 
 <div class="card">
     <div class="card__title">アカウント</div>
-    <p><a class="btn btn--ghost" href="/member/change_password.php">パスワードを変更</a></p>
+    <p>
+        <a class="btn btn--ghost" href="/member/change_password.php">パスワードを変更</a>
+        <a class="btn btn--ghost" href="/member/billing.php">お支払い・解約</a>
+    </p>
 </div>
 <?php require __DIR__ . '/_footer.php'; ?>

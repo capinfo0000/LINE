@@ -67,13 +67,15 @@ try {
         init_stripe();
         foreach (\Stripe\Checkout\Session::all(['limit' => 100, 'created' => ['gte' => $since], 'expand' => ['data.customer_details']])->autoPagingIterator() as $session) {
             $scanned++;
-            if (($session->mode ?? '') !== 'payment') {
+            // 買い切り(payment・旧) と 月額サブスク(subscription) の両方を救済対象にする。
+            $mode = (string) ($session->mode ?? '');
+            if ($mode !== 'payment' && $mode !== 'subscription') {
                 continue;
             }
             if (($session->payment_status ?? '') !== 'paid') {
                 continue;
             }
-            if ((string) ($session->metadata->purpose ?? '') !== 'join_fee') {
+            if (!in_array((string) ($session->metadata->purpose ?? ''), ['join_fee', 'subscription'], true)) {
                 continue;
             }
             if (find_payment_by_session((string) $session->id) !== null) {
