@@ -412,6 +412,15 @@ function db_migrate(\PDO $pdo): void
         );
     SQL);
 
+    // アプリ全体の設定（キー・値）。料金フェーズ(billing_started)などを保持。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key        TEXT PRIMARY KEY,
+            value      TEXT NOT NULL DEFAULT '',
+            updated_at INTEGER NOT NULL
+        );
+    SQL);
+
     // 未発行の枠を告知した相手を保留し、Zoom URL発行時に自動送信するためのキュー。
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS slot_url_pending (
@@ -479,6 +488,25 @@ function seed_tag_master(\PDO $pdo): void
         $insTag->execute(['offer', $v, $sort]);
         $sort++;
     }
+}
+
+/** アプリ設定の取得（無ければ $default）。 */
+function app_setting_get(string $key, ?string $default = null): ?string
+{
+    $stmt = db()->prepare('SELECT value FROM app_settings WHERE key = ?');
+    $stmt->execute([$key]);
+    $v = $stmt->fetchColumn();
+    return $v === false ? $default : (string) $v;
+}
+
+/** アプリ設定の保存（upsert）。 */
+function app_setting_set(string $key, string $value): void
+{
+    $stmt = db()->prepare(
+        'INSERT INTO app_settings (key, value, updated_at) VALUES (?,?,?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'
+    );
+    $stmt->execute([$key, $value, time()]);
 }
 
 /**

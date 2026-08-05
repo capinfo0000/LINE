@@ -31,6 +31,26 @@ require __DIR__ . '/_app_header.php';
     <div class="stat"><span class="stat__num"><?= (int) $stats['push_this_month'] ?></span><span class="stat__label">今月のPush(課金)</span></div>
 </div>
 
+<?php
+$__active = active_member_count();
+$__limit = billing_free_limit();
+$__billing = billing_started();
+?>
+<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+    <div>
+        <div class="card__title" style="margin:0;">料金フェーズ</div>
+        <p style="margin:.2rem 0;">
+            <?php if ($__billing): ?>
+                <span class="badge" style="background:var(--ok-bg);color:var(--ok-fg);">課金フェーズ</span>
+                有効会員 <strong><?= (int) $__active ?></strong> 名（全員サブスク登録が必要／未登録はアクセス制限）
+            <?php else: ?>
+                <span class="badge" style="background:#eef2ff;color:#3730a3;">無料フェーズ</span>
+                有効会員 <strong><?= (int) $__active ?></strong> / <?= (int) $__limit ?> 名（あと <strong><?= max(0, $__limit - (int) $__active + 1) ?></strong> 名で課金開始）
+            <?php endif; ?>
+        </p>
+    </div>
+</div>
+
 <?php $__reports = pending_reports(50); ?>
 <?php if ($__reports !== []): ?>
 <div class="card">

@@ -322,6 +322,49 @@ function stripe_diagnose(): array
     ];
 }
 
+/* ============================ 料金フェーズ（Ver.1） ============================ */
+
+/** 無料枠の上限（この人数まで無料。既定100）。 */
+function billing_free_limit(): int
+{
+    return max(1, (int) env('BILLING_FREE_LIMIT', '100'));
+}
+
+/** アクセスを持つ会員数（status=active）。 */
+function active_member_count(): int
+{
+    return (int) db()->query("SELECT COUNT(*) FROM members WHERE status = 'active'")->fetchColumn();
+}
+
+/**
+ * 課金フェーズが始まっているか。会員数が無料上限を超えた(=101人目)時点で開始し、
+ * 一度始まったら app_settings に記録して戻さない。
+ */
+function billing_started(): bool
+{
+    if (app_setting_get('billing_started') === '1') {
+        return true;
+    }
+    if (active_member_count() > billing_free_limit()) {
+        app_setting_set('billing_started', '1');
+        return true;
+    }
+    return false;
+}
+
+/**
+ * この会員が「サブスク登録しないとアクセス制限」対象か。
+ * 課金フェーズ中で、サブスクが有効(active)でない会員が対象。
+ * ※紹介特典で無料化(100%割引)された会員は subscription_status='active' のため対象外（アクセス可）。
+ */
+function member_requires_subscription(array $member): bool
+{
+    if (!billing_started()) {
+        return false; // 無料フェーズは全員アクセス可
+    }
+    return (string) ($member['subscription_status'] ?? '') !== 'active';
+}
+
 /* ============================ サブスク（月額会費） ============================ */
 
 /** Stripe 顧客IDから会員を引く。 */

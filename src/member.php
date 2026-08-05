@@ -200,7 +200,7 @@ function current_member(): ?array
  * 会員ログイン必須。未ログインならログイン画面へ。
  * 初回PW強制変更が必要な場合は、変更ページ以外へのアクセスを change_password.php へ誘導する。
  */
-function require_member(bool $allowDuringPwChange = false): array
+function require_member(bool $allowDuringPwChange = false, bool $allowUnsubscribed = false): array
 {
     $member = current_member();
     if ($member === null) {
@@ -209,6 +209,11 @@ function require_member(bool $allowDuringPwChange = false): array
     }
     if (!$allowDuringPwChange && (int) ($member['must_change_pw'] ?? 0) === 1) {
         header('Location: /member/change_password.php');
+        exit;
+    }
+    // 料金フェーズ中に未サブスクなら、月額登録案内へ誘導（無料フェーズ中は無効＝素通り）。
+    if (!$allowUnsubscribed && function_exists('member_requires_subscription') && member_requires_subscription($member)) {
+        header('Location: /member/subscribe.php');
         exit;
     }
     return $member;

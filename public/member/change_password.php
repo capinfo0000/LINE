@@ -11,7 +11,7 @@ declare(strict_types=1);
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 // PW変更中も入れるように allowDuringPwChange=true
-$member = require_member(true);
+$member = require_member(true, true);
 $forced = (int) ($member['must_change_pw'] ?? 0) === 1;
 $error = '';
 
