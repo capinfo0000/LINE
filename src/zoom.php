@@ -39,9 +39,9 @@ function zoom_access_token(): ?string
     if (!function_exists('curl_init')) {
         return null;
     }
-    $accountId = (string) env('ZOOM_ACCOUNT_ID');
-    $clientId = (string) env('ZOOM_CLIENT_ID');
-    $clientSecret = (string) env('ZOOM_CLIENT_SECRET');
+    $accountId = trim((string) env('ZOOM_ACCOUNT_ID'));
+    $clientId = trim((string) env('ZOOM_CLIENT_ID'));
+    $clientSecret = trim((string) env('ZOOM_CLIENT_SECRET'));
 
     $ch = curl_init(ZOOM_OAUTH_ENDPOINT . '?grant_type=account_credentials&account_id=' . urlencode($accountId));
     curl_setopt_array($ch, [
@@ -146,10 +146,10 @@ function zoom_diagnose(): array
         return ['ok' => false, 'message' => 'サーバに cURL 拡張がありません。ホスト側で有効化が必要です。'];
     }
 
-    // 1) アクセストークン取得（キャッシュを使わず生で検証）。
-    $accountId = (string) env('ZOOM_ACCOUNT_ID');
-    $clientId = (string) env('ZOOM_CLIENT_ID');
-    $clientSecret = (string) env('ZOOM_CLIENT_SECRET');
+    // 1) アクセストークン取得（キャッシュを使わず生で検証）。前後空白は除去。
+    $accountId = trim((string) env('ZOOM_ACCOUNT_ID'));
+    $clientId = trim((string) env('ZOOM_CLIENT_ID'));
+    $clientSecret = trim((string) env('ZOOM_CLIENT_SECRET'));
     $ch = curl_init(ZOOM_OAUTH_ENDPOINT . '?grant_type=account_credentials&account_id=' . urlencode($accountId));
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
@@ -172,9 +172,11 @@ function zoom_diagnose(): array
         $reason = is_array($data) ? (string) ($data['reason'] ?? $data['error'] ?? '') : '';
         $hint = '';
         if ($code === 400 || $code === 401) {
-            $hint = ' → アプリ種別が「Server-to-Server OAuth」であること、Account ID / Client ID / Client Secret が正しいことを確認してください（一般の OAuth アプリだとこの方式は使えません）。';
+            $hint = ' → アプリ種別が「Server-to-Server OAuth」であること、Account ID / Client ID / Client Secret が正しいことを確認してください。';
         }
-        return ['ok' => false, 'message' => "トークン取得に失敗（HTTP {$code} {$reason}）。{$hint}"];
+        // 設定値の文字数を出して原因特定を助ける（正しい長さは概ね account=22 / client=22 / secret=32）。
+        $lenInfo = sprintf('（設定値の文字数: account=%d, client=%d, secret=%d）', strlen($accountId), strlen($clientId), strlen($clientSecret));
+        return ['ok' => false, 'message' => "トークン取得に失敗（HTTP {$code} {$reason}）。{$hint}{$lenInfo}"];
     }
 
     // 2) 会議作成に必要な権限の簡易確認（/users/me）。

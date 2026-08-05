@@ -26,23 +26,25 @@ function envset_line(string $key, string $value): string
     return $key . '="' . $value . '"';
 }
 
-/** 既存の .env を保ったまま、指定キーだけ更新（無ければ追記）する。 */
+/**
+ * 既存の .env を保ったまま、指定キーだけ更新する。
+ * 更新対象キーの既存行は「全て」除去してから末尾に1行だけ書き直す（重複によるシャドウを防止）。
+ * 値は前後空白を除去して保存する（末尾スペース等による認証失敗を防ぐ）。
+ */
 function envset_apply(string $envPath, array $updates): bool
 {
     $lines = is_file($envPath) ? file($envPath, FILE_IGNORE_NEW_LINES) : [];
-    $seen = [];
-    foreach ($lines as $i => $line) {
+    $kept = [];
+    foreach ($lines as $line) {
         if (preg_match('/^\s*([A-Za-z0-9_]+)\s*=/', $line, $m) && array_key_exists($m[1], $updates)) {
-            $lines[$i] = envset_line($m[1], (string) $updates[$m[1]]);
-            $seen[$m[1]] = true;
+            continue; // 更新対象キーの既存行は捨てる（重複も含めて）
         }
+        $kept[] = $line;
     }
     foreach ($updates as $k => $v) {
-        if (empty($seen[$k])) {
-            $lines[] = envset_line($k, (string) $v);
-        }
+        $kept[] = envset_line($k, trim((string) $v));
     }
-    return @file_put_contents($envPath, implode("\n", $lines) . "\n", LOCK_EX) !== false;
+    return @file_put_contents($envPath, implode("\n", $kept) . "\n", LOCK_EX) !== false;
 }
 
 // 入力フィールド定義: [key, ラベル, 秘密か, 補足]
