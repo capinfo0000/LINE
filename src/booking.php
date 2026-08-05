@@ -198,8 +198,24 @@ function slot_booking_line_users(string $slotId): array
 }
 
 /**
+ * 枠のZoom案内の「固定文面」を組み立てる（再送・友だち配信の添付で共通利用）。
+ * $url を渡せばそれを、無ければ枠の zoom_url を使う。URLが無ければ日時のみ。
+ */
+function slot_zoom_notice_body(array $slot, ?string $url = null): string
+{
+    $label = ($slot['kind'] ?? '') === 'seminar' ? '説明会' : '個別面談';
+    $when = date('Y-m-d H:i', (int) ($slot['start_at'] ?? 0) + 9 * 3600);
+    $u = $url !== null ? $url : (string) ($slot['zoom_url'] ?? '');
+    $t = "【{$label}】Zoom参加URLのご案内です。\n日時：{$when}（JST）";
+    if ($u !== '') {
+        $t .= "\n参加URL：{$u}";
+    }
+    return $t;
+}
+
+/**
  * 枠の申込者(booked)へ Zoom 参加URLを LINE 送信する。送信可能な宛先数と実送信数を返す。
- * 送信前に呼び出し側で「発行に成功していること」を確認すること。
+ * 送信前に呼び出し側で「発行に成功していること」を確認すること。固定文面を使用。
  *
  * @return array{total:int, sent:int}
  */
@@ -209,12 +225,10 @@ function push_zoom_url_to_slot_bookings(string $slotId, string $url): array
     if ($slot === null) {
         return ['total' => 0, 'sent' => 0];
     }
-    $when = date('Y-m-d H:i', (int) $slot['start_at'] + 9 * 3600);
-    $label = ($slot['kind'] ?? '') === 'seminar' ? '説明会' : '個別面談';
+    $text = slot_zoom_notice_body($slot, $url);
     $uids = slot_booking_line_users($slotId);
     $sent = 0;
     foreach ($uids as $uid) {
-        $text = "【{$label}】Zoom参加URLのご案内です。\n日時：{$when}（JST）\n参加URL：{$url}";
         if (line_push($uid, [line_text($text)])) {
             $sent++;
         }

@@ -23,7 +23,7 @@ $slots = db()->prepare('SELECT * FROM slots WHERE start_at > ? ORDER BY start_at
 $slots->execute([time()]);
 $slots = $slots->fetchAll();
 
-/** 本文に枠の案内を付与する。 */
+/** 本文に枠の案内（再送と同じ固定文面）を付与する。 */
 function line_send_compose(string $text, string $slotId): string
 {
     if ($slotId === '') {
@@ -33,13 +33,9 @@ function line_send_compose(string $text, string $slotId): string
     if ($slot === null) {
         return $text;
     }
-    $label = ($slot['kind'] ?? '') === 'seminar' ? '説明会' : '個別面談';
-    $when = line_jst_label((int) $slot['start_at']);
-    $add = "\n\n【{$label}のご案内】\n日時：{$when}";
-    if (!empty($slot['zoom_url'])) {
-        $add .= "\n参加URL：{$slot['zoom_url']}";
-    }
-    return trim($text) . $add;
+    // 再送と共通の固定文面を末尾に付与する。
+    $notice = slot_zoom_notice_body($slot);
+    return trim($text) !== '' ? trim($text) . "\n\n" . $notice : $notice;
 }
 
 $text = (string) ($_POST['text'] ?? '');
