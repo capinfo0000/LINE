@@ -179,22 +179,12 @@ function zoom_diagnose(): array
         return ['ok' => false, 'message' => "トークン取得に失敗（HTTP {$code} {$reason}）。{$hint}{$lenInfo}"];
     }
 
-    // 2) 会議作成に必要な権限の簡易確認（/users/me）。
-    $token = (string) $data['access_token'];
-    $ch = curl_init(ZOOM_API_BASE . '/users/me');
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 10,
-        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $token],
-    ]);
-    $resp2 = curl_exec($ch);
-    $code2 = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    if ($code2 < 200 || $code2 >= 300) {
-        $d2 = json_decode((string) $resp2, true);
-        $reason2 = is_array($d2) ? (string) ($d2['message'] ?? '') : '';
-        return ['ok' => false, 'message' => "認証は成功しましたが API 呼び出しに失敗（HTTP {$code2} {$reason2}）。アプリのスコープに user:read:admin / meeting:write:admin（相当）を付与してください。"];
+    // 2) 会議作成に必要な meeting:write スコープが付与されているかをトークンの scope で確認する。
+    //    （実際の会議作成は POST /users/me/meetings + meeting:write のみで動作。user:read は不要。）
+    $scope = (string) ($data['scope'] ?? '');
+    if (strpos($scope, 'meeting:write') === false) {
+        return ['ok' => false, 'message' => '認証は成功しましたが、会議作成に必要な meeting:write スコープが付与されていません。Zoomアプリのスコープに meeting:write（meeting:write:meeting:admin 等）を追加して有効化してください。'];
     }
 
-    return ['ok' => true, 'message' => 'Zoom接続OK。認証・API呼び出しに成功しました。以後の枠作成で会議URLが自動発行されます。'];
+    return ['ok' => true, 'message' => 'Zoom接続OK。認証と会議作成スコープ(meeting:write)を確認しました。枠作成で会議URLが自動発行されます。'];
 }
