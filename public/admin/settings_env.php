@@ -58,6 +58,7 @@ $fields = [
     ['ZOOM_ACCOUNT_ID',          'Zoom Account ID',                    false, 'Server-to-Server OAuth'],
     ['ZOOM_CLIENT_ID',           'Zoom Client ID',                     false, ''],
     ['ZOOM_CLIENT_SECRET',       'Zoom Client Secret',                 true,  ''],
+    ['ZOOM_AUTO_RECORD',         'Zoom 自動録画',                      false, 'cloud=クラウド録画(Pro以上) / local / none'],
     ['APP_BASE_URL',             'アプリの公開URL',                    false, 'https://ドメイン'],
 ];
 

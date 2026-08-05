@@ -13,6 +13,16 @@ declare(strict_types=1);
 const ZOOM_OAUTH_ENDPOINT = 'https://zoom.us/oauth/token';
 const ZOOM_API_BASE = 'https://api.zoom.us/v2';
 
+/**
+ * 会議作成時の自動録画設定。cloud（クラウド録画・Pro以上）/ local / none。
+ * .env の ZOOM_AUTO_RECORD で切替。未設定は cloud（＝自動録画ON）。無効値は none。
+ */
+function zoom_auto_record(): string
+{
+    $v = strtolower(trim((string) env('ZOOM_AUTO_RECORD', 'cloud')));
+    return in_array($v, ['cloud', 'local', 'none'], true) ? $v : 'none';
+}
+
 /** Zoom 連携に必要な資格情報が揃っているか。 */
 function zoom_enabled(): bool
 {
@@ -94,6 +104,7 @@ function zoom_create_meeting(string $topic, int $startAtTs, int $duration = 40):
             'join_before_host' => true,
             'waiting_room' => true,
             'approval_type' => 2,
+            'auto_recording' => zoom_auto_record(), // cloud=自動クラウド録画（Pro以上）
         ],
     ];
     $ch = curl_init(ZOOM_API_BASE . '/users/me/meetings');
