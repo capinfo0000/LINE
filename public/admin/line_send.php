@@ -38,6 +38,14 @@ function line_send_compose(string $text, string $slotId): string
     return trim($text) !== '' ? trim($text) . "\n\n" . $notice : $notice;
 }
 
+// 定型文（クリックで本文にセット）。文言はここを編集すれば変更できる。
+$templates = [
+    ['label' => '無料説明会のご案内', 'text' => "この度はEnlinkにご興味いただきありがとうございます。\n無料のオンライン説明会（Zoom・約30分）を実施しています。サービス内容や活用方法をご紹介しますので、ご都合のよい日程でぜひご参加ください。ご質問だけでも歓迎です。"],
+    ['label' => '入会のご案内',       'text' => "Enlinkは月額制の会員コミュニティです。\n会員サイトでの人脈マッチング・条件検索、交流の場などをご利用いただけます。ご入会をご検討の方は、こちらのご案内をご確認のうえお手続きください。ご不明点はお気軽にお問い合わせください。"],
+    ['label' => '面談のご案内',       'text' => "個別面談（オンライン・約30分）のご案内です。\nあなたのご状況に合わせて、活用方法やご入会について個別にご説明します。ご希望の日程をお選びください。"],
+    ['label' => 'リマインド',         'text' => "【リマインド】お申し込みいただいた日程が近づいてまいりました。\n開始時刻になりましたら、ご案内のURLからご参加ください。当日お会いできるのを楽しみにしております。"],
+];
+
 $text = (string) ($_POST['text'] ?? '');
 $slotId = (string) ($_POST['slot_id'] ?? '');
 $uids = array_values(array_filter((array) ($_POST['uids'] ?? []), 'is_string'));
@@ -69,6 +77,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             audit_log('line.friend_send', ['targets' => count($targetUids), 'sent' => $sent]);
             $msg = "配信しました（送信 {$sent} 件 / 対象 " . count($targetUids) . " 件）。";
+            // 未発行の枠を添付して送った場合は、発行時に自動でURLを送るため宛先を保留登録。
+            if ($slotId !== '') {
+                $atSlot = find_slot($slotId);
+                if ($atSlot !== null && empty($atSlot['zoom_url'])) {
+                    enqueue_slot_url_pending($slotId, $targetUids);
+                    $msg .= ' この枠はZoom未発行のため、発行時に参加URLを自動でお送りします。';
+                }
+            }
             $msgType = 'ok';
             $stage = '';
             $text = '';
@@ -137,6 +153,13 @@ require __DIR__ . '/_app_header.php';
 
         <div class="card">
             <div class="card__title">本文</div>
+            <div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;">
+                <span class="muted" style="align-self:center;font-size:.82rem;">定型文：</span>
+                <?php foreach ($templates as $tpl): ?>
+                    <button type="button" class="btn btn--ghost" style="padding:3px 10px;font-size:.82rem;"
+                            data-fill-text="text" data-text="<?= e($tpl['text']) ?>"><?= e($tpl['label']) ?></button>
+                <?php endforeach; ?>
+            </div>
             <textarea name="text" rows="6" maxlength="1000" placeholder="お知らせ内容を入力"><?= e($text) ?></textarea>
             <label style="margin-top:10px;">説明会・面談の枠を案内に添付（任意）</label>
             <select name="slot_id">

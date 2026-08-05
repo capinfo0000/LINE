@@ -412,6 +412,16 @@ function db_migrate(\PDO $pdo): void
         );
     SQL);
 
+    // 未発行の枠を告知した相手を保留し、Zoom URL発行時に自動送信するためのキュー。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS slot_url_pending (
+            slot_id      TEXT NOT NULL,
+            line_user_id TEXT NOT NULL,
+            created_at   INTEGER NOT NULL,
+            PRIMARY KEY (slot_id, line_user_id)
+        );
+    SQL);
+
     // 写真承認フロー廃止に伴う正規化（冪等）：承認待ちのまま残っている写真を公開状態にする。
     // アップロードは即 'approved' になったため、既存の 'pending' のみを一度だけ引き上げる。
     $pdo->exec("UPDATE profiles SET photo_status = 'approved' WHERE photo_status = 'pending'");

@@ -28,6 +28,15 @@
       });
     });
 
+    // 定型文ボタン: data-fill-text="<textareaのname>" のボタンで本文をセットする。
+    document.querySelectorAll('[data-fill-text]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var name = btn.getAttribute('data-fill-text');
+        var ta = document.querySelector('textarea[name="' + name + '"]');
+        if (ta) { ta.value = btn.getAttribute('data-text') || ''; ta.focus(); }
+      });
+    });
+
     // クリックで入力値を全選択（コピー用テキスト欄）
     document.querySelectorAll('.js-select').forEach(function (el) {
       el.addEventListener('click', function () { el.select(); });

@@ -85,6 +85,8 @@ function ensure_slot_zoom(array $slot): ?string
         $winner = $cur->fetchColumn();
         return is_string($winner) && $winner !== '' ? $winner : $meeting['join_url'];
     }
+    // 新規に発行できた → 未発行時に告知していた宛先へ自動送信（保留キューを消化）。
+    flush_slot_url_pending($slotId, $meeting['join_url']);
     return $meeting['join_url'];
 }
 
@@ -170,6 +172,8 @@ function regenerate_slot_zoom(string $slotId): ?string
         ->execute([$meeting['id'], $meeting['join_url'], $slotId]);
     db()->prepare("UPDATE bookings SET zoom_url = ? WHERE slot_id = ? AND status = 'booked'")
         ->execute([$meeting['join_url'], $slotId]);
+    // 未発行時に告知していた宛先へも自動送信（保留キューを消化）。
+    flush_slot_url_pending($slotId, $meeting['join_url']);
     return $meeting['join_url'];
 }
 
@@ -195,6 +199,52 @@ function slot_booking_line_users(string $slotId): array
         }
     }
     return array_keys($uids);
+}
+
+/**
+ * 未発行の枠を告知した宛先を保留キューに積む（発行時に自動送信するため）。
+ *
+ * @param array<int,string> $lineUserIds
+ */
+function enqueue_slot_url_pending(string $slotId, array $lineUserIds): void
+{
+    if ($slotId === '' || $lineUserIds === []) {
+        return;
+    }
+    $ins = db()->prepare('INSERT OR IGNORE INTO slot_url_pending (slot_id, line_user_id, created_at) VALUES (?,?,?)');
+    foreach ($lineUserIds as $uid) {
+        if (is_string($uid) && $uid !== '') {
+            $ins->execute([$slotId, $uid, time()]);
+        }
+    }
+}
+
+/**
+ * 枠のZoom URLが発行されたら、保留キューの宛先へ固定文面で自動送信し、キューを消化する。
+ * 発行成功時（ensure_slot_zoom / regenerate_slot_zoom）から呼ぶ。
+ */
+function flush_slot_url_pending(string $slotId, string $url): int
+{
+    $slot = find_slot($slotId);
+    if ($slot === null || $url === '') {
+        return 0;
+    }
+    $stmt = db()->prepare('SELECT line_user_id FROM slot_url_pending WHERE slot_id = ?');
+    $stmt->execute([$slotId]);
+    $uids = array_column($stmt->fetchAll(), 'line_user_id');
+    if ($uids === []) {
+        return 0;
+    }
+    $text = slot_zoom_notice_body($slot, $url);
+    $sent = 0;
+    foreach ($uids as $uid) {
+        if (is_string($uid) && $uid !== '' && line_push($uid, [line_text($text)])) {
+            $sent++;
+        }
+    }
+    // 送信可否に関わらずキューは消化（再送ループ防止）。
+    db()->prepare('DELETE FROM slot_url_pending WHERE slot_id = ?')->execute([$slotId]);
+    return $sent;
 }
 
 /**
