@@ -281,20 +281,28 @@ function stripe_diagnose(): array
     if ($key === '') {
         return ['ok' => false, 'message' => 'STRIPE_SECRET_KEY が未設定です。'];
     }
-    $mode = strpos($key, 'sk_live_') === 0 ? '本番(live)' : (strpos($key, 'sk_test_') === 0 ? 'テスト(test)' : '不明');
-    try {
-        init_stripe();
-        \Stripe\Account::retrieve(); // キーの有効性を検証
-    } catch (\Throwable $e) {
-        return ['ok' => false, 'message' => "Stripeキーが無効か接続に失敗しました（モード:{$mode}）: " . $e->getMessage()];
+    // モード判定（sk=標準 / rk=制限付き）。制限付きキーでも動くよう Account 取得は使わない。
+    if (strpos($key, 'sk_live_') === 0 || strpos($key, 'rk_live_') === 0) {
+        $mode = '本番(live)';
+    } elseif (strpos($key, 'sk_test_') === 0 || strpos($key, 'rk_test_') === 0) {
+        $mode = 'テスト(test)';
+    } else {
+        $mode = '不明';
     }
+    init_stripe();
 
     $priceId = (string) (env('STRIPE_PRICE_ID') ?? '');
-    if ($priceId === '') {
-        return ['ok' => false, 'message' => "キーOK（モード:{$mode}）。ただし STRIPE_PRICE_ID が未設定です。月額の継続Priceを設定してください。"];
-    }
     try {
+        if ($priceId === '') {
+            // Price未設定：キーの有効性だけ Prices:Read で確認。
+            \Stripe\Price::all(['limit' => 1]);
+            return ['ok' => false, 'message' => "キーは有効です（モード:{$mode}）。ただし STRIPE_PRICE_ID が未設定です。月額の継続Priceを設定してください。"];
+        }
         $price = \Stripe\Price::retrieve($priceId);
+    } catch (\Stripe\Exception\AuthenticationException $e) {
+        return ['ok' => false, 'message' => "Stripeキーが無効です（モード:{$mode}）。キーの値を確認してください。"];
+    } catch (\Stripe\Exception\PermissionException $e) {
+        return ['ok' => false, 'message' => "キーは有効ですが権限不足（モード:{$mode}）。制限付きキーに Prices の読み取り権限を付与してください。"];
     } catch (\Throwable $e) {
         return ['ok' => false, 'message' => "キーOK（モード:{$mode}）。Price『{$priceId}』を取得できません。ID誤りか、test/live の不一致の可能性。"];
     }
