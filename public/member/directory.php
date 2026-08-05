@@ -60,7 +60,7 @@ $renderChecks = function (array $tags, string $name, array $checked) {
     </p>
 </form>
 
-<p class="muted"><?= count($results) ?> 件</p>
+<p class="muted"><?= count($results) ?> 件　<span style="font-size:.82rem;">（ポイントの高い会員が上位に表示されます）</span></p>
 
 <?php if ($results === []): ?>
     <div class="card"><p style="margin:0;">条件に合う会員が見つかりませんでした。</p></div>
@@ -68,7 +68,7 @@ $renderChecks = function (array $tags, string $name, array $checked) {
     <?php foreach ($results as $r):
         $labels = member_tag_labels($r['member_id']);
         $hasApprovedPhoto = ($r['photo_status'] ?? '') === 'approved';
-        $bal = member_points($r['member_id']);
+        $bal = (int) ($r['points'] ?? member_points($r['member_id'])); // 一覧取得時に集計済み
     ?>
         <div class="card">
             <div style="display:flex;gap:12px;align-items:flex-start;">

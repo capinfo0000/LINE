@@ -44,12 +44,14 @@ function search_directory(array $filters, string $viewerId, int $limit = 60): ar
         $where[] = '(p.name_text LIKE :kw OR p.headline LIKE :kw OR p.bio LIKE :kw OR p.company_title LIKE :kw)';
     }
 
+    // ポイント残高で上位表示（同点は入会日→作成日の新しい順）。
     $sql = 'SELECT m.id AS member_id, m.login_id, m.joined_at,
-                   p.name_text, p.age_text, p.company_title, p.headline, p.bio, p.photo_status, p.visibility_flags
+                   p.name_text, p.age_text, p.company_title, p.headline, p.bio, p.photo_status, p.visibility_flags,
+                   (SELECT COALESCE(SUM(pl.delta), 0) FROM point_ledger pl WHERE pl.member_id = m.id) AS points
               FROM members m
               JOIN profiles p ON p.member_id = m.id
              WHERE ' . implode(' AND ', $where) . '
-             ORDER BY COALESCE(m.joined_at, 0) DESC, m.created_at DESC
+             ORDER BY points DESC, COALESCE(m.joined_at, 0) DESC, m.created_at DESC
              LIMIT ' . (int) $limit;
 
     $stmt = db()->prepare($sql);
