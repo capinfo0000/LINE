@@ -19,6 +19,15 @@
       nav.scrollLeft = Math.max(0, target); // 中央寄せ（縦位置は不変）
     })();
 
+    // 一括チェック: data-check-all="<対象チェックボックスのname>" を持つチェックボックスで全選択/解除。
+    document.querySelectorAll('[data-check-all]').forEach(function (master) {
+      var name = master.getAttribute('data-check-all');
+      var targets = document.querySelectorAll('input[type="checkbox"][name="' + name + '"]');
+      master.addEventListener('change', function () {
+        targets.forEach(function (cb) { cb.checked = master.checked; });
+      });
+    });
+
     // クリックで入力値を全選択（コピー用テキスト欄）
     document.querySelectorAll('.js-select').forEach(function (el) {
       el.addEventListener('click', function () { el.select(); });

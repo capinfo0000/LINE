@@ -44,13 +44,12 @@ function line_send_compose(string $text, string $slotId): string
 
 $text = (string) ($_POST['text'] ?? '');
 $slotId = (string) ($_POST['slot_id'] ?? '');
-$mode = (string) ($_POST['mode'] ?? 'selected');
 $uids = array_values(array_filter((array) ($_POST['uids'] ?? []), 'is_string'));
 $stage = (string) ($_POST['stage'] ?? '');
 
-// 実際の宛先を決定。
+// 実際の宛先＝チェックされた友だち（存在するもののみ）。「全員」は全チェックで表現。
 $allUids = array_map(static fn ($f) => (string) $f['line_user_id'], $friends);
-$targetUids = $mode === 'all' ? $allUids : array_values(array_intersect($allUids, $uids));
+$targetUids = array_values(array_intersect($allUids, $uids));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
@@ -72,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $sent++;
                 }
             }
-            audit_log('line.friend_send', ['mode' => $mode, 'targets' => count($targetUids), 'sent' => $sent]);
+            audit_log('line.friend_send', ['targets' => count($targetUids), 'sent' => $sent]);
             $msg = "配信しました（送信 {$sent} 件 / 対象 " . count($targetUids) . " 件）。";
             $msgType = 'ok';
             $stage = '';
@@ -108,7 +107,6 @@ require __DIR__ . '/_app_header.php';
         <form method="post" style="display:inline;" data-confirm="この内容を <?= count($targetUids) ?> 名へ配信します。よろしいですか？">
             <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="stage" value="send">
             <input type="hidden" name="text" value="<?= e($text) ?>"><input type="hidden" name="slot_id" value="<?= e($slotId) ?>">
-            <input type="hidden" name="mode" value="<?= e($mode) ?>">
             <?php foreach ($targetUids as $u): ?><input type="hidden" name="uids[]" value="<?= e($u) ?>"><?php endforeach; ?>
             <button class="btn">この内容で配信する</button>
         </form>
@@ -119,27 +117,26 @@ require __DIR__ . '/_app_header.php';
         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="stage" value="preview">
 
         <div class="card">
-            <div class="card__title">宛先</div>
-            <label style="font-weight:normal;"><input type="radio" name="mode" value="all" <?= $mode === 'all' ? 'checked' : '' ?>> 友だち全員（<?= count($friends) ?> 名）</label><br>
-            <label style="font-weight:normal;"><input type="radio" name="mode" value="selected" <?= $mode !== 'all' ? 'checked' : '' ?>> 選択した人だけ（下でチェック）</label>
-            <details style="margin-top:10px;" <?= $mode !== 'all' ? 'open' : '' ?>>
-                <summary style="cursor:pointer;">友だちを個別選択（<?= count($friends) ?> 名）</summary>
-                <div style="max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:8px;">
-                    <?php if ($friends === []): ?>
-                        <p class="muted" style="margin:0;">まだ友だちがいません（公式LINEの友だち追加で増えます）。</p>
-                    <?php else: foreach ($friends as $f):
-                        $u = (string) $f['line_user_id'];
-                        $name = (string) ($f['display_name'] ?? '');
-                        $label = $name !== '' ? $name : ('友だち ' . substr($u, 0, 8));
-                        ?>
-                        <label style="display:block;font-weight:normal;padding:3px 0;">
-                            <input type="checkbox" name="uids[]" value="<?= e($u) ?>" <?= in_array($u, $uids, true) ? 'checked' : '' ?>>
-                            <?= e($label) ?>
-                            <span class="muted" style="font-size:.78rem;"><?= e((string) $f['onboarding_state']) ?><?= $f['member_id'] ? '・会員' : '' ?></span>
-                        </label>
-                    <?php endforeach; endif; ?>
-                </div>
-            </details>
+            <div class="card__title">宛先（チェックした友だちへ送信）</div>
+            <label style="font-weight:600;border-bottom:1px solid var(--border);display:block;padding-bottom:6px;">
+                <input type="checkbox" data-check-all="uids[]"> 全員を選択／解除（<?= count($friends) ?> 名）
+            </label>
+            <div style="max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:8px;">
+                <?php if ($friends === []): ?>
+                    <p class="muted" style="margin:0;">まだ友だちがいません（公式LINEの友だち追加で増えます）。</p>
+                <?php else: foreach ($friends as $f):
+                    $u = (string) $f['line_user_id'];
+                    $name = (string) ($f['display_name'] ?? '');
+                    $label = $name !== '' ? $name : ('友だち ' . substr($u, 0, 8));
+                    ?>
+                    <label style="display:block;font-weight:normal;padding:3px 0;">
+                        <input type="checkbox" name="uids[]" value="<?= e($u) ?>" <?= in_array($u, $uids, true) ? 'checked' : '' ?>>
+                        <?= e($label) ?>
+                        <span class="muted" style="font-size:.78rem;"><?= e((string) $f['onboarding_state']) ?><?= $f['member_id'] ? '・会員' : '' ?></span>
+                    </label>
+                <?php endforeach; endif; ?>
+            </div>
+            <p class="muted" style="font-size:.82rem;margin-bottom:0;">「全員を選択」で一斉、個別にチェックすれば選んだ人だけに送れます。</p>
         </div>
 
         <div class="card">

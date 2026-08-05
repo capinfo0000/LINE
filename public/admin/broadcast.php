@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $token = csrf_token();
-$pageTitle = '一斉配信';
+$pageTitle = '会員へ配信（1:1）';
 $pageSub = '対象（active・LINE連携済）: ' . $recipients . ' 名';
 require __DIR__ . '/_app_header.php';
 ?>
