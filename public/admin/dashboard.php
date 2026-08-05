@@ -51,8 +51,7 @@ require __DIR__ . '/_app_header.php';
     <p>
         <a class="btn btn--ghost" href="members.php">会員管理</a>
         <a class="btn btn--ghost" href="slots.php">説明会・面談</a>
-        <a class="btn btn--ghost" href="broadcast.php">会員へ配信(1:1)</a>
-        <a class="btn btn--ghost" href="line_send.php">友だち配信</a>
+        <a class="btn btn--ghost" href="line_send.php">LINE配信</a>
         <a class="btn btn--ghost" href="openchat.php">オープンチャット</a>
         <a class="btn btn--ghost" href="tags.php">タグ管理</a>
     </p>

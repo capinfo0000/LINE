@@ -37,6 +37,32 @@
       });
     });
 
+    // 宛先クイック選択（全員/会員のみ/未入会/解除）＋選択件数の表示。
+    (function () {
+      var boxes = document.querySelectorAll('input.js-recipient');
+      if (!boxes.length) { return; }
+      var countEl = document.querySelector('[data-recipient-count]');
+      function refresh() {
+        if (!countEl) { return; }
+        var n = 0;
+        boxes.forEach(function (cb) { if (cb.checked) { n++; } });
+        countEl.textContent = n;
+      }
+      document.querySelectorAll('[data-recipient-select]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var mode = btn.getAttribute('data-recipient-select');
+          boxes.forEach(function (cb) {
+            var m = cb.getAttribute('data-member') === '1';
+            cb.checked = mode === 'all' ? true : mode === 'none' ? false
+              : mode === 'member' ? m : mode === 'nonmember' ? !m : cb.checked;
+          });
+          refresh();
+        });
+      });
+      boxes.forEach(function (cb) { cb.addEventListener('change', refresh); });
+      refresh();
+    })();
+
     // クリックで入力値を全選択（コピー用テキスト欄）
     document.querySelectorAll('.js-select').forEach(function (el) {
       el.addEventListener('click', function () { el.select(); });

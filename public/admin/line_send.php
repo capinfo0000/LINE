@@ -23,6 +23,16 @@ $slots = db()->prepare('SELECT * FROM slots WHERE start_at > ? ORDER BY start_at
 $slots->execute([time()]);
 $slots = $slots->fetchAll();
 
+/** オンボーディング状態を日本語ラベルに。 */
+function friend_state_label(string $state): string
+{
+    return [
+        'added' => '友だち', 'booked_seminar' => '説明会予約', 'seminar_done' => '説明会済',
+        'booked_interview' => '面談予約', 'interview_done' => '面談済', 'approved' => '承認済',
+        'payment_sent' => '決済案内済', 'paid' => '入会済',
+    ][$state] ?? $state;
+}
+
 /** 本文に枠の案内（再送と同じ固定文面）を付与する。 */
 function line_send_compose(string $text, string $slotId): string
 {
@@ -105,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $token = csrf_token();
-$pageTitle = '友だち配信';
+$pageTitle = 'LINE配信';
 $pageSub = '公式LINE友だち: ' . count($friends) . ' 名';
 require __DIR__ . '/_app_header.php';
 ?>
@@ -129,26 +139,34 @@ require __DIR__ . '/_app_header.php';
         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="stage" value="preview">
 
         <div class="card">
-            <div class="card__title">宛先（チェックした友だちへ送信）</div>
-            <label style="font-weight:600;border-bottom:1px solid var(--border);display:block;padding-bottom:6px;">
-                <input type="checkbox" data-check-all="uids[]"> 全員を選択／解除（<?= count($friends) ?> 名）
-            </label>
-            <div style="max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:8px;">
+            <div class="card__title">宛先</div>
+            <div class="recip-toolbar">
+                <button type="button" class="btn btn--ghost btn--sm" data-recipient-select="all">全員</button>
+                <button type="button" class="btn btn--ghost btn--sm" data-recipient-select="member">会員のみ</button>
+                <button type="button" class="btn btn--ghost btn--sm" data-recipient-select="nonmember">未入会のみ</button>
+                <button type="button" class="btn btn--ghost btn--sm" data-recipient-select="none">解除</button>
+                <span class="muted" style="margin-left:auto;font-size:.85rem;">選択中 <strong data-recipient-count style="color:var(--accent);">0</strong> / <?= count($friends) ?> 名</span>
+            </div>
+            <div class="recip-list">
                 <?php if ($friends === []): ?>
-                    <p class="muted" style="margin:0;">まだ友だちがいません（公式LINEの友だち追加で増えます）。</p>
+                    <p class="muted" style="margin:0;padding:12px;">まだ友だちがいません（公式LINEの友だち追加で増えます）。</p>
                 <?php else: foreach ($friends as $f):
                     $u = (string) $f['line_user_id'];
                     $name = (string) ($f['display_name'] ?? '');
                     $label = $name !== '' ? $name : ('友だち ' . substr($u, 0, 8));
+                    $isMember = !empty($f['member_id']);
                     ?>
-                    <label style="display:block;font-weight:normal;padding:3px 0;">
-                        <input type="checkbox" name="uids[]" value="<?= e($u) ?>" <?= in_array($u, $uids, true) ? 'checked' : '' ?>>
-                        <?= e($label) ?>
-                        <span class="muted" style="font-size:.78rem;"><?= e((string) $f['onboarding_state']) ?><?= $f['member_id'] ? '・会員' : '' ?></span>
+                    <label class="recip">
+                        <input type="checkbox" class="js-recipient" name="uids[]" value="<?= e($u) ?>" data-member="<?= $isMember ? '1' : '0' ?>" <?= in_array($u, $uids, true) ? 'checked' : '' ?>>
+                        <span class="recip__name"><?= e($label) ?></span>
+                        <span class="recip__meta">
+                            <?php if ($isMember): ?><span class="chipmini chipmini--ok">会員</span><?php endif; ?>
+                            <span class="chipmini"><?= e(friend_state_label((string) $f['onboarding_state'])) ?></span>
+                        </span>
                     </label>
                 <?php endforeach; endif; ?>
             </div>
-            <p class="muted" style="font-size:.82rem;margin-bottom:0;">「全員を選択」で一斉、個別にチェックすれば選んだ人だけに送れます。</p>
+            <p class="muted" style="font-size:.82rem;margin:8px 0 0;">上のボタンで一括選択、個別チェックで微調整できます。</p>
         </div>
 
         <div class="card">
