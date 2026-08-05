@@ -400,6 +400,8 @@ function db_migrate(\PDO $pdo): void
     // サブスク（月額会費）用の会員カラム。
     db_add_column_if_missing($pdo, 'members', 'stripe_subscription_id', 'TEXT');
     db_add_column_if_missing($pdo, 'members', 'subscription_status', "TEXT NOT NULL DEFAULT ''"); // active/past_due/canceled
+    // 紹介特典で月額無料化（100%割引クーポン適用中）なら 1。cron が付け外しする。
+    db_add_column_if_missing($pdo, 'members', 'subscription_waived', 'INTEGER NOT NULL DEFAULT 0');
 
     // 紹介者への月次ポイント配布の冪等記録（請求1件につき1回だけ付与）。
     $pdo->exec(<<<'SQL'

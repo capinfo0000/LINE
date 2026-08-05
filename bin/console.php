@@ -115,14 +115,18 @@ switch ($cmd) {
         break;
 
     case 'approve-contact':
-        // approve-contact <line_user_id>  → 承認して決済リンクを Push
+        // approve-contact <line_user_id>
+        //   無料フェーズ → 決済なしで会員資格を発行して配布
+        //   課金フェーズ → 決済リンクを Push
         $lu = $argv[2] ?? '';
         if ($lu === '' || find_line_contact($lu) === null) {
             exit("line_contact が見つかりません: {$lu}\n");
         }
-        set_line_contact_approved($lu, true);
-        $ok = send_payment_link_to_contact($lu);
-        echo $ok ? "承認し、決済リンクを送信しました。\n" : "承認しました（Push未設定のため送信はスキップ／要 LINE_CHANNEL_ACCESS_TOKEN）。\n";
+        $r = approve_line_contact($lu);
+        echo "[{$r['phase']}] {$r['message']}\n";
+        if (!empty($r['member_id'])) {
+            echo "  member_id: {$r['member_id']}\n";
+        }
         break;
 
     case 'list-contacts':
@@ -132,7 +136,18 @@ switch ($cmd) {
         }
         break;
 
+    case 'eval-waiver':
+        // 紹介特典（月額無料化）の判定を手動実行する（cron と同じ処理）。
+        if (!billing_started()) {
+            echo "無料フェーズのため判定対象はありません。\n";
+            break;
+        }
+        init_stripe();
+        $r = evaluate_referral_waiver();
+        echo "紹介特典判定(mode={$r['mode']}): scanned={$r['scanned']} applied={$r['applied']} removed={$r['removed']} errors={$r['errors']}\n";
+        break;
+
     default:
         echo "コマンド: init | create-admin | make-invite | list-operators | make-member | list-members\n"
-           . "        create-slot | list-slots | add-openchat | approve-contact | list-contacts\n";
+           . "        create-slot | list-slots | add-openchat | approve-contact | list-contacts | eval-waiver\n";
 }

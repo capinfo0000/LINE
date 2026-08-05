@@ -365,6 +365,238 @@ function member_requires_subscription(array $member): bool
     return (string) ($member['subscription_status'] ?? '') !== 'active';
 }
 
+/* ============================ 無料入会（無料フェーズ：LINE申込→承認発行） ============================ */
+
+/**
+ * 無料フェーズの入会：LINE連絡先を承認し、決済なしで会員資格を発行する（冪等）。
+ * すでに会員紐付け済みなら再発行しない。発行した資格情報は LINE/メールで配布する。
+ *
+ * @return array{status:string, member_id:?string, issued:bool}
+ *   status: 'done'（新規発行）/ 'linked'（既存会員に紐付け済み）/ 'ignored'（連絡先なし）
+ */
+function provision_free_member_from_contact(string $userId): array
+{
+    $c = find_line_contact($userId);
+    if ($c === null) {
+        return ['status' => 'ignored', 'member_id' => null, 'issued' => false];
+    }
+    // すでに会員が紐付いていれば発行しない（冪等）。
+    if (!empty($c['member_id'])) {
+        return ['status' => 'linked', 'member_id' => (string) $c['member_id'], 'issued' => false];
+    }
+    // メール一致の既存会員があれば紐付けのみ（重複アカウント防止）。
+    $email = (string) ($c['email'] ?? '');
+    $existing = $email !== '' ? find_member_by_email($email) : null;
+    if ($existing !== null) {
+        activate_member((string) $existing['id'], null, $userId);
+        link_line_contact_member($userId, (string) $existing['id']);
+        set_line_contact_state($userId, 'paid');
+        return ['status' => 'linked', 'member_id' => (string) $existing['id'], 'issued' => false];
+    }
+
+    // 新規会員を無料で発行（active・初回PW強制変更）。
+    $cred = issue_member_credentials($email !== '' ? $email : null, null, 'active', $userId);
+    $member = find_member_by_id($cred['member_id']);
+    link_line_contact_member($userId, (string) $member['id']);
+    set_line_contact_state($userId, 'paid');
+    audit_log('member.free_provisioned', ['member' => $member['id'], 'line' => substr($userId, 0, 10)]);
+    deliver_member_credentials($member, $cred['login_id'], $cred['temp_password']);
+    return ['status' => 'done', 'member_id' => (string) $member['id'], 'issued' => true];
+}
+
+/**
+ * LINE連絡先を「承認」する。料金フェーズに応じて発行方法を切り替える。
+ *  - 無料フェーズ：決済なしで会員資格を発行して配布。
+ *  - 課金フェーズ：入会金/月額の決済リンクを送る（従来どおり）。
+ *
+ * @return array{ok:bool, phase:string, message:string, member_id:?string}
+ */
+function approve_line_contact(string $userId): array
+{
+    if (find_line_contact($userId) === null) {
+        return ['ok' => false, 'phase' => '', 'message' => 'LINE連絡先が見つかりません。', 'member_id' => null];
+    }
+    set_line_contact_approved($userId, true);
+
+    if (billing_started()) {
+        // 課金フェーズ：決済リンクを送信。
+        $ok = send_payment_link_to_contact($userId);
+        return [
+            'ok' => $ok,
+            'phase' => 'paid',
+            'message' => $ok ? '承認し、決済リンクを送信しました。' : '承認しましたが送信に失敗しました（LINE設定をご確認ください）。',
+            'member_id' => null,
+        ];
+    }
+
+    // 無料フェーズ：決済なしで会員資格を発行。
+    $r = provision_free_member_from_contact($userId);
+    if ($r['status'] === 'done') {
+        return ['ok' => true, 'phase' => 'free', 'message' => '承認し、会員資格（無料）を発行してLINEに送信しました。', 'member_id' => $r['member_id']];
+    }
+    if ($r['status'] === 'linked') {
+        return ['ok' => true, 'phase' => 'free', 'message' => '承認しました。既存の会員に紐付けました。', 'member_id' => $r['member_id']];
+    }
+    return ['ok' => false, 'phase' => 'free', 'message' => '承認しましたが会員発行に失敗しました。', 'member_id' => null];
+}
+
+/* ============================ 紹介特典（月額無料化） ============================ */
+
+/**
+ * 無料化に必要な「アクティブな紹介先」の人数（既定5）。
+ */
+function referral_waiver_min(): int
+{
+    return max(1, (int) env('REFERRAL_WAIVER_MIN', '5'));
+}
+
+/**
+ * 紹介判定モード。
+ *  - 'A'（既定）：無料化した紹介先(active)もカウントする（拡散重視）。
+ *  - 'B'：実際に課金している紹介先(active かつ無料化していない)だけカウントする（収益の下限を保証）。
+ * app_settings 'referral_waiver_mode' で切替可能（運営ダッシュボードから）。
+ */
+function referral_waiver_mode(): string
+{
+    $m = strtoupper((string) app_setting_get('referral_waiver_mode', 'A'));
+    return $m === 'B' ? 'B' : 'A';
+}
+
+/**
+ * 指定会員が紹介した人のうち「アクティブ」な人数を数える。
+ * A案: subscription_status='active' の紹介先すべて。
+ * B案: さらに subscription_waived=0（＝実際に課金している）に限定。
+ */
+function count_active_referrals(string $referrerId, bool $payingOnly): int
+{
+    $sql = "SELECT COUNT(*)
+              FROM referrals r
+              JOIN members m ON m.id = r.joiner_id
+             WHERE r.referrer_id = ?
+               AND m.subscription_status = 'active'";
+    if ($payingOnly) {
+        $sql .= ' AND COALESCE(m.subscription_waived, 0) = 0';
+    }
+    $stmt = db()->prepare($sql);
+    $stmt->execute([$referrerId]);
+    return (int) $stmt->fetchColumn();
+}
+
+/** 現在、紹介特典で無料化されている会員数（モニター用）。 */
+function waived_member_count(): int
+{
+    return (int) db()->query('SELECT COUNT(*) FROM members WHERE COALESCE(subscription_waived,0) = 1')->fetchColumn();
+}
+
+/** サブスク登録済み（active）会員数（無料比率モニターの母数）。 */
+function subscribed_member_count(): int
+{
+    return (int) db()->query("SELECT COUNT(*) FROM members WHERE subscription_status = 'active'")->fetchColumn();
+}
+
+/**
+ * 無料化に使う 100%OFF クーポンのIDを返す（無ければ Stripe 上に作成して app_settings に保存）。
+ * 明示指定したい場合は .env の REFERRAL_WAIVER_COUPON_ID が最優先。
+ */
+function waiver_coupon_id(): string
+{
+    $envId = (string) (env('REFERRAL_WAIVER_COUPON_ID') ?? '');
+    if ($envId !== '') {
+        return $envId;
+    }
+    $saved = (string) (app_setting_get('referral_waiver_coupon_id', '') ?? '');
+    if ($saved !== '') {
+        return $saved;
+    }
+    // 100%OFF・継続(forever)のクーポンを作成。付いている間ずっと無料、外せば通常額に戻る。
+    $coupon = \Stripe\Coupon::create([
+        'percent_off' => 100,
+        'duration'    => 'forever',
+        'name'        => 'Enlink紹介特典(月額無料)',
+    ]);
+    $id = (string) $coupon->id;
+    app_setting_set('referral_waiver_coupon_id', $id);
+    return $id;
+}
+
+/**
+ * 会員のサブスクに 100%OFF クーポンを適用して無料化する（冪等）。
+ * すでに無料化済み(subscription_waived=1)なら何もしない。
+ *
+ * @return bool 新たに適用したら true
+ */
+function apply_subscription_waiver(array $member): bool
+{
+    $subId = (string) ($member['stripe_subscription_id'] ?? '');
+    if ($subId === '' || (int) ($member['subscription_waived'] ?? 0) === 1) {
+        return false;
+    }
+    \Stripe\Subscription::update($subId, ['coupon' => waiver_coupon_id()]);
+    db()->prepare('UPDATE members SET subscription_waived = 1 WHERE id = ?')->execute([$member['id']]);
+    audit_log('waiver.applied', ['member' => $member['id']]);
+    return true;
+}
+
+/**
+ * 会員のサブスクからクーポンを外して通常額に戻す（冪等）。
+ * すでに通常額(subscription_waived=0)なら何もしない。
+ *
+ * @return bool 新たに解除したら true
+ */
+function remove_subscription_waiver(array $member): bool
+{
+    $subId = (string) ($member['stripe_subscription_id'] ?? '');
+    if ($subId === '' || (int) ($member['subscription_waived'] ?? 0) === 0) {
+        return false;
+    }
+    try {
+        \Stripe\Subscription::deleteDiscount($subId);
+    } catch (\Throwable $e) {
+        // すでに割引が無い場合などは無視（フラグだけ戻す）。
+    }
+    db()->prepare('UPDATE members SET subscription_waived = 0 WHERE id = ?')->execute([$member['id']]);
+    audit_log('waiver.removed', ['member' => $member['id']]);
+    return true;
+}
+
+/**
+ * 全 active サブスク会員について、紹介特典（月額無料化）の付け外しを判定・反映する。
+ * cron（bin/referral_waiver.php）から定期実行する。Stripe を叩くので冪等ガード付き。
+ *
+ * @return array{scanned:int, applied:int, removed:int, errors:int, mode:string}
+ */
+function evaluate_referral_waiver(): array
+{
+    $mode = referral_waiver_mode();
+    $payingOnly = ($mode === 'B');
+    $min = referral_waiver_min();
+    $scanned = $applied = $removed = $errors = 0;
+
+    // 課金フェーズでのみ意味を持つ（無料フェーズはサブスク自体が無い）。
+    $rows = db()->query("SELECT * FROM members WHERE subscription_status = 'active' AND stripe_subscription_id IS NOT NULL AND stripe_subscription_id <> ''")->fetchAll();
+    foreach ($rows as $m) {
+        $scanned++;
+        try {
+            $count = count_active_referrals((string) $m['id'], $payingOnly);
+            $shouldBeFree = $count >= $min;
+            $isFree = (int) ($m['subscription_waived'] ?? 0) === 1;
+            if ($shouldBeFree && !$isFree) {
+                if (apply_subscription_waiver($m)) {
+                    $applied++;
+                }
+            } elseif (!$shouldBeFree && $isFree) {
+                if (remove_subscription_waiver($m)) {
+                    $removed++;
+                }
+            }
+        } catch (\Throwable $e) {
+            $errors++;
+            error_log('waiver eval error member=' . ($m['id'] ?? '-') . ': ' . $e->getMessage());
+        }
+    }
+    return ['scanned' => $scanned, 'applied' => $applied, 'removed' => $removed, 'errors' => $errors, 'mode' => $mode];
+}
+
 /* ============================ サブスク（月額会費） ============================ */
 
 /** Stripe 顧客IDから会員を引く。 */

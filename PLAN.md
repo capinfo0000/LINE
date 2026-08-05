@@ -180,3 +180,26 @@
 - 現在の紹介はポイント付与（+100/+50/毎月+50pt）。Ver.1の「5名で無料」は**別軸の特典**（ポイントは併存可）。
 - 「アクティブ有料会員数」= referrals×members.subscription_status='active' で集計（cron）。
 - しきい値(100/500)判定・状態遷移・全員一斉の課金開始通知が必要。
+
+### 11.1 実装状況（2026-08 実装）
+
+**課金フェーズ判定（#18）**
+- `billing_started()`：有効会員が `BILLING_FREE_LIMIT`（既定100）を超えた時点で課金フェーズ開始。一度始まると `app_settings.billing_started=1` で戻さない。
+- `member_requires_subscription($member)`：課金フェーズ中で `subscription_status!='active'` の会員はアクセス制限（`require_member` が `/member/subscribe.php` へ誘導）。無料フェーズは全員素通り。
+
+**無料フェーズの入会経路：公式LINE経由で申込→承認発行（#18）**
+- 運営が `admin/contacts.php`（LINE申込者）で申込者を確認し「承認」する。
+- `approve_line_contact($userId)` がフェーズを判定して分岐：
+  - **無料フェーズ**：`provision_free_member_from_contact()` が決済なしで会員資格（active・初回PW強制変更）を発行し、ID/PWをLINE/メールで配布。冪等（連絡先の member_id で二重発行を防止）。
+  - **課金フェーズ**：従来どおり決済リンクを送信。
+- CLI: `php bin/console.php approve-contact <line_user_id>` も同じ分岐で動作。
+
+**紹介特典＝月額無料化（#19・動的・A案採用）**
+- 判定モード（`app_settings.referral_waiver_mode`・既定 **A**・運営ダッシュボードでトグル）：
+  - **A案（拡散重視）**：無料化した紹介先(active)も5名に数える。
+  - **B案（収益重視）**：実際に課金している紹介先(active かつ `subscription_waived=0`)だけ数える。B案は「無料1名につき下に有料5名」が必ず成立するため、**有料比率 ≧ 5/6（約83%）が構造的に保証**される。
+- `evaluate_referral_waiver()`（cron: `bin/referral_waiver.php`・1日1回）：
+  - active サブスク会員ごとに `count_active_referrals()` を数え、`REFERRAL_WAIVER_MIN`（既定5）以上なら Stripe 100%OFFクーポンを適用（`subscription_waived=1`）、割り込んだら解除（`=0`）。
+  - `subscription_waived` フラグで Stripe への二重適用を防止（冪等）。無料フェーズは即スキップ。
+  - 100%割引でも `subscription_status='active'` は維持されるため、無料化会員はアクセス制限にかからない。
+- **無料比率モニター**：運営ダッシュボードに「課金中／無料化／無料比率(%)」を表示。無料比率が高すぎる場合はB案切替を促す警告を表示。

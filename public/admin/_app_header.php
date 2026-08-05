@@ -20,6 +20,7 @@ $navItems = [
     ['members.php',   '', '会員管理',       ['members.php', 'member_detail.php']],
     ['slots.php',     '', '説明会・面談',   ['slots.php']],
     ['line_send.php', '', 'LINE配信',       ['line_send.php']],
+    ['contacts.php',  '', 'LINE申込者',     ['contacts.php']],
     ['openchat.php',  '', 'オープンチャット', ['openchat.php']],
     ['tags.php',      '', 'タグ管理',       ['tags.php']],
     ['account.php',   '', 'アカウント設定', ['account.php']],
