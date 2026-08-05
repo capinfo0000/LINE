@@ -43,6 +43,38 @@ function generate_member_login_id(): string
     return $id;
 }
 
+/** 紹介コードが既に使われているか。 */
+function referral_code_exists(string $code): bool
+{
+    $stmt = db()->prepare('SELECT 1 FROM members WHERE referral_code = ? LIMIT 1');
+    $stmt->execute([$code]);
+    return (bool) $stmt->fetchColumn();
+}
+
+/**
+ * 重複しない紹介専用コード（例 8F3KQ9MN）を生成する。
+ * ログインIDとは別物。紛らわしい文字を避けた大文字英数字8桁。
+ */
+function generate_referral_code(): string
+{
+    do {
+        $code = random_safe_string(8, 'ABCDEFGHJKMNPQRSTUVWXYZ23456789');
+    } while (referral_code_exists($code));
+    return $code;
+}
+
+/** 会員の紹介コードを返す（未発行なら発行して保存）。 */
+function member_referral_code(array $member): string
+{
+    $code = (string) ($member['referral_code'] ?? '');
+    if ($code !== '') {
+        return $code;
+    }
+    $code = generate_referral_code();
+    db()->prepare('UPDATE members SET referral_code = ? WHERE id = ?')->execute([$code, $member['id']]);
+    return $code;
+}
+
 /**
  * 会員に渡す仮パスワードを生成する（読みやすく、強度チェックを満たす）。
  * 記号を1つ混ぜ、英大文字・小文字・数字を含める。
@@ -81,11 +113,12 @@ function issue_member_credentials(
     $memberId = generate_member_id();
     $loginId = generate_member_login_id();
     $tempPassword = generate_temp_password();
+    $referralCode = generate_referral_code();
     $email = ($email !== null && trim($email) !== '') ? strtolower(trim($email)) : null;
 
     $stmt = db()->prepare(
-        'INSERT INTO members (id, login_id, password_hash, must_change_pw, display_name, email, line_user_id, status, joined_at, created_at)
-         VALUES (:id, :login_id, :hash, 1, :name, :email, :line, :status, :joined, :created)'
+        'INSERT INTO members (id, login_id, password_hash, must_change_pw, display_name, email, line_user_id, status, referral_code, joined_at, created_at)
+         VALUES (:id, :login_id, :hash, 1, :name, :email, :line, :status, :ref, :joined, :created)'
     );
     $stmt->execute([
         ':id'       => $memberId,
@@ -95,6 +128,7 @@ function issue_member_credentials(
         ':email'    => $email,
         ':line'     => $lineUserId,
         ':status'   => $status,
+        ':ref'      => $referralCode,
         ':joined'   => $status === 'active' ? time() : null,
         ':created'  => time(),
     ]);

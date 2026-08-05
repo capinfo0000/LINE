@@ -97,14 +97,14 @@ function point_reason_label(string $reason): string
 
 /* ------------------------- 紹介 ------------------------- */
 
-/** 紹介コード（= 会員のログインID）から会員を引く。無ければ null。 */
+/** 紹介専用コードから会員を引く。無ければ null。大文字小文字は無視。 */
 function find_member_by_referral_code(string $code): ?array
 {
-    $code = trim($code);
+    $code = strtoupper(trim($code));
     if ($code === '') {
         return null;
     }
-    $stmt = db()->prepare('SELECT * FROM members WHERE login_id = ? LIMIT 1');
+    $stmt = db()->prepare('SELECT * FROM members WHERE referral_code = ? LIMIT 1');
     $stmt->execute([$code]);
     $row = $stmt->fetch();
     return $row ?: null;
@@ -130,7 +130,7 @@ function record_referral(string $joinerId, string $referrerCode): array
     }
     $referrer = find_member_by_referral_code($referrerCode);
     if ($referrer === null) {
-        return ['ok' => false, 'message' => '紹介コードが見つかりません。ログインIDを正しく入力してください。'];
+        return ['ok' => false, 'message' => '紹介コードが見つかりません。コードを正しく入力してください。'];
     }
     if ((string) $referrer['id'] === $joinerId) {
         return ['ok' => false, 'message' => '自分のコードは登録できません。'];

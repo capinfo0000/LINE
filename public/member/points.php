@@ -47,9 +47,10 @@ require __DIR__ . '/_header.php';
 <div class="card">
     <div class="card__title">紹介であなたのコードを共有</div>
     <p>友人が入会時にあなたのコードを入力すると、<strong>あなたに<?= points_amount('referrer') ?>pt・相手に<?= points_amount('joiner') ?>pt</strong>が入ります。</p>
-    <p>あなたの紹介コード（＝ログインID）：
-        <input class="js-select" type="text" value="<?= e($member['login_id']) ?>" readonly style="max-width:200px;font-weight:700;" onclick="this.select()">
+    <p>あなたの紹介コード：
+        <input class="js-select" type="text" value="<?= e(member_referral_code($member)) ?>" readonly style="max-width:200px;font-weight:700;letter-spacing:.08em;" onclick="this.select()">
     </p>
+    <p class="muted" style="font-size:.82rem;">※このコードはログインIDとは別です。安心して共有できます。</p>
 </div>
 
 <div class="card">
@@ -59,8 +60,8 @@ require __DIR__ . '/_header.php';
     <?php else: ?>
         <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
             <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="referral">
-            <div><label>紹介者のコード（相手のログインID）</label>
-                <input type="text" name="referrer_code" placeholder="例: el8f3k9q2m" maxlength="40" style="max-width:220px;"></div>
+            <div><label>紹介者のコード</label>
+                <input type="text" name="referrer_code" placeholder="例: 8F3KQ9MN" maxlength="16" style="max-width:220px;text-transform:uppercase;"></div>
             <div><button type="submit" class="btn">登録する</button></div>
         </form>
         <p class="muted" style="margin-top:6px;">※登録は1回だけ・あとから変更できません。</p>

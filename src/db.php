@@ -403,6 +403,11 @@ function db_migrate(\PDO $pdo): void
     // 紹介特典で月額無料化（100%割引クーポン適用中）なら 1。cron が付け外しする。
     db_add_column_if_missing($pdo, 'members', 'subscription_waived', 'INTEGER NOT NULL DEFAULT 0');
 
+    // 紹介専用コード（ログインIDとは別の推測されにくいコード）。共有・入力はこのコードで行う。
+    db_add_column_if_missing($pdo, 'members', 'referral_code', 'TEXT');
+    $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_members_refcode ON members(referral_code) WHERE referral_code IS NOT NULL AND referral_code <> ''");
+    backfill_referral_codes($pdo);
+
     // 紹介者への月次ポイント配布の冪等記録（請求1件につき1回だけ付与）。
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS referral_payouts (
@@ -489,6 +494,32 @@ function seed_tag_master(\PDO $pdo): void
         $insTag->execute(['purpose', $v, $sort]);
         $insTag->execute(['offer', $v, $sort]);
         $sort++;
+    }
+}
+
+/**
+ * 紹介コード未発行の会員に、推測されにくい8桁コードを一括付与する（冪等・自己完結）。
+ * 紛らわしい文字（0/O/1/I/L）を除いた英数字を使う。
+ */
+function backfill_referral_codes(\PDO $pdo): void
+{
+    $rows = $pdo->query("SELECT id FROM members WHERE referral_code IS NULL OR referral_code = ''")->fetchAll();
+    if ($rows === []) {
+        return;
+    }
+    $alpha = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    $len = strlen($alpha);
+    $upd = $pdo->prepare('UPDATE members SET referral_code = ? WHERE id = ?');
+    $chk = $pdo->prepare('SELECT 1 FROM members WHERE referral_code = ? LIMIT 1');
+    foreach ($rows as $r) {
+        do {
+            $code = '';
+            for ($i = 0; $i < 8; $i++) {
+                $code .= $alpha[random_int(0, $len - 1)];
+            }
+            $chk->execute([$code]);
+        } while ($chk->fetchColumn());
+        $upd->execute([$code, $r['id']]);
     }
 }
 
