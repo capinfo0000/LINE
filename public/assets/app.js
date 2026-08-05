@@ -77,6 +77,12 @@
         if (!window.confirm(f.getAttribute('data-confirm'))) { e.preventDefault(); }
       });
     });
+    // data-confirm を持つ「ボタン」も個別に確認（同一フォーム内で送信先を分けたい場合）
+    document.querySelectorAll('button[data-confirm]').forEach(function (b) {
+      b.addEventListener('click', function (e) {
+        if (!window.confirm(b.getAttribute('data-confirm'))) { e.preventDefault(); }
+      });
+    });
 
     // モーダル（ポップアップ）: data-modal-open="ID" で開く
     function closeModal(m) { if (m) { m.classList.remove('is-open'); } }

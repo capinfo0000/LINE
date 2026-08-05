@@ -94,7 +94,24 @@ $stage = (string) ($_POST['stage'] ?? '');
 $allUids = array_map(static fn ($f) => (string) $f['line_user_id'], $friends);
 $targetUids = array_values(array_intersect($allUids, $uids));
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_onboarding'])) {
+    // 初回メッセージ（あいさつ＋説明会の日程）を選択宛先へ手動送信。
+    csrf_verify($_POST['csrf_token'] ?? null);
+    if ($targetUids === []) {
+        $msg = '宛先を1件以上選択してください。';
+        $msgType = 'ng';
+    } else {
+        $sent = 0;
+        foreach ($targetUids as $uid) {
+            if (line_push($uid, line_onboarding_messages())) {
+                $sent++;
+            }
+        }
+        audit_log('line.onboarding_send', ['targets' => count($targetUids), 'sent' => $sent]);
+        $msg = "初回メッセージを送信しました（送信 {$sent} 件 / 対象 " . count($targetUids) . " 件）。";
+        $uids = [];
+    }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
     $finalText = line_send_compose($text, $slotId);
 
@@ -229,6 +246,9 @@ require __DIR__ . '/_app_header.php';
         <div class="card">
             <p class="muted" style="margin-top:0;"><strong>宛先1件ごとに1通課金</strong>されます。送信前に確認画面が出ます。</p>
             <button type="submit" class="btn">確認画面へ</button>
+            <button type="submit" name="do_onboarding" value="1" class="btn btn--ghost"
+                    data-confirm="選択した宛先へ『初回メッセージ（あいさつ＋説明会の日程・予約ボタン付き）』を送信します。よろしいですか？">初回メッセージを送る</button>
+            <p class="muted" style="font-size:.82rem;margin:8px 0 0;">「初回メッセージを送る」＝友だち追加時と同じ、あいさつ＋説明会の予約ボタン付きメッセージを、選択宛先へ手動送信します（本文・添付は使いません）。</p>
         </div>
     </form>
 <?php endif; ?>

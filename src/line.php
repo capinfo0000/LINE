@@ -226,6 +226,24 @@ function line_text_quickreply(string $text, array $items): array
 }
 
 /** 予約枠一覧をクイックリプライにする。空なら案内テキストのみ。 */
+/**
+ * 初回（友だち追加時）のオンボーディング・メッセージ配列。
+ * follow時の自動送信と、管理画面からの手動送信の両方で共通利用する。
+ * あいさつ＋説明会の日程（予約用クイックリプライ）を返す。
+ *
+ * @return array<int,array>
+ */
+function line_onboarding_messages(): array
+{
+    $greeting = "友だち追加ありがとうございます！Enlinkです😊\n\n"
+        . "Enlinkは、審査を経た会員だけが集まる、会員制の人脈マッチングサービスです。条件に合う相手を検索・おすすめから見つけてつながれます。\n\n"
+        . "まずは無料の説明会（Zoom・約30分）で仕組みをご案内します。";
+    return [
+        line_text($greeting),
+        line_slots_message('seminar', 'ご希望の説明会の日程をお選びください。'),
+    ];
+}
+
 function line_slots_message(string $kind, string $prompt): array
 {
     $slots = open_slots($kind, 13);
@@ -287,10 +305,7 @@ function line_handle_event(array $event): array
     if ($type === 'follow') {
         get_or_create_line_contact($userId);
         set_line_contact_state($userId, 'added');
-        return [
-            line_text('友だち追加ありがとうございます！Enlinkです。\nまずは説明会（Zoom・約30分）にご参加ください。'),
-            line_slots_message('seminar', 'ご希望の説明会の日程をお選びください。'),
-        ];
+        return line_onboarding_messages();
     }
 
     if ($type === 'message') {
