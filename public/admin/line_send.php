@@ -23,15 +23,31 @@ $slots = db()->prepare('SELECT * FROM slots WHERE start_at > ? ORDER BY start_at
 $slots->execute([time()]);
 $slots = $slots->fetchAll();
 
-// 「説明会の日程」再送用テキスト（現在予約可能な説明会の日程一覧）。
-$seminarOpen = open_slots('seminar', 12);
-$scheduleText = '';
-if ($seminarOpen !== []) {
-    $lines = ['【説明会の日程】', 'ご都合のよい日程で、このトークに「説明会」と送るとご予約いただけます。', ''];
-    $wd = ['日', '月', '火', '水', '木', '金', '土'];
-    foreach ($seminarOpen as $s) {
+// 「全会議日程の提案」再送用テキスト（現在予約可能な説明会＋個別面談の日程一覧）。
+// まだ予約していない友だちにも、日程を提案して予約を促せる。
+$wd = ['日', '月', '火', '水', '木', '金', '土'];
+$fmtSlots = static function (array $rows) use ($wd): array {
+    $out = [];
+    foreach ($rows as $s) {
         $ts = (int) $s['start_at'] + 9 * 3600;
-        $lines[] = '・' . date('n/j', $ts) . '（' . $wd[(int) date('w', $ts)] . '）' . date(' H:i', $ts);
+        $out[] = '・' . date('n/j', $ts) . '（' . $wd[(int) date('w', $ts)] . '）' . date(' H:i', $ts);
+    }
+    return $out;
+};
+$seminarOpen = open_slots('seminar', 12);
+$interviewOpen = open_slots('interview', 12);
+$scheduleText = '';
+if ($seminarOpen !== [] || $interviewOpen !== []) {
+    $lines = ['【説明会・個別面談の日程】', 'ご希望の会に合わせて、このトークに「説明会」または「面談」と送るとご予約いただけます。'];
+    if ($seminarOpen !== []) {
+        $lines[] = '';
+        $lines[] = '■ 説明会';
+        $lines = array_merge($lines, $fmtSlots($seminarOpen));
+    }
+    if ($interviewOpen !== []) {
+        $lines[] = '';
+        $lines[] = '■ 個別面談';
+        $lines = array_merge($lines, $fmtSlots($interviewOpen));
     }
     $scheduleText = implode("\n", $lines);
 }
@@ -188,7 +204,7 @@ require __DIR__ . '/_app_header.php';
                 <span class="muted" style="align-self:center;font-size:.82rem;">定型文：</span>
                 <?php if ($scheduleText !== ''): ?>
                     <button type="button" class="btn btn--ghost" style="padding:3px 10px;font-size:.82rem;border-color:var(--accent);color:var(--accent);font-weight:700;"
-                            data-fill-text="text" data-text="<?= e($scheduleText) ?>">📅 説明会の日程（再送）</button>
+                            data-fill-text="text" data-text="<?= e($scheduleText) ?>">📅 全日程を提案（再送）</button>
                 <?php endif; ?>
                 <?php foreach ($templates as $tpl): ?>
                     <button type="button" class="btn btn--ghost" style="padding:3px 10px;font-size:.82rem;"
