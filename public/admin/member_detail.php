@@ -41,6 +41,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             resolve_report((int) ($_POST['report_id'] ?? 0), (int) ($_POST['penalty'] ?? 0));
             $msg = '通報を処理しました。';
             break;
+        case 'set_plan':
+            $plan = (string) ($_POST['plan'] ?? 'basic');
+            set_member_plan($id, $plan);
+            audit_log('admin.set_plan', ['member' => $id, 'plan' => $plan]);
+            $msg = 'プランを' . plan_label($plan === 'premium' ? 'premium' : 'basic') . 'に変更しました。';
+            break;
     }
     $member = find_member_by_id($id);
 }
@@ -61,6 +67,16 @@ require __DIR__ . '/_app_header.php';
        <?= (int) $member['must_change_pw'] === 1 ? '<span class="muted">(要PW変更)</span>' : '' ?></p>
     <p>名前：<?= e($profile['name_text'] ?: ($member['display_name'] ?? '-')) ?>　メール：<?= e($member['email'] ?? '-') ?></p>
     <p>LINE：<?= e($member['line_user_id'] ?? '-') ?>　入会日：<?= $member['joined_at'] ? e(date('Y-m-d', (int) $member['joined_at'])) : '-' ?></p>
+    <?php $curPlan = ($member['plan'] ?? 'basic') === 'premium' ? 'premium' : 'basic'; ?>
+    <p style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+        プラン：<span class="badge" style="background:<?= $curPlan === 'premium' ? '#eef2ff;color:#3730a3' : '#f1f5f9;color:#475569' ?>;"><?= e(plan_label($curPlan)) ?></span>
+        <form method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="action" value="set_plan">
+            <input type="hidden" name="plan" value="<?= $curPlan === 'premium' ? 'basic' : 'premium' ?>">
+            <button class="btn btn--sm btn--ghost" data-confirm="プランを<?= $curPlan === 'premium' ? 'ベーシック' : 'プレミアム' ?>に変更しますか？"><?= $curPlan === 'premium' ? 'ベーシックに戻す' : 'プレミアムにする' ?></button>
+        </form>
+        <span class="muted" style="font-size:.8rem;">※無料フェーズ中は全員プレミアム相当（制限なし）</span>
+    </p>
 </div>
 
 <div class="card">

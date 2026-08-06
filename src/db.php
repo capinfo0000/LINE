@@ -403,6 +403,9 @@ function db_migrate(\PDO $pdo): void
     // 紹介特典で月額無料化（100%割引クーポン適用中）なら 1。cron が付け外しする。
     db_add_column_if_missing($pdo, 'members', 'subscription_waived', 'INTEGER NOT NULL DEFAULT 0');
 
+    // サブスクのプラン種別（basic/premium）。無料フェーズ(〜100名)は判定側で全員 premium 相当に扱う。
+    db_add_column_if_missing($pdo, 'members', 'plan', "TEXT NOT NULL DEFAULT 'basic'");
+
     // 紹介専用コード（ログインIDとは別の推測されにくいコード）。共有・入力はこのコードで行う。
     db_add_column_if_missing($pdo, 'members', 'referral_code', 'TEXT');
     $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_members_refcode ON members(referral_code) WHERE referral_code IS NOT NULL AND referral_code <> ''");

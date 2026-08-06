@@ -12,6 +12,14 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 $member = require_member();
 $recs = compute_recommendations_for($member['id'], 20);
 
+// プランによる表示数の制限（無料フェーズ／プレミアムは無制限）。
+$recMax = plan_recommend_max($member);
+$recCapped = false;
+if ($recMax > 0 && count($recs) > $recMax) {
+    $recs = array_slice($recs, 0, $recMax);
+    $recCapped = true;
+}
+
 // 求める条件・属性が未設定だと双方向マッチは出にくい旨を案内する。
 $prefs = get_preferences($member['id']);
 $attrs = member_attributes($member['id']);
@@ -72,5 +80,11 @@ require __DIR__ . '/_header.php';
             </div>
         </div>
     <?php endforeach; ?>
+    <?php if ($recCapped): ?>
+        <div class="card" style="text-align:center;background:#f8fafc;">
+            <p style="margin:.2rem 0;">ベーシックプランでは1日に表示できるおすすめは <strong><?= (int) $recMax ?>人</strong>までです。</p>
+            <p style="margin:.2rem 0;"><a class="btn" href="/member/billing.php">プレミアムで全員を見る</a></p>
+        </div>
+    <?php endif; ?>
 <?php endif; ?>
 <?php require __DIR__ . '/_footer.php'; ?>

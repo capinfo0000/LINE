@@ -51,9 +51,9 @@ function search_directory(array $filters, string $viewerId, int $limit = 60): ar
                    (SELECT COALESCE(SUM(pl.delta), 0) FROM point_ledger pl WHERE pl.member_id = m.id AND pl.delta > 0) AS points_earned
               FROM members m
               JOIN profiles p ON p.member_id = m.id
-             WHERE ' . implode(' AND ', $where) . '
-             ORDER BY points_earned DESC, COALESCE(m.joined_at, 0) DESC, m.created_at DESC
-             LIMIT ' . (int) $limit;
+             WHERE ' . implode(' AND ', $where) . "
+             ORDER BY (m.plan = 'premium') DESC, points_earned DESC, COALESCE(m.joined_at, 0) DESC, m.created_at DESC
+             LIMIT " . (int) $limit;
 
     $stmt = db()->prepare($sql);
     $stmt->execute($params);

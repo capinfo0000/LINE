@@ -55,12 +55,19 @@ require __DIR__ . '/_header.php';
 
 <div class="card">
     <div class="card__title">現在のご契約</div>
+    <?php $curPlan = member_plan($member); ?>
+    <p style="margin:.3rem 0;">プラン：<span class="badge" style="background:<?= $curPlan === 'premium' ? '#eef2ff;color:#3730a3' : '#f1f5f9;color:#475569' ?>;"><?= e(plan_label($curPlan)) ?></span>
+        <?php if (!billing_started()): ?><span class="muted" style="font-size:.82rem;">（現在は無料期間・全機能をご利用いただけます）</span><?php endif; ?>
+    </p>
     <p style="margin:.3rem 0;">
         月額会費：<strong><?= e($statusLabel) ?></strong>
         <?php if ($waived): ?>
             <span class="badge" style="background:#eef2ff;color:#3730a3;">紹介特典で無料</span>
         <?php endif; ?>
     </p>
+    <?php if (billing_started() && $curPlan !== 'premium'): ?>
+        <p class="muted" style="font-size:.85rem;margin-top:8px;">プレミアムにすると、おすすめの表示数無制限・全条件での検索・一覧での優先表示などがご利用いただけます。アップグレードをご希望の場合は運営までご連絡ください。</p>
+    <?php endif; ?>
     <?php if ($waived): ?>
         <p class="muted" style="margin:.3rem 0;">アクティブな紹介先を5名以上維持いただいているため、現在の月額会費は<strong>無料</strong>です。紹介先が5名未満になると通常額に戻ります。</p>
     <?php endif; ?>

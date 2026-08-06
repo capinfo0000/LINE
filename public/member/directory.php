@@ -11,12 +11,21 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 $member = require_member();
 $grouped = all_tags_grouped();
 
+// プランによる検索絞り込みの制限（ベーシックは地域のみ／無料フェーズ・プレミアムは全条件）。
+$canFullSearch = plan_can($member, 'search_full');
+
 $filters = [
     'area'    => array_map('intval', (array) ($_GET['area'] ?? [])),
     'job'     => array_map('intval', (array) ($_GET['job'] ?? [])),
     'purpose' => array_map('intval', (array) ($_GET['purpose'] ?? [])),
     'keyword' => (string) ($_GET['keyword'] ?? ''),
 ];
+// ベーシックは地域以外の条件を無効化する。
+if (!$canFullSearch) {
+    $filters['job'] = [];
+    $filters['purpose'] = [];
+    $filters['keyword'] = '';
+}
 $hasQuery = $filters['area'] || $filters['job'] || $filters['purpose'] || trim($filters['keyword']) !== '';
 $results = $hasQuery || isset($_GET['go']) ? search_directory($filters, $member['id']) : search_directory([], $member['id']);
 
@@ -43,17 +52,26 @@ $renderChecks = function (array $tags, string $name, array $checked) {
 
 <form method="get" class="card">
     <input type="hidden" name="go" value="1">
-    <label>キーワード（名前・PR・自己紹介・会社名）</label>
-    <input type="text" name="keyword" value="<?= e($filters['keyword']) ?>" placeholder="例: 販路 / 製造 / 東京">
-    <details style="margin-top:10px;">
-        <summary style="cursor:pointer;">条件で絞り込む（場所・仕事・目的）</summary>
-        <p style="margin:8px 0 4px;"><strong>場所</strong></p>
+    <?php if ($canFullSearch): ?>
+        <label>キーワード（名前・PR・自己紹介・会社名）</label>
+        <input type="text" name="keyword" value="<?= e($filters['keyword']) ?>" placeholder="例: 販路 / 製造 / 東京">
+        <details style="margin-top:10px;">
+            <summary style="cursor:pointer;">条件で絞り込む（場所・仕事・目的）</summary>
+            <p style="margin:8px 0 4px;"><strong>場所</strong></p>
+            <div><?php $renderChecks($grouped['area'] ?? [], 'area', $checkedArea); ?></div>
+            <p style="margin:8px 0 4px;"><strong>仕事ジャンル</strong></p>
+            <div><?php $renderChecks($grouped['job'] ?? [], 'job', $checkedJob); ?></div>
+            <p style="margin:8px 0 4px;"><strong>目的</strong></p>
+            <div><?php $renderChecks($grouped['purpose'] ?? [], 'purpose', $checkedPurpose); ?></div>
+        </details>
+    <?php else: ?>
+        <p style="margin:4px 0 4px;"><strong>場所で絞り込む</strong></p>
         <div><?php $renderChecks($grouped['area'] ?? [], 'area', $checkedArea); ?></div>
-        <p style="margin:8px 0 4px;"><strong>仕事ジャンル</strong></p>
-        <div><?php $renderChecks($grouped['job'] ?? [], 'job', $checkedJob); ?></div>
-        <p style="margin:8px 0 4px;"><strong>目的</strong></p>
-        <div><?php $renderChecks($grouped['purpose'] ?? [], 'purpose', $checkedPurpose); ?></div>
-    </details>
+        <div class="flash" style="background:#f8fafc;border:1px solid var(--border);margin-top:12px;">
+            仕事ジャンル・目的・キーワードでの絞り込みは <strong>プレミアムプラン</strong>限定です。
+            <a href="/member/billing.php">プレミアムにする</a>
+        </div>
+    <?php endif; ?>
     <p style="margin-top:14px;">
         <button type="submit" class="btn">検索</button>
         <a class="btn btn--ghost" href="/member/directory.php">条件をクリア</a>
