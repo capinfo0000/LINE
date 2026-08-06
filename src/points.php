@@ -22,14 +22,18 @@ function points_amount(string $key): int
     return $defaults[$key] ?? 0;
 }
 
-/** 称号ラダー（しきい値昇順）。残高が threshold 以上で該当。 */
+/**
+ * 称号ラダー（しきい値昇順）。称号はポイント残高で決まる。
+ * 紹介1人＝紹介者に100pt なので、しきい値は「紹介 5/50/100人 相当」に対応する
+ * 500/5,000/10,000pt に設定（評価や継続ボーナス等の全ポイント活動も反映）。
+ */
 function points_title_ladder(): array
 {
     return [
-        ['min' => 0,    'label' => 'ルーキー'],
-        ['min' => 100,  'label' => 'レギュラー'],
-        ['min' => 500,  'label' => 'ゴールド'],
-        ['min' => 1500, 'label' => 'プラチナ'],
+        ['min' => 0,      'label' => 'ルーキー'],
+        ['min' => 500,    'label' => 'レギュラー'],
+        ['min' => 5000,   'label' => 'ゴールド'],
+        ['min' => 10000,  'label' => 'プラチナ'],
     ];
 }
 
