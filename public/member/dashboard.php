@@ -23,11 +23,14 @@ require __DIR__ . '/_header.php';
 
 <h1>ようこそ<?= $member['display_name'] !== '' ? '、' . e($member['display_name']) . ' さん' : '' ?></h1>
 
-<?php $__bal = member_points((string) $member['id']); ?>
+<?php
+$__bal = member_points((string) $member['id']);           // 使えるポイント（残高）
+$__earned = member_points_earned((string) $member['id']); // 称号の基準（累計獲得・下がらない）
+?>
 <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
     <div>
         <div class="card__title" style="margin:0;">ポイント</div>
-        <p style="margin:.2rem 0;"><strong style="font-size:1.4rem;"><?= number_format($__bal) ?></strong> pt　<span class="badge badge--title"><?= e(points_title($__bal)) ?></span></p>
+        <p style="margin:.2rem 0;"><strong style="font-size:1.4rem;"><?= number_format($__bal) ?></strong> pt <span class="muted" style="font-size:.8rem;">使えるポイント</span>　<span class="badge badge--title"><?= e(points_title($__earned)) ?></span></p>
     </div>
     <a class="btn btn--ghost" href="/member/points.php">ポイント・紹介</a>
 </div>

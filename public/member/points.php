@@ -22,8 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$balance = member_points($memberId);
-$title = points_title($balance);
+$balance = member_points($memberId);           // 使えるポイント（残高）
+$earned = member_points_earned($memberId);     // 累計獲得（称号の基準・下がらない）
+$title = points_title($earned);
 $history = member_point_history($memberId, 50);
 $alreadyReferred = has_referrer($memberId);
 $myRefCount = referral_count($memberId);
@@ -39,8 +40,10 @@ require __DIR__ . '/_header.php';
 
 <div class="card">
     <div class="card__title">あなたのポイント</div>
-    <p style="font-size:2rem;font-weight:800;margin:.2rem 0;"><?= number_format($balance) ?> <span style="font-size:1rem;font-weight:600;">pt</span></p>
-    <p>称号：<span class="badge badge--title"><?= e($title) ?></span></p>
+    <p style="font-size:2rem;font-weight:800;margin:.2rem 0;"><?= number_format($balance) ?> <span style="font-size:1rem;font-weight:600;">pt</span> <span class="muted" style="font-size:.9rem;font-weight:500;">使えるポイント</span></p>
+    <p style="margin:.2rem 0;">称号：<span class="badge badge--title"><?= e($title) ?></span>
+        <span class="muted" style="font-size:.85rem;">（累計獲得 <?= number_format($earned) ?> pt）</span></p>
+    <p class="muted" style="font-size:.82rem;">称号は累計で獲得したポイントで決まり、<strong>ポイントを使っても下がりません</strong>。</p>
     <p class="muted">受けた評価 <?= (int) $myPraise ?> 件／紹介した人数 <?= (int) $myRefCount ?> 名</p>
 </div>
 

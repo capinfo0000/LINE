@@ -68,7 +68,7 @@ $renderChecks = function (array $tags, string $name, array $checked) {
     <?php foreach ($results as $r):
         $labels = member_tag_labels($r['member_id']);
         $hasApprovedPhoto = ($r['photo_status'] ?? '') === 'approved';
-        $bal = (int) ($r['points'] ?? member_points($r['member_id'])); // 一覧取得時に集計済み
+        $bal = (int) ($r['points_earned'] ?? member_points_earned($r['member_id'])); // 累計獲得（称号の基準・取得時に集計済み）
     ?>
         <div class="card">
             <div style="display:flex;gap:12px;align-items:flex-start;">

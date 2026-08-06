@@ -48,7 +48,7 @@ require __DIR__ . '/_header.php';
 <p class="muted"><a href="/member/directory.php">← ディレクトリへ戻る</a></p>
 <?php if ($evalMsg !== ''): ?><div class="flash <?= $evalType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($evalMsg) ?></div><?php endif; ?>
 <?php
-$targetBalance = member_points($targetId);
+$targetBalance = member_points_earned($targetId); // 累計獲得（称号の基準・実績）
 $targetTitle = points_title($targetBalance);
 $targetPraise = praise_count($targetId);
 $iAmSelf = (string) $viewer['id'] === $targetId;

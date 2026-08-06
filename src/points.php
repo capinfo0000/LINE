@@ -70,10 +70,21 @@ function add_points(string $memberId, int $delta, string $reason, ?string $refMe
     $stmt->execute([$memberId, $delta, $reason, $refMemberId, mb_substr($note, 0, 200), time()]);
 }
 
-/** 会員の残高（台帳の合計）。 */
+/** 会員の残高（使えるポイント＝台帳の合計。消費や減点で下がる）。 */
 function member_points(string $memberId): int
 {
     $stmt = db()->prepare('SELECT COALESCE(SUM(delta),0) FROM point_ledger WHERE member_id = ?');
+    $stmt->execute([$memberId]);
+    return (int) $stmt->fetchColumn();
+}
+
+/**
+ * 会員の累計獲得ポイント（プラスの増加のみの合計）。
+ * 消費や減点では減らない＝称号（ランク）の判定に使う。一度上がった称号は下がらない。
+ */
+function member_points_earned(string $memberId): int
+{
+    $stmt = db()->prepare('SELECT COALESCE(SUM(delta),0) FROM point_ledger WHERE member_id = ? AND delta > 0');
     $stmt->execute([$memberId]);
     return (int) $stmt->fetchColumn();
 }

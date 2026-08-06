@@ -40,7 +40,7 @@ require __DIR__ . '/_header.php';
     <?php foreach ($recs as $r):
         $labels = member_tag_labels($r['member_id']);
         $hasApprovedPhoto = ($r['photo_status'] ?? '') === 'approved';
-        $bal = member_points($r['member_id']);
+        $bal = member_points_earned($r['member_id']); // 累計獲得（称号の基準）
     ?>
         <div class="card">
             <div style="display:flex;gap:12px;align-items:flex-start;">

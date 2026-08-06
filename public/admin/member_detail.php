@@ -76,13 +76,14 @@ require __DIR__ . '/_app_header.php';
 
 <?php
 $pBalance = member_points($id);
+$pEarned = member_points_earned($id);
 $myReports = db()->prepare("SELECT e.id, e.note, e.created_at, r.login_id AS rater_login FROM member_evaluations e LEFT JOIN members r ON r.id = e.rater_id WHERE e.target_id = ? AND e.kind = 'report' AND e.handled = 0 ORDER BY e.id DESC");
 $myReports->execute([$id]);
 $myReports = $myReports->fetchAll();
 ?>
 <div class="card">
     <div class="card__title">ポイント・称号</div>
-    <p><strong style="font-size:1.3rem;"><?= number_format($pBalance) ?></strong> pt　<span class="badge badge--title"><?= e(points_title($pBalance)) ?></span>
+    <p><strong style="font-size:1.3rem;"><?= number_format($pBalance) ?></strong> pt <span class="muted" style="font-size:.82rem;">使えるポイント</span>　<span class="badge badge--title"><?= e(points_title($pEarned)) ?></span> <span class="muted" style="font-size:.82rem;">（累計獲得 <?= number_format($pEarned) ?> pt）</span>
        <span class="muted">／ 受けた評価 <?= (int) praise_count($id) ?> 件・通報 <?= (int) report_count($id) ?> 件・紹介 <?= (int) referral_count($id) ?> 名</span></p>
     <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="action" value="points_adjust">
