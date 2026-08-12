@@ -14,6 +14,9 @@ $tenant = require_tenant();
 $msg = '';
 $msgType = 'ok';
 
+// 表示名が未取得の友だちに、LINEプロフィールから名前を補完（旧チャネル分は取得できずスキップ）。
+line_backfill_contact_names(30);
+
 // 友だち一覧（公式LINE追加済み）。
 $friends = db()->query(
     'SELECT line_user_id, display_name, member_id, onboarding_state FROM line_contacts ORDER BY created_at DESC LIMIT 500'

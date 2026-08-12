@@ -112,6 +112,60 @@ function line_push(string $userId, array $messages): bool
     return $ok;
 }
 
+/**
+ * LINEプロフィール（表示名・アイコン）を取得する。取得できなければ null。
+ * GET https://api.line.me/v2/bot/profile/{userId}
+ * ※ userId が現在のチャネルの友だちでない（旧チャネル等）場合は 404 で null。
+ */
+function line_get_profile(string $userId): ?array
+{
+    $token = line_channel_token();
+    if ($token === null || $userId === '' || !function_exists('curl_init')) {
+        return null;
+    }
+    $ch = curl_init('https://api.line.me/v2/bot/profile/' . rawurlencode($userId));
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $token],
+    ]);
+    $resp = curl_exec($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($code < 200 || $code >= 300 || !is_string($resp)) {
+        return null;
+    }
+    $data = json_decode($resp, true);
+    return is_array($data) ? $data : null;
+}
+
+/**
+ * 表示名の無い友だちに、LINEプロフィールAPIで名前を補完する（既存データの後追い）。
+ * 旧チャネルのuserId等、現チャネルで取得できないものはスキップ（そのまま残る）。
+ *
+ * @return int 補完できた件数
+ */
+function line_backfill_contact_names(int $limit = 30): int
+{
+    if (line_channel_token() === null) {
+        return 0;
+    }
+    $rows = db()->query(
+        "SELECT line_user_id FROM line_contacts WHERE display_name IS NULL OR display_name = '' LIMIT " . max(1, (int) $limit)
+    )->fetchAll();
+    $n = 0;
+    foreach ($rows as $r) {
+        $prof = line_get_profile((string) $r['line_user_id']);
+        $name = $prof !== null ? (string) ($prof['displayName'] ?? '') : '';
+        if ($name !== '') {
+            db()->prepare('UPDATE line_contacts SET display_name = ?, updated_at = ? WHERE line_user_id = ?')
+                ->execute([mb_substr($name, 0, 100), time(), $r['line_user_id']]);
+            $n++;
+        }
+    }
+    return $n;
+}
+
 /* ------------------------- ファネル状態（line_contacts） ------------------------- */
 
 /** 友だちレコードを取得（無ければ null）。 */
@@ -127,6 +181,13 @@ function find_line_contact(string $userId): ?array
 function get_or_create_line_contact(string $userId, ?string $displayName = null): array
 {
     $c = find_line_contact($userId);
+    // 表示名が渡されておらず、名前が空（新規 or 未取得）なら、LINEプロフィールから名前を取得。
+    if ($displayName === null && ($c === null || ($c['display_name'] ?? '') === '')) {
+        $prof = line_get_profile($userId);
+        if ($prof !== null && ($prof['displayName'] ?? '') !== '') {
+            $displayName = mb_substr((string) $prof['displayName'], 0, 100);
+        }
+    }
     if ($c !== null) {
         if ($displayName !== null && ($c['display_name'] ?? '') === '') {
             $u = db()->prepare('UPDATE line_contacts SET display_name = ?, updated_at = ? WHERE line_user_id = ?');
