@@ -111,6 +111,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_onboarding'])) {
         $msg = "初回メッセージを送信しました（送信 {$sent} 件 / 対象 " . count($targetUids) . " 件）。";
         $uids = [];
     }
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_issue'])) {
+    // 会員資格（ID/PW）を即時発行して選択宛先へLINEで送信（決済・説明会を経ない手動発行）。
+    csrf_verify($_POST['csrf_token'] ?? null);
+    if ($targetUids === []) {
+        $msg = '宛先を1件以上選択してください。';
+        $msgType = 'ng';
+    } else {
+        $issued = 0;
+        $linked = 0;
+        $failed = 0;
+        foreach ($targetUids as $uid) {
+            $r = provision_free_member_from_contact($uid);
+            if (($r['status'] ?? '') === 'done') {
+                $issued++;
+            } elseif (($r['status'] ?? '') === 'linked') {
+                $linked++;
+            } else {
+                $failed++;
+            }
+        }
+        audit_log('line.issue_credentials', ['targets' => count($targetUids), 'issued' => $issued, 'linked' => $linked, 'failed' => $failed]);
+        $msg = "会員資格を発行して送信しました（新規発行 {$issued} 件 / 既に会員 {$linked} 件"
+             . ($failed > 0 ? " / 失敗 {$failed} 件" : '') . " / 対象 " . count($targetUids) . " 件）。";
+        $msgType = $failed > 0 ? 'ng' : 'ok';
+        $uids = [];
+    }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_slots'])) {
     // 日程（予約ボタン付きカード）を選択宛先へ手動送信。
     csrf_verify($_POST['csrf_token'] ?? null);
@@ -269,10 +295,13 @@ require __DIR__ . '/_app_header.php';
                     data-confirm="選択した宛先へ『日程（予約ボタン付きカード）』を送信します。よろしいですか？">📅 日程を送る（予約ボタン付き）</button>
             <button type="submit" name="do_onboarding" value="1" class="btn btn--ghost"
                     data-confirm="選択した宛先へ『初回メッセージ（あいさつ＋説明会の日程・予約ボタン付き）』を送信します。よろしいですか？">初回メッセージを送る</button>
+            <button type="submit" name="do_issue" value="1" class="btn btn--ghost" style="border-color:#b45309;color:#b45309;font-weight:700;"
+                    data-confirm="選択した宛先に『会員資格（ID/パスワード）』を即時発行してLINEで送信します。決済・説明会を経ない手動発行です。よろしいですか？">🎫 会員資格を発行して送信</button>
             <p class="muted" style="font-size:.82rem;margin:8px 0 0;">
                 「📅 日程を送る」＝説明会・面談の日程を<strong>カード＋予約ボタン付き</strong>で送信（相手はタップで日程を選んで予約）。<br>
                 「初回メッセージを送る」＝友だち追加時と同じ、あいさつ＋説明会の予約ボタン付きメッセージ。<br>
-                （どちらも本文・添付は使いません）</p>
+                「🎫 会員資格を発行して送信」＝選択した相手に<strong>会員ID/パスワードを即時発行</strong>してLINEで送信（<strong>決済・説明会を経ない手動発行</strong>／既に会員の相手は再発行しません）。<br>
+                （日程・初回・発行の各ボタンは本文・添付を使いません）</p>
         </div>
     </form>
 <?php endif; ?>
