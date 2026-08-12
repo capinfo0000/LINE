@@ -117,11 +117,11 @@ function line_push(string $userId, array $messages): bool
  * GET https://api.line.me/v2/bot/profile/{userId}
  * ※ userId が現在のチャネルの友だちでない（旧チャネル等）場合は 404 で null。
  */
-function line_get_profile(string $userId): ?array
+function line_get_profile_ex(string $userId): array
 {
     $token = line_channel_token();
     if ($token === null || $userId === '' || !function_exists('curl_init')) {
-        return null;
+        return ['code' => 0, 'data' => null];
     }
     $ch = curl_init('https://api.line.me/v2/bot/profile/' . rawurlencode($userId));
     curl_setopt_array($ch, [
@@ -132,11 +132,60 @@ function line_get_profile(string $userId): ?array
     $resp = curl_exec($ch);
     $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    if ($code < 200 || $code >= 300 || !is_string($resp)) {
-        return null;
+    $data = null;
+    if ($code >= 200 && $code < 300 && is_string($resp)) {
+        $decoded = json_decode($resp, true);
+        $data = is_array($decoded) ? $decoded : null;
     }
-    $data = json_decode($resp, true);
-    return is_array($data) ? $data : null;
+    return ['code' => $code, 'data' => $data];
+}
+
+function line_get_profile(string $userId): ?array
+{
+    return line_get_profile_ex($userId)['data'];
+}
+
+/** 連絡先の非表示フラグを設定する。 */
+function set_line_contact_hidden(string $userId, bool $hidden): void
+{
+    db()->prepare('UPDATE line_contacts SET hidden = ?, updated_at = ? WHERE line_user_id = ?')
+        ->execute([$hidden ? 1 : 0, time(), $userId]);
+}
+
+/** 非表示の連絡先をすべて表示に戻す。 */
+function unhide_all_contacts(): int
+{
+    $stmt = db()->query('UPDATE line_contacts SET hidden = 0 WHERE hidden = 1');
+    return $stmt->rowCount();
+}
+
+/**
+ * 現チャネルで「取得不可（404/400）」の連絡先を隠す（＝旧チャネル・削除済みの旧データ）。
+ * 取得できた場合は表示名も最新化する（ついでの補完）。
+ * ネットワーク一時エラー等（0/5xx）は誤って隠さないようスキップする。
+ *
+ * @return int 隠した件数
+ */
+function hide_unreachable_contacts(int $limit = 300): int
+{
+    if (line_channel_token() === null) {
+        return 0;
+    }
+    $rows = db()->query('SELECT line_user_id FROM line_contacts WHERE hidden = 0 LIMIT ' . max(1, (int) $limit))->fetchAll();
+    $hidden = 0;
+    foreach ($rows as $r) {
+        $uid = (string) $r['line_user_id'];
+        $res = line_get_profile_ex($uid);
+        $code = (int) $res['code'];
+        if ($code === 404 || $code === 400) {
+            set_line_contact_hidden($uid, true); // 現チャネルに存在しない＝旧データ
+            $hidden++;
+        } elseif ($res['data'] !== null && ($res['data']['displayName'] ?? '') !== '') {
+            db()->prepare('UPDATE line_contacts SET display_name = ?, updated_at = ? WHERE line_user_id = ?')
+                ->execute([mb_substr((string) $res['data']['displayName'], 0, 100), time(), $uid]);
+        }
+    }
+    return $hidden;
 }
 
 /**

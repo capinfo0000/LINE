@@ -406,6 +406,9 @@ function db_migrate(\PDO $pdo): void
     // サブスクのプラン種別（basic/premium）。無料フェーズ(〜100名)は判定側で全員 premium 相当に扱う。
     db_add_column_if_missing($pdo, 'members', 'plan', "TEXT NOT NULL DEFAULT 'basic'");
 
+    // LINE連絡先の非表示フラグ（旧チャネル・不達の連絡先を配信一覧から隠す）。
+    db_add_column_if_missing($pdo, 'line_contacts', 'hidden', 'INTEGER NOT NULL DEFAULT 0');
+
     // 紹介専用コード（ログインIDとは別の推測されにくいコード）。共有・入力はこのコードで行う。
     db_add_column_if_missing($pdo, 'members', 'referral_code', 'TEXT');
     $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_members_refcode ON members(referral_code) WHERE referral_code IS NOT NULL AND referral_code <> ''");

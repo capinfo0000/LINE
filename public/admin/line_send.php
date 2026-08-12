@@ -14,13 +14,42 @@ $tenant = require_tenant();
 $msg = '';
 $msgType = 'ok';
 
+// 非表示を含めて表示するか（旧連絡先の見直し用）。
+$showHidden = isset($_GET['show_hidden']);
+
+// 旧連絡先を隠す／表示に戻す（POST・本文送信より前に処理）。
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_hide_unreachable'])) {
+    csrf_verify($_POST['csrf_token'] ?? null);
+    $n = hide_unreachable_contacts(300);
+    $msg = "旧・不達の連絡先を {$n} 件隠しました（新LINEで見つからない連絡先）。";
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_unhide_all'])) {
+    csrf_verify($_POST['csrf_token'] ?? null);
+    $n = unhide_all_contacts();
+    $msg = "非表示を解除しました（{$n} 件を表示に戻しました）。";
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_hide_one'])) {
+    // ボタンの value に対象userIdが入る。
+    csrf_verify($_POST['csrf_token'] ?? null);
+    set_line_contact_hidden((string) $_POST['do_hide_one'], true);
+    $msg = '連絡先を隠しました。';
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_unhide_one'])) {
+    csrf_verify($_POST['csrf_token'] ?? null);
+    set_line_contact_hidden((string) $_POST['do_unhide_one'], false);
+    $msg = '連絡先を表示に戻しました。';
+}
+
 // 表示名が未取得の友だちに、LINEプロフィールから名前を補完（旧チャネル分は取得できずスキップ）。
 line_backfill_contact_names(30);
 
-// 友だち一覧（公式LINE追加済み）。
-$friends = db()->query(
-    'SELECT line_user_id, display_name, member_id, onboarding_state FROM line_contacts ORDER BY created_at DESC LIMIT 500'
-)->fetchAll();
+// 非表示の件数（トグル表示用）。
+$hiddenCount = (int) db()->query('SELECT COUNT(*) FROM line_contacts WHERE hidden = 1')->fetchColumn();
+
+// 友だち一覧（公式LINE追加済み）。既定は非表示を除外。
+$friendSql = 'SELECT line_user_id, display_name, member_id, onboarding_state, hidden FROM line_contacts';
+if (!$showHidden) {
+    $friendSql .= ' WHERE hidden = 0';
+}
+$friendSql .= ' ORDER BY created_at DESC LIMIT 500';
+$friends = db()->query($friendSql)->fetchAll();
 // 添付できる説明会・面談の枠（未来）。
 $slots = db()->prepare('SELECT * FROM slots WHERE start_at > ? ORDER BY start_at ASC LIMIT 50');
 $slots->execute([time()]);
@@ -229,6 +258,32 @@ require __DIR__ . '/_app_header.php';
         <a class="btn btn--ghost" href="line_send.php">やめる</a>
     </div>
 <?php else: ?>
+    <!-- 連絡先の管理（旧連絡先を隠す）。メインフォームと入れ子にならないよう独立フォームで置く。 -->
+    <div class="card" style="background:#f8fafc;">
+        <div class="card__title" style="margin-top:0;">連絡先の整理</div>
+        <p class="muted" style="font-size:.85rem;margin:.2rem 0;">公式LINEを切り替えると、旧LINEの連絡先は送信しても届きません。新LINEで見つからない連絡先を一覧から隠せます。</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <form method="post" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
+                <button type="submit" name="do_hide_unreachable" value="1" class="btn btn--sm"
+                        data-confirm="新LINEで見つからない（旧・不達の）連絡先を一覧から隠します。よろしいですか？（あとで戻せます）">🧹 旧・不達の連絡先を隠す</button>
+            </form>
+            <?php if ($hiddenCount > 0): ?>
+                <a class="btn btn--ghost btn--sm" href="line_send.php<?= $showHidden ? '' : '?show_hidden=1' ?>"><?= $showHidden ? '非表示を隠す' : "非表示 {$hiddenCount} 件を表示" ?></a>
+                <form method="post" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
+                    <button type="submit" name="do_unhide_all" value="1" class="btn btn--ghost btn--sm"
+                            data-confirm="非表示の連絡先をすべて表示に戻しますか？">すべて表示に戻す</button>
+                </form>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- 個別の隠す/戻す用の独立フォーム（各行のボタンから form 属性で参照） -->
+    <form id="cform" method="post" style="display:none;">
+        <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
+    </form>
+
     <form method="post">
         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="stage" value="preview">
 
@@ -249,15 +304,24 @@ require __DIR__ . '/_app_header.php';
                     $name = (string) ($f['display_name'] ?? '');
                     $label = $name !== '' ? $name : ('友だち ' . substr($u, 0, 8));
                     $isMember = !empty($f['member_id']);
+                    $isHidden = (int) ($f['hidden'] ?? 0) === 1;
                     ?>
-                    <label class="recip">
-                        <input type="checkbox" class="js-recipient" name="uids[]" value="<?= e($u) ?>" data-member="<?= $isMember ? '1' : '0' ?>" <?= in_array($u, $uids, true) ? 'checked' : '' ?>>
-                        <span class="recip__name"><?= e($label) ?></span>
-                        <span class="recip__meta">
-                            <?php if ($isMember): ?><span class="chipmini chipmini--ok">会員</span><?php endif; ?>
-                            <span class="chipmini"><?= e(friend_state_label((string) $f['onboarding_state'])) ?></span>
-                        </span>
-                    </label>
+                    <div class="recip" style="display:flex;align-items:center;gap:8px;<?= $isHidden ? 'opacity:.55;' : '' ?>">
+                        <label style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;margin:0;cursor:pointer;">
+                            <input type="checkbox" class="js-recipient" name="uids[]" value="<?= e($u) ?>" data-member="<?= $isMember ? '1' : '0' ?>" <?= in_array($u, $uids, true) ? 'checked' : '' ?>>
+                            <span class="recip__name"><?= e($label) ?></span>
+                            <span class="recip__meta">
+                                <?php if ($isMember): ?><span class="chipmini chipmini--ok">会員</span><?php endif; ?>
+                                <span class="chipmini"><?= e(friend_state_label((string) $f['onboarding_state'])) ?></span>
+                                <?php if ($isHidden): ?><span class="chipmini">非表示</span><?php endif; ?>
+                            </span>
+                        </label>
+                        <?php if ($isHidden): ?>
+                            <button form="cform" type="submit" name="do_unhide_one" value="<?= e($u) ?>" class="btn btn--ghost btn--sm">戻す</button>
+                        <?php else: ?>
+                            <button form="cform" type="submit" name="do_hide_one" value="<?= e($u) ?>" class="btn btn--ghost btn--sm">隠す</button>
+                        <?php endif; ?>
+                    </div>
                 <?php endforeach; endif; ?>
             </div>
             <p class="muted" style="font-size:.82rem;margin:8px 0 0;">上のボタンで一括選択、個別チェックで微調整できます。</p>
