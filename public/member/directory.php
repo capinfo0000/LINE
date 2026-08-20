@@ -9,6 +9,22 @@ declare(strict_types=1);
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $member = require_member();
+
+// カードの♡「気になる」トグル（POST）。処理後はPRGで元の検索条件のURLへ戻す。
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_verify($_POST['csrf_token'] ?? null);
+    $likeTo = (string) ($_POST['like_to'] ?? '');
+    if ($likeTo !== '') {
+        toggle_interest((string) $member['id'], $likeTo);
+    }
+    $ret = (string) ($_POST['return'] ?? '/member/directory.php');
+    if (!preg_match('#^/member/[A-Za-z0-9_./?=&%-]*$#', $ret)) {
+        $ret = '/member/directory.php'; // オープンリダイレクト対策
+    }
+    header('Location: ' . $ret);
+    exit;
+}
+
 $grouped = all_tags_grouped();
 
 // プランによる検索絞り込みの制限（ベーシックは地域のみ／無料フェーズ・プレミアムは全条件）。
@@ -94,6 +110,10 @@ $rankClass = static function (string $t): string {
 <?php if ($results === []): ?>
     <div class="card"><p style="margin:0;">条件に合う会員が見つかりませんでした。条件を変えてお試しください。</p></div>
 <?php else: ?>
+    <form id="likeform" method="post" hidden>
+        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+        <input type="hidden" name="return" value="<?= e($_SERVER['REQUEST_URI'] ?? '/member/directory.php') ?>">
+    </form>
     <div class="tp-grid">
     <?php foreach ($results as $r):
         $labels = member_tag_labels($r['member_id']);
@@ -104,29 +124,29 @@ $rankClass = static function (string $t): string {
         $ini = mb_substr($nm, 0, 1);
         $hue = crc32((string) $r['member_id']) % 360;
         $hue2 = ($hue + 38) % 360;
-        $phStyle = $hasPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 68% 56%),hsl(' . $hue2 . ' 66% 47%))"';
+        $cardBg = $hasPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 66% 54%),hsl(' . $hue2 . ' 64% 45%))"';
         $area = $labels['area'][0] ?? '';
         $job = $labels['job'][0] ?? '';
         $want = $labels['purpose'][0] ?? '';
+        $age = (string) ($r['age_text'] ?? '');
+        $liked = has_interest((string) $member['id'], (string) $r['member_id']);
     ?>
-        <a class="tp-card" href="/member/member_view.php?id=<?= e($r['member_id']) ?>">
-            <div class="tp-ph"<?= $phStyle ?>>
-                <?php if ($hasPhoto): ?>
-                    <img src="/member/photo.php?id=<?= e($r['member_id']) ?>" alt="">
-                <?php else: ?>
-                    <span class="tp-ini"><?= e($ini) ?></span>
-                <?php endif; ?>
-                <?php if ($area !== ''): ?><span class="tp-area">📍<?= e($area) ?></span><?php endif; ?>
-                <span class="tp-nm"><b><?= e($nm) ?></b><?php if (($r['age_text'] ?? '') !== ''): ?><span><?= e($r['age_text']) ?></span><?php endif; ?></span>
-            </div>
-            <div class="tp-cmeta">
-                <div class="tp-rankrow"><span class="rank <?= $rankClass($title) ?>"><?= e($title) ?></span><span class="tp-pts"><?= number_format($bal) ?>pt</span></div>
-                <div class="tp-tags">
-                    <?php if ($job !== ''): ?><span class="tp-tag"><?= e($job) ?></span><?php endif; ?>
-                    <?php if ($want !== ''): ?><span class="tp-tag tp-tag--want">求む・<?= e($want) ?></span><?php endif; ?>
+        <div class="tp-card"<?= $cardBg ?>>
+            <?php if ($hasPhoto): ?><img src="/member/photo.php?id=<?= e($r['member_id']) ?>" alt=""><?php else: ?><span class="tp-ini"><?= e($ini) ?></span><?php endif; ?>
+            <a class="tp-cardlink" href="/member/member_view.php?id=<?= e($r['member_id']) ?>" aria-label="<?= e($nm) ?> のプロフィール"></a>
+            <span class="tp-crank <?= $rankClass($title) ?>"><?= e($title) ?></span>
+            <div class="tp-cinfo">
+                <?php if ($age !== '' || $area !== ''): ?><div class="aa"><?= $age !== '' ? e($age) . '歳' : '' ?><?= ($age !== '' && $area !== '') ? '・' : '' ?><?= e($area) ?></div><?php endif; ?>
+                <div class="nm"><?= e($nm) ?></div>
+                <div class="tp-ptags">
+                    <?php if ($job !== ''): ?><span class="tp-ptag tp-ptag--on"><?= e($job) ?></span><?php endif; ?>
+                    <?php if ($want !== ''): ?><span class="tp-ptag">求む・<?= e($want) ?></span><?php endif; ?>
                 </div>
             </div>
-        </a>
+            <button class="tp-clike<?= $liked ? ' on' : '' ?>" form="likeform" type="submit" name="like_to" value="<?= e($r['member_id']) ?>" aria-label="気になる">
+                <svg viewBox="0 0 24 24" fill="<?= $liked ? '#fff' : 'none' ?>" stroke="#f96d6d" stroke-width="2"><path d="M12 21s-7-4.4-9.3-8.6C1 9 2.6 5.5 6 5.5c2 0 3.2 1.1 4 2.2.8-1.1 2-2.2 4-2.2 3.4 0 5 3.5 3.3 6.9C19 16.6 12 21 12 21z"/></svg>
+            </button>
+        </div>
     <?php endforeach; ?>
     </div>
 <?php endif; ?>
