@@ -25,7 +25,7 @@ if ($expected === '' || !hash_equals($expected, $given)) {
 }
 
 $job = (string) ($_GET['job'] ?? '');
-if (!in_array($job, ['remind', 'reconcile', 'recommend', 'thankyou', 'waiver'], true)) {
+if (!in_array($job, ['remind', 'reconcile', 'recommend', 'thankyou', 'waiver', 'seed', 'unseed'], true)) {
     http_response_code(400);
     exit("unknown job\n");
 }
@@ -118,6 +118,13 @@ try {
             $r = evaluate_referral_waiver();
             $out = "waiver mode={$r['mode']} scanned={$r['scanned']} applied={$r['applied']} removed={$r['removed']} errors={$r['errors']}";
         }
+    } elseif ($job === 'seed') {
+        // 開発用サンプル会員を投入（冪等）。確認後は unseed で削除する。
+        $n = seed_sample_members();
+        $out = "seed created={$n} total=" . sample_member_count();
+    } elseif ($job === 'unseed') {
+        $n = delete_sample_members();
+        $out = "unseed deleted={$n}";
     }
 } catch (\Throwable $e) {
     flock($lock, LOCK_UN);
