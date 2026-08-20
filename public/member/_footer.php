@@ -16,7 +16,7 @@ $__onProfile = in_array($__cur, ['profile.php', 'dashboard.php', 'points.php', '
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
             さがす
         </a>
-        <a href="/member/profile.php" class="<?= $__onProfile ? 'on' : '' ?>">
+        <a href="/member/dashboard.php" class="<?= $__onProfile ? 'on' : '' ?>">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
             プロフィール
         </a>

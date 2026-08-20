@@ -370,3 +370,34 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-tabbar a.on{ color:var(--coral); }
 .tp-tabbar svg{ width:24px; height:24px; }
 .tp-tabspacer{ height:72px; }
+
+/* --- さがす：横スクロールのカルーセル（本日のおすすめ等） --- */
+.tp-secttl{ display:flex; align-items:center; gap:7px; font-weight:800; margin:18px 2px 8px; font-size:1.02rem; }
+.tp-secttl svg{ width:18px; height:18px; color:var(--coral); }
+.tp-secttl .more{ margin-left:auto; font-size:.8rem; color:var(--faint); font-weight:700; text-decoration:none; }
+.tp-rail{ display:flex; gap:12px; overflow-x:auto; scrollbar-width:none; margin:0 -16px; padding:2px 16px 6px; }
+.tp-rail::-webkit-scrollbar{ display:none; }
+.tp-rail .tp-card{ flex:0 0 47%; }
+.tp-pickup{ margin:12px 0 4px; border-radius:18px; padding:16px 18px; color:#fff; position:relative; overflow:hidden;
+  background:linear-gradient(120deg,#ff9f7a,#f96d6d); }
+.tp-pickup b{ display:block; font-size:1.15rem; font-weight:800; }
+.tp-pickup span{ font-size:.82rem; opacity:.95; }
+
+/* --- マイページ（プロフィールタブ＝ホーム統合） --- */
+.tp-mp-head{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; padding:12px 0 4px; }
+.tp-mp-av{ width:100px; height:100px; border-radius:50%; overflow:hidden; display:grid; place-items:center; color:#fff;
+  font-size:2.6rem; font-weight:800; box-shadow:var(--shadow-md); }
+.tp-mp-av img{ width:100%; height:100%; object-fit:cover; }
+.tp-mp-name{ font-size:1.3rem; font-weight:800; }
+.tp-mp-sub{ color:var(--muted); font-size:.9rem; }
+.tp-mp-plan{ display:inline-block; border:1px solid var(--border); border-radius:999px; padding:5px 14px; font-weight:700; font-size:.85rem; background:var(--surface); }
+.tp-tiles{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:16px 0; }
+.tp-tile{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px 6px; text-align:center; text-decoration:none; color:inherit; display:block; }
+.tp-tile b{ display:block; font-size:1.3rem; font-weight:800; color:var(--text); }
+.tp-tile span{ font-size:.72rem; color:var(--muted); }
+.tp-menu{ background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin:0 0 16px; }
+.tp-menu a{ display:flex; align-items:center; gap:10px; padding:14px 16px; color:var(--text); text-decoration:none;
+  border-bottom:1px solid var(--border); font-weight:600; }
+.tp-menu a:last-child{ border-bottom:0; }
+.tp-menu a:hover{ background:#faf6f5; text-decoration:none; }
+.tp-menu a .chev{ margin-left:auto; color:var(--faint); }

@@ -1,8 +1,8 @@
 <?php
 
 /**
- * 会員トップ（ログイン後）。Phase 1 時点は最小の枠。
- * プロフィール編集・ディレクトリ検索・おすすめは後続フェーズで追加する。
+ * マイページ（プロフィールタブ）。
+ * 旧「会員トップ（ホーム）」の内容を統合し、自分のプロフィール概要＋ポイント＋各種メニューを表示する。
  */
 
 declare(strict_types=1);
@@ -13,7 +13,24 @@ $member = require_member(); // 未ログイン→login、初回PW未変更→cha
 $flash = (string) ($_GET['msg'] ?? '');
 $flashType = (string) ($_GET['type'] ?? '');
 
-$pageTitle = '会員トップ';
+$id = (string) $member['id'];
+$profile = get_profile($id);
+$labels = member_tag_labels($id);
+$bal = member_points($id);
+$earned = member_points_earned($id);
+$title = points_title($earned);
+$recv = received_interest_count($id);
+$plan = member_plan($member);
+$planLabel = billing_started() ? plan_label($plan) : '無料プラン';
+$hasPhoto = ($profile['photo_status'] ?? '') === 'approved';
+$nm = ($profile['name_text'] ?? '') !== '' ? $profile['name_text'] : (($member['display_name'] ?? '') !== '' ? $member['display_name'] : '会員');
+$ini = mb_substr($nm, 0, 1);
+$hue = crc32($id) % 360;
+$hue2 = ($hue + 38) % 360;
+$area = $labels['area'][0] ?? '';
+$age = (string) ($profile['age_text'] ?? '');
+
+$pageTitle = 'マイページ';
 $showLogout = true;
 require __DIR__ . '/_header.php';
 ?>
@@ -21,36 +38,31 @@ require __DIR__ . '/_header.php';
     <div class="flash <?= $flashType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($flash) ?></div>
 <?php endif; ?>
 
-<h1>ようこそ<?= $member['display_name'] !== '' ? '、' . e($member['display_name']) . ' さん' : '' ?></h1>
-
-<?php
-$__bal = member_points((string) $member['id']);           // 使えるポイント（残高）
-$__earned = member_points_earned((string) $member['id']); // 称号の基準（累計獲得・下がらない）
-?>
-<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-    <div>
-        <div class="card__title" style="margin:0;">ポイント</div>
-        <p style="margin:.2rem 0;"><strong style="font-size:1.4rem;"><?= number_format($__bal) ?></strong> pt <span class="muted" style="font-size:.8rem;">使えるポイント</span>　<span class="badge badge--title"><?= e(points_title($__earned)) ?></span></p>
+<div class="tp-mp-head">
+    <div class="tp-mp-av"<?= $hasPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 66% 54%),hsl(' . $hue2 . ' 64% 45%))"' ?>>
+        <?php if ($hasPhoto): ?><img src="/member/photo.php?id=<?= e($id) ?>" alt=""><?php else: ?><?= e($ini) ?><?php endif; ?>
     </div>
-    <a class="btn btn--ghost" href="/member/points.php">ポイント・紹介</a>
+    <div class="tp-mp-name"><?= e($nm) ?></div>
+    <?php if ($age !== '' || $area !== ''): ?>
+        <div class="tp-mp-sub"><?= $age !== '' ? e($age) . '歳' : '' ?><?= ($age !== '' && $area !== '') ? '・' : '' ?><?= e($area) ?></div>
+    <?php endif; ?>
+    <span class="tp-mp-plan">会員ステータス：<strong><?= e($planLabel) ?></strong></span>
 </div>
 
-<div class="card">
-    <div class="card__title">プロフィール</div>
-    <p>あなたの情報・タグ・求める条件・LINE追加URLを登録すると、条件に合う相手とつながりやすくなります。</p>
-    <p>
-        <a class="btn" href="/member/profile.php">プロフィールを編集</a>
-        <a class="btn btn--ghost" href="/member/recommend.php">あなたへのおすすめ</a>
-        <a class="btn btn--ghost" href="/member/directory.php">会員ディレクトリ</a>
-    </p>
-    <p class="muted">ログインID：<code><?= e($member['login_id']) ?></code></p>
+<div class="tp-tiles">
+    <div class="tp-tile"><b><?= (int) $recv ?></b><span>気になる</span></div>
+    <a class="tp-tile" href="/member/points.php"><b><?= number_format($bal) ?></b><span>ポイント</span></a>
+    <a class="tp-tile" href="/member/points.php"><b style="font-size:1rem;line-height:1.9;"><?= e($title) ?></b><span>称号</span></a>
 </div>
 
-<div class="card">
-    <div class="card__title">アカウント</div>
-    <p>
-        <a class="btn btn--ghost" href="/member/change_password.php">パスワードを変更</a>
-        <a class="btn btn--ghost" href="/member/billing.php">お支払い・解約</a>
-    </p>
+<div class="tp-menu">
+    <a href="/member/member_view.php?id=<?= e($id) ?>">👀 プロフィールを確認<span class="chev">›</span></a>
+    <a href="/member/profile.php">✏️ プロフィールを編集<span class="chev">›</span></a>
+    <a href="/member/points.php">⭐ ポイント・紹介<span class="chev">›</span></a>
+    <a href="/member/billing.php">💳 お支払い・解約<span class="chev">›</span></a>
+    <a href="/member/change_password.php">🔒 パスワード変更<span class="chev">›</span></a>
+    <a href="/member/logout.php">↩️ ログアウト<span class="chev">›</span></a>
 </div>
+
+<p class="muted" style="text-align:center;font-size:.8rem;">ログインID：<code><?= e($member['login_id']) ?></code></p>
 <?php require __DIR__ . '/_footer.php'; ?>

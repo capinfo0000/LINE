@@ -67,11 +67,42 @@ $renderChecks = function (array $tags, string $name, array $checked) {
 $rankClass = static function (string $t): string {
     return ['プラチナ' => 'rank--plat', 'ゴールド' => 'rank--gold', 'レギュラー' => 'rank--reg', 'ルーキー' => 'rank--rookie'][$t] ?? 'rank--rookie';
 };
+/** 会員カード1枚を出力（さがすグリッド／おすすめカルーセルで共通利用）。 */
+$renderCard = function (string $mid, string $nm, string $age, bool $hasPhoto) use ($member, $rankClass): void {
+    $labels = member_tag_labels($mid);
+    $title = points_title(member_points_earned($mid));
+    $nm = $nm !== '' ? $nm : '会員';
+    $ini = mb_substr($nm, 0, 1);
+    $hue = crc32($mid) % 360;
+    $hue2 = ($hue + 38) % 360;
+    $cardBg = $hasPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 66% 54%),hsl(' . $hue2 . ' 64% 45%))"';
+    $area = $labels['area'][0] ?? '';
+    $job = $labels['job'][0] ?? '';
+    $want = $labels['purpose'][0] ?? '';
+    $liked = has_interest((string) $member['id'], $mid);
+    ?>
+    <div class="tp-card"<?= $cardBg ?>>
+        <?php if ($hasPhoto): ?><img src="/member/photo.php?id=<?= e($mid) ?>" alt=""><?php else: ?><span class="tp-ini"><?= e($ini) ?></span><?php endif; ?>
+        <a class="tp-cardlink" href="/member/member_view.php?id=<?= e($mid) ?>" aria-label="<?= e($nm) ?> のプロフィール"></a>
+        <span class="tp-crank <?= $rankClass($title) ?>"><?= e($title) ?></span>
+        <div class="tp-cinfo">
+            <?php if ($age !== '' || $area !== ''): ?><div class="aa"><?= $age !== '' ? e($age) . '歳' : '' ?><?= ($age !== '' && $area !== '') ? '・' : '' ?><?= e($area) ?></div><?php endif; ?>
+            <div class="nm"><?= e($nm) ?></div>
+            <div class="tp-ptags">
+                <?php if ($job !== ''): ?><span class="tp-ptag tp-ptag--on"><?= e($job) ?></span><?php endif; ?>
+                <?php if ($want !== ''): ?><span class="tp-ptag">求む・<?= e($want) ?></span><?php endif; ?>
+            </div>
+        </div>
+        <button class="tp-clike<?= $liked ? ' on' : '' ?>" form="likeform" type="submit" name="like_to" value="<?= e($mid) ?>" aria-label="気になる">
+            <svg viewBox="0 0 24 24" fill="<?= $liked ? '#fff' : 'none' ?>" stroke="#f96d6d" stroke-width="2"><path d="M12 21s-7-4.4-9.3-8.6C1 9 2.6 5.5 6 5.5c2 0 3.2 1.1 4 2.2.8-1.1 2-2.2 4-2.2 3.4 0 5 3.5 3.3 6.9C19 16.6 12 21 12 21z"/></svg>
+        </button>
+    </div>
+    <?php
+};
+// 検索していないときだけ「本日のおすすめ」（双方向マッチ）を出す。
+$recs = !$hasQuery ? compute_recommendations_for((string) $member['id'], 10) : [];
 ?>
-<div style="display:flex;align-items:center;gap:10px;margin:0 0 12px;">
-    <h1 style="margin:0;font-size:1.5rem;">さがす</h1>
-    <a class="muted" style="margin-left:auto;font-size:.85rem;" href="/member/recommend.php">あなたへのおすすめ →</a>
-</div>
+<h1 style="margin:0 0 12px;font-size:1.5rem;">さがす</h1>
 
 <form method="get">
     <input type="hidden" name="go" value="1">
@@ -105,49 +136,36 @@ $rankClass = static function (string $t): string {
     </p>
 </form>
 
-<p class="tp-count"><b><?= count($results) ?></b> 名がヒット <span style="color:var(--faint);font-size:.8rem;">・ポイントの高い方が上位</span></p>
+<form id="likeform" method="post" hidden>
+    <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+    <input type="hidden" name="return" value="<?= e($_SERVER['REQUEST_URI'] ?? '/member/directory.php') ?>">
+</form>
+
+<?php if (!$hasQuery): ?>
+    <div class="tp-pickup"><b>本日のおすすめ</b><span>あなたの条件に合う会員をピックアップ</span></div>
+    <?php if ($recs !== []): ?>
+        <div class="tp-secttl">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 15 8.5 22 9.3l-5 4.6 1.3 6.9L12 17.8 5.7 20.8 7 13.9 2 9.3l7-.8z"/></svg>
+            本日のおすすめ
+            <a class="more" href="/member/recommend.php">すべて見る →</a>
+        </div>
+        <div class="tp-rail">
+            <?php foreach ($recs as $rc): $renderCard((string) $rc['member_id'], (string) ($rc['name'] ?? ''), (string) ($rc['age_text'] ?? ''), ($rc['photo_status'] ?? '') === 'approved'); endforeach; ?>
+        </div>
+    <?php endif; ?>
+    <div class="tp-secttl">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 3-5.5 6.5-5.5S15.5 16.4 15.5 20"/><circle cx="17" cy="8.5" r="3"/><path d="M17 14.5c3.2 0 5 1.9 5 5.5"/></svg>
+        すべての会員 <span class="more" style="color:var(--faint);font-weight:700;"><?= count($results) ?>名</span>
+    </div>
+<?php else: ?>
+    <p class="tp-count"><b><?= count($results) ?></b> 名がヒット <span style="color:var(--faint);font-size:.8rem;">・ポイントの高い方が上位</span></p>
+<?php endif; ?>
 
 <?php if ($results === []): ?>
     <div class="card"><p style="margin:0;">条件に合う会員が見つかりませんでした。条件を変えてお試しください。</p></div>
 <?php else: ?>
-    <form id="likeform" method="post" hidden>
-        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-        <input type="hidden" name="return" value="<?= e($_SERVER['REQUEST_URI'] ?? '/member/directory.php') ?>">
-    </form>
     <div class="tp-grid">
-    <?php foreach ($results as $r):
-        $labels = member_tag_labels($r['member_id']);
-        $hasPhoto = ($r['photo_status'] ?? '') === 'approved';
-        $bal = (int) ($r['points_earned'] ?? member_points_earned($r['member_id']));
-        $title = points_title($bal);
-        $nm = ($r['name_text'] ?? '') !== '' ? $r['name_text'] : '会員';
-        $ini = mb_substr($nm, 0, 1);
-        $hue = crc32((string) $r['member_id']) % 360;
-        $hue2 = ($hue + 38) % 360;
-        $cardBg = $hasPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 66% 54%),hsl(' . $hue2 . ' 64% 45%))"';
-        $area = $labels['area'][0] ?? '';
-        $job = $labels['job'][0] ?? '';
-        $want = $labels['purpose'][0] ?? '';
-        $age = (string) ($r['age_text'] ?? '');
-        $liked = has_interest((string) $member['id'], (string) $r['member_id']);
-    ?>
-        <div class="tp-card"<?= $cardBg ?>>
-            <?php if ($hasPhoto): ?><img src="/member/photo.php?id=<?= e($r['member_id']) ?>" alt=""><?php else: ?><span class="tp-ini"><?= e($ini) ?></span><?php endif; ?>
-            <a class="tp-cardlink" href="/member/member_view.php?id=<?= e($r['member_id']) ?>" aria-label="<?= e($nm) ?> のプロフィール"></a>
-            <span class="tp-crank <?= $rankClass($title) ?>"><?= e($title) ?></span>
-            <div class="tp-cinfo">
-                <?php if ($age !== '' || $area !== ''): ?><div class="aa"><?= $age !== '' ? e($age) . '歳' : '' ?><?= ($age !== '' && $area !== '') ? '・' : '' ?><?= e($area) ?></div><?php endif; ?>
-                <div class="nm"><?= e($nm) ?></div>
-                <div class="tp-ptags">
-                    <?php if ($job !== ''): ?><span class="tp-ptag tp-ptag--on"><?= e($job) ?></span><?php endif; ?>
-                    <?php if ($want !== ''): ?><span class="tp-ptag">求む・<?= e($want) ?></span><?php endif; ?>
-                </div>
-            </div>
-            <button class="tp-clike<?= $liked ? ' on' : '' ?>" form="likeform" type="submit" name="like_to" value="<?= e($r['member_id']) ?>" aria-label="気になる">
-                <svg viewBox="0 0 24 24" fill="<?= $liked ? '#fff' : 'none' ?>" stroke="#f96d6d" stroke-width="2"><path d="M12 21s-7-4.4-9.3-8.6C1 9 2.6 5.5 6 5.5c2 0 3.2 1.1 4 2.2.8-1.1 2-2.2 4-2.2 3.4 0 5 3.5 3.3 6.9C19 16.6 12 21 12 21z"/></svg>
-            </button>
-        </div>
-    <?php endforeach; ?>
+        <?php foreach ($results as $r): $renderCard((string) $r['member_id'], (string) ($r['name_text'] ?? ''), (string) ($r['age_text'] ?? ''), ($r['photo_status'] ?? '') === 'approved'); endforeach; ?>
     </div>
 <?php endif; ?>
 <?php require __DIR__ . '/_footer.php'; ?>
