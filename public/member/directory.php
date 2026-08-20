@@ -47,70 +47,87 @@ $renderChecks = function (array $tags, string $name, array $checked) {
     }
 };
 ?>
-<h1>会員ディレクトリ</h1>
-<p class="muted"><a href="/member/dashboard.php">← 会員トップ</a> ／ <a href="/member/recommend.php">あなたへのおすすめ</a></p>
+<?php
+$rankClass = static function (string $t): string {
+    return ['プラチナ' => 'rank--plat', 'ゴールド' => 'rank--gold', 'レギュラー' => 'rank--reg', 'ルーキー' => 'rank--rookie'][$t] ?? 'rank--rookie';
+};
+?>
+<div style="display:flex;align-items:center;gap:10px;margin:0 0 12px;">
+    <h1 style="margin:0;font-size:1.5rem;">さがす</h1>
+    <a class="muted" style="margin-left:auto;font-size:.85rem;" href="/member/recommend.php">あなたへのおすすめ →</a>
+</div>
 
-<form method="get" class="card">
+<form method="get">
     <input type="hidden" name="go" value="1">
     <?php if ($canFullSearch): ?>
-        <label>キーワード（名前・PR・自己紹介・会社名）</label>
-        <input type="text" name="keyword" value="<?= e($filters['keyword']) ?>" placeholder="例: 販路 / 製造 / 東京">
+        <div class="tp-search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" name="keyword" value="<?= e($filters['keyword']) ?>" placeholder="名前・会社・キーワードで探す">
+        </div>
         <details style="margin-top:10px;">
-            <summary style="cursor:pointer;">条件で絞り込む（場所・仕事・目的）</summary>
-            <p style="margin:8px 0 4px;"><strong>場所</strong></p>
-            <div><?php $renderChecks($grouped['area'] ?? [], 'area', $checkedArea); ?></div>
-            <p style="margin:8px 0 4px;"><strong>仕事ジャンル</strong></p>
-            <div><?php $renderChecks($grouped['job'] ?? [], 'job', $checkedJob); ?></div>
-            <p style="margin:8px 0 4px;"><strong>目的</strong></p>
-            <div><?php $renderChecks($grouped['purpose'] ?? [], 'purpose', $checkedPurpose); ?></div>
+            <summary class="tp-fchip" style="width:max-content;list-style:none;">🔎 エリア・業種・目的で絞り込む</summary>
+            <div style="margin-top:12px;">
+                <p style="margin:8px 0 4px;font-weight:700;font-size:.85rem;">場所</p>
+                <div><?php $renderChecks($grouped['area'] ?? [], 'area', $checkedArea); ?></div>
+                <p style="margin:12px 0 4px;font-weight:700;font-size:.85rem;">仕事ジャンル</p>
+                <div><?php $renderChecks($grouped['job'] ?? [], 'job', $checkedJob); ?></div>
+                <p style="margin:12px 0 4px;font-weight:700;font-size:.85rem;">目的</p>
+                <div><?php $renderChecks($grouped['purpose'] ?? [], 'purpose', $checkedPurpose); ?></div>
+            </div>
         </details>
     <?php else: ?>
-        <p style="margin:4px 0 4px;"><strong>場所で絞り込む</strong></p>
+        <p style="margin:2px 0 6px;font-weight:700;font-size:.9rem;">エリアで絞り込む</p>
         <div><?php $renderChecks($grouped['area'] ?? [], 'area', $checkedArea); ?></div>
         <div class="flash" style="background:#f8fafc;border:1px solid var(--border);margin-top:12px;">
-            仕事ジャンル・目的・キーワードでの絞り込みは <strong>プレミアムプラン</strong>限定です。
+            仕事ジャンル・目的・キーワード検索は <strong>プレミアム</strong>限定です。
             <a href="/member/billing.php">プレミアムにする</a>
         </div>
     <?php endif; ?>
-    <p style="margin-top:14px;">
+    <p style="margin:12px 0;">
         <button type="submit" class="btn">検索</button>
-        <a class="btn btn--ghost" href="/member/directory.php">条件をクリア</a>
+        <a class="btn btn--ghost" href="/member/directory.php">クリア</a>
     </p>
 </form>
 
-<p class="muted"><?= count($results) ?> 件　<span style="font-size:.82rem;">（ポイントの高い会員が上位に表示されます）</span></p>
+<p class="tp-count"><b><?= count($results) ?></b> 名がヒット <span style="color:var(--faint);font-size:.8rem;">・ポイントの高い方が上位</span></p>
 
 <?php if ($results === []): ?>
-    <div class="card"><p style="margin:0;">条件に合う会員が見つかりませんでした。</p></div>
+    <div class="card"><p style="margin:0;">条件に合う会員が見つかりませんでした。条件を変えてお試しください。</p></div>
 <?php else: ?>
+    <div class="tp-grid">
     <?php foreach ($results as $r):
         $labels = member_tag_labels($r['member_id']);
-        $hasApprovedPhoto = ($r['photo_status'] ?? '') === 'approved';
-        $bal = (int) ($r['points_earned'] ?? member_points_earned($r['member_id'])); // 累計獲得（称号の基準・取得時に集計済み）
+        $hasPhoto = ($r['photo_status'] ?? '') === 'approved';
+        $bal = (int) ($r['points_earned'] ?? member_points_earned($r['member_id']));
+        $title = points_title($bal);
+        $nm = ($r['name_text'] ?? '') !== '' ? $r['name_text'] : '会員';
+        $ini = mb_substr($nm, 0, 1);
+        $hue = crc32((string) $r['member_id']) % 360;
+        $hue2 = ($hue + 38) % 360;
+        $phStyle = $hasPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 68% 56%),hsl(' . $hue2 . ' 66% 47%))"';
+        $area = $labels['area'][0] ?? '';
+        $job = $labels['job'][0] ?? '';
+        $want = $labels['purpose'][0] ?? '';
     ?>
-        <div class="card">
-            <div style="display:flex;gap:12px;align-items:flex-start;">
-                <?php if ($hasApprovedPhoto): ?>
-                    <img src="/member/photo.php?id=<?= e($r['member_id']) ?>" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none;">
+        <a class="tp-card" href="/member/member_view.php?id=<?= e($r['member_id']) ?>">
+            <div class="tp-ph"<?= $phStyle ?>>
+                <?php if ($hasPhoto): ?>
+                    <img src="/member/photo.php?id=<?= e($r['member_id']) ?>" alt="">
+                <?php else: ?>
+                    <span class="tp-ini"><?= e($ini) ?></span>
                 <?php endif; ?>
-                <div style="flex:1;min-width:0;">
-                    <div style="font-weight:600;">
-                        <a href="/member/member_view.php?id=<?= e($r['member_id']) ?>"><?= e($r['name_text'] !== '' ? $r['name_text'] : '会員') ?></a>
-                        <?php if (($r['age_text'] ?? '') !== ''): ?><span class="muted" style="font-weight:normal;">（<?= e($r['age_text']) ?>）</span><?php endif; ?>
-                    </div>
-                    <div style="margin:3px 0;"><span class="badge badge--title"><?= e(points_title($bal)) ?></span> <span class="muted" style="font-size:.82rem;"><?= number_format($bal) ?> pt</span></div>
-                    <?php if (($r['company_title'] ?? '') !== ''): ?><div class="muted"><?= e($r['company_title']) ?></div><?php endif; ?>
-                    <?php if (($r['headline'] ?? '') !== ''): ?><div style="margin:4px 0;"><?= e($r['headline']) ?></div><?php endif; ?>
-                    <div style="margin-top:6px;">
-                        <?php foreach (['area', 'job', 'purpose', 'offer'] as $cat): ?>
-                            <?php foreach ($labels[$cat] ?? [] as $lb): ?>
-                                <span style="display:inline-block;background:#eef2ff;color:#3730a3;border-radius:10px;padding:1px 8px;font-size:.78rem;margin:2px 4px 2px 0;"><?= e($lb) ?></span>
-                            <?php endforeach; ?>
-                        <?php endforeach; ?>
-                    </div>
+                <?php if ($area !== ''): ?><span class="tp-area">📍<?= e($area) ?></span><?php endif; ?>
+                <span class="tp-nm"><b><?= e($nm) ?></b><?php if (($r['age_text'] ?? '') !== ''): ?><span><?= e($r['age_text']) ?></span><?php endif; ?></span>
+            </div>
+            <div class="tp-cmeta">
+                <div class="tp-rankrow"><span class="rank <?= $rankClass($title) ?>"><?= e($title) ?></span><span class="tp-pts"><?= number_format($bal) ?>pt</span></div>
+                <div class="tp-tags">
+                    <?php if ($job !== ''): ?><span class="tp-tag"><?= e($job) ?></span><?php endif; ?>
+                    <?php if ($want !== ''): ?><span class="tp-tag tp-tag--want">求む・<?= e($want) ?></span><?php endif; ?>
                 </div>
             </div>
-        </div>
+        </a>
     <?php endforeach; ?>
+    </div>
 <?php endif; ?>
 <?php require __DIR__ . '/_footer.php'; ?>

@@ -176,6 +176,39 @@ function referral_count(string $referrerId): int
     return (int) $stmt->fetchColumn();
 }
 
+/* ------------------------- 気になる（興味表明） ------------------------- */
+
+/** $from が $to に「気になる」しているか。 */
+function has_interest(string $from, string $to): bool
+{
+    $stmt = db()->prepare('SELECT 1 FROM member_interests WHERE from_id = ? AND to_id = ? LIMIT 1');
+    $stmt->execute([$from, $to]);
+    return (bool) $stmt->fetchColumn();
+}
+
+/** 「気になる」をトグルする。付けたら true、外したら false を返す。 */
+function toggle_interest(string $from, string $to): bool
+{
+    if ($from === '' || $to === '' || $from === $to) {
+        return false;
+    }
+    if (has_interest($from, $to)) {
+        db()->prepare('DELETE FROM member_interests WHERE from_id = ? AND to_id = ?')->execute([$from, $to]);
+        return false;
+    }
+    db()->prepare('INSERT OR IGNORE INTO member_interests (from_id, to_id, created_at) VALUES (?,?,?)')
+        ->execute([$from, $to, time()]);
+    return true;
+}
+
+/** $member が受け取った「気になる」の数。 */
+function received_interest_count(string $memberId): int
+{
+    $stmt = db()->prepare('SELECT COUNT(*) FROM member_interests WHERE to_id = ?');
+    $stmt->execute([$memberId]);
+    return (int) $stmt->fetchColumn();
+}
+
 /* ------------------------- 評価 / 通報 ------------------------- */
 
 /** rater が target を kind で評価済みか。 */

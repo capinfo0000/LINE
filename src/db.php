@@ -409,6 +409,17 @@ function db_migrate(\PDO $pdo): void
     // LINE連絡先の非表示フラグ（旧チャネル・不達の連絡先を配信一覧から隠す）。
     db_add_column_if_missing($pdo, 'line_contacts', 'hidden', 'INTEGER NOT NULL DEFAULT 0');
 
+    // 「気になる」（片思いの興味表明・タップル風）。相互で成立→つながりは後続で拡張。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS member_interests (
+            from_id    TEXT NOT NULL,
+            to_id      TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            PRIMARY KEY (from_id, to_id)
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_interest_to ON member_interests(to_id);');
+
     // 紹介専用コード（ログインIDとは別の推測されにくいコード）。共有・入力はこのコードで行う。
     db_add_column_if_missing($pdo, 'members', 'referral_code', 'TEXT');
     $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_members_refcode ON members(referral_code) WHERE referral_code IS NOT NULL AND referral_code <> ''");

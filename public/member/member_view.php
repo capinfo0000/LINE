@@ -20,6 +20,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $targetId !== '') {
         $r = evaluate_member((string) $viewer['id'], $targetId, $act, (string) ($_POST['note'] ?? ''));
         $evalMsg = $r['message'];
         $evalType = $r['ok'] ? 'ok' : 'ng';
+    } elseif ($act === 'interest') {
+        $on = toggle_interest((string) $viewer['id'], $targetId);
+        $evalMsg = $on ? '「気になる」を送りました。' : '「気になる」を取り消しました。';
+        $evalType = 'ok';
     }
 }
 
@@ -45,76 +49,153 @@ $pageTitle = ($profile['name_text'] !== '' ? $profile['name_text'] : '会員') .
 $showLogout = true;
 require __DIR__ . '/_header.php';
 ?>
-<p class="muted"><a href="/member/directory.php">← ディレクトリへ戻る</a></p>
-<?php if ($evalMsg !== ''): ?><div class="flash <?= $evalType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($evalMsg) ?></div><?php endif; ?>
 <?php
 $targetBalance = member_points_earned($targetId); // 累計獲得（称号の基準・実績）
 $targetTitle = points_title($targetBalance);
 $targetPraise = praise_count($targetId);
 $iAmSelf = (string) $viewer['id'] === $targetId;
+$rankClass = ['プラチナ' => 'rank--plat', 'ゴールド' => 'rank--gold', 'レギュラー' => 'rank--reg', 'ルーキー' => 'rank--rookie'][$targetTitle] ?? 'rank--rookie';
+$nm = $profile['name_text'] !== '' ? $profile['name_text'] : '会員';
+$ini = mb_substr($nm, 0, 1);
+$hue = crc32($targetId) % 360;
+$hue2 = ($hue + 38) % 360;
+$heroStyle = $hasApprovedPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 66% 54%),hsl(' . $hue2 . ' 64% 45%))"';
+$area = $labels['area'][0] ?? '';
+$job = $labels['job'][0] ?? '';
+$interested = !$iAmSelf && has_interest((string) $viewer['id'], $targetId);
+$praised = !$iAmSelf && has_evaluated((string) $viewer['id'], $targetId, 'praise');
+$reported = !$iAmSelf && has_evaluated((string) $viewer['id'], $targetId, 'report');
+$lineUrl = '';
+foreach ($links as $l) {
+    if (($l['kind'] ?? '') === 'line_add' && ($l['url'] ?? '') !== '') { $lineUrl = (string) $l['url']; break; }
+}
+$csrf = csrf_token();
 ?>
+<?php if ($evalMsg !== ''): ?><div class="flash <?= $evalType === 'ok' ? 'flash--ok' : 'flash--ng' ?>" style="margin-bottom:10px;"><?= e($evalMsg) ?></div><?php endif; ?>
 
-<div class="card">
-    <div style="display:flex;gap:14px;align-items:flex-start;">
+<div class="tp-wrap">
+    <div class="tp-hero"<?= $heroStyle ?>>
+        <a class="tp-hback" href="/member/directory.php" aria-label="ディレクトリへ戻る">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </a>
         <?php if ($hasApprovedPhoto): ?>
-            <img src="/member/photo.php?id=<?= e($targetId) ?>" alt="" style="width:96px;height:96px;object-fit:cover;border-radius:12px;flex:none;">
+            <img src="/member/photo.php?id=<?= e($targetId) ?>" alt="">
+        <?php else: ?>
+            <span class="tp-hini"><?= e($ini) ?></span>
         <?php endif; ?>
-        <div style="flex:1;min-width:0;">
-            <h1 style="margin:0 0 4px;"><?= e($profile['name_text'] !== '' ? $profile['name_text'] : '会員') ?>
-                <?php if (($profile['age_text'] ?? '') !== ''): ?><span class="muted" style="font-size:1rem;font-weight:normal;">（<?= e($profile['age_text']) ?>）</span><?php endif; ?>
-            </h1>
-            <p style="margin:0 0 4px;"><span class="badge badge--title"><?= e($targetTitle) ?></span> <strong style="font-size:.95rem;"><?= number_format($targetBalance) ?> pt</strong> <span class="muted" style="font-size:.85rem;">・評価 <?= (int) $targetPraise ?> 件</span></p>
-            <?php if (($profile['company_title'] ?? '') !== ''): ?><div class="muted"><?= e($profile['company_title']) ?></div><?php endif; ?>
-            <?php if (($profile['headline'] ?? '') !== ''): ?><p style="margin:6px 0 0;font-weight:600;"><?= e($profile['headline']) ?></p><?php endif; ?>
+        <div class="tp-hinfo">
+            <div class="tp-hname"><b><?= e($nm) ?></b><?php if (($profile['age_text'] ?? '') !== ''): ?><span class="age"><?= e($profile['age_text']) ?></span><?php endif; ?></div>
+            <div class="tp-hsub">
+                <?php if ($area !== ''): ?><span class="tp-pill">📍<?= e($area) ?></span><?php endif; ?>
+                <?php if ($job !== ''): ?><span class="tp-pill"><?= e($job) ?></span><?php endif; ?>
+                <span class="tp-pill<?= $targetTitle === 'ゴールド' || $targetTitle === 'プラチナ' ? ' tp-pill--gold' : '' ?>"><?= e($targetTitle) ?></span>
+            </div>
         </div>
     </div>
-    <?php if (!$iAmSelf): ?>
-    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-        <form method="post" style="margin:0;" data-confirm="この会員を評価します（＋<?= points_amount('praise') ?>pt）。よろしいですか？">
-            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="praise">
-            <button class="btn" <?= has_evaluated((string) $viewer['id'], $targetId, 'praise') ? 'disabled' : '' ?>>👍 評価する<?= has_evaluated((string) $viewer['id'], $targetId, 'praise') ? '（済）' : '' ?></button>
-        </form>
-        <form method="post" style="margin:0;" data-confirm="この会員を通報します（1回のみ・取り消せません）。よろしいですか？">
-            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="report">
-            <button class="btn btn--ghost" <?= has_evaluated((string) $viewer['id'], $targetId, 'report') ? 'disabled' : '' ?>>⚠ 通報<?= has_evaluated((string) $viewer['id'], $targetId, 'report') ? '（済）' : '' ?></button>
-        </form>
-    </div>
-    <?php endif; ?>
 </div>
 
-<?php if (($profile['bio'] ?? '') !== ''): ?>
-<div class="card">
-    <div class="card__title">自己紹介</div>
-    <p style="white-space:pre-wrap;"><?= e($profile['bio']) ?></p>
-</div>
+<?php if (($profile['headline'] ?? '') !== ''): ?>
+<section class="tp-sec"><p class="tp-lead"><?= e($profile['headline']) ?></p></section>
 <?php endif; ?>
 
-<div class="card">
-    <div class="card__title">タグ</div>
-    <?php foreach (['area' => '場所', 'job' => '仕事', 'purpose' => '目的', 'offer' => '提供できること'] as $cat => $clabel): ?>
-        <?php if (!empty($labels[$cat])): ?>
-            <p style="margin:4px 0;"><span class="muted"><?= e($clabel) ?>：</span>
-                <?php foreach ($labels[$cat] as $lb): ?>
-                    <span style="display:inline-block;background:#eef2ff;color:#3730a3;border-radius:10px;padding:1px 8px;font-size:.82rem;margin:2px 4px 2px 0;"><?= e($lb) ?></span>
-                <?php endforeach; ?>
-            </p>
+<?php if (($profile['bio'] ?? '') !== ''): ?>
+<section class="tp-sec">
+    <h2 class="tp-sec__t">自己紹介</h2>
+    <p class="tp-bio"><?= e($profile['bio']) ?></p>
+</section>
+<?php endif; ?>
+
+<?php
+$tagGroups = [
+    ['エリア・業種', array_merge($labels['area'] ?? [], $labels['job'] ?? []), 'tp-t'],
+    ['求めていること', $labels['purpose'] ?? [], 'tp-t tp-t--want'],
+    ['提供できること', $labels['offer'] ?? [], 'tp-t tp-t--offer'],
+];
+$hasAnyTag = ($labels['area'] ?? []) || ($labels['job'] ?? []) || ($labels['purpose'] ?? []) || ($labels['offer'] ?? []);
+?>
+<?php if ($hasAnyTag): ?>
+<section class="tp-sec">
+    <h2 class="tp-sec__t">タグ</h2>
+    <?php foreach ($tagGroups as [$glabel, $items, $cls]): ?>
+        <?php if ($items !== []): ?>
+        <div class="tp-grp">
+            <p class="tp-grp__l"><?= e($glabel) ?></p>
+            <div class="tp-tagwrap"><?php foreach ($items as $lb): ?><span class="<?= $cls ?>"><?= e($lb) ?></span><?php endforeach; ?></div>
+        </div>
         <?php endif; ?>
     <?php endforeach; ?>
-</div>
+</section>
+<?php endif; ?>
+
+<?php if (($profile['company_title'] ?? '') !== '' || $area !== '' || ($profile['age_text'] ?? '') !== ''): ?>
+<section class="tp-sec">
+    <h2 class="tp-sec__t">基本情報</h2>
+    <dl class="tp-kv">
+        <?php if (($profile['company_title'] ?? '') !== ''): ?><dt>会社・肩書き</dt><dd><?= e($profile['company_title']) ?></dd><?php endif; ?>
+        <?php if ($area !== ''): ?><dt>エリア</dt><dd><?= e($area) ?></dd><?php endif; ?>
+        <?php if (($profile['age_text'] ?? '') !== ''): ?><dt>年齢</dt><dd><?= e($profile['age_text']) ?></dd><?php endif; ?>
+    </dl>
+</section>
+<?php endif; ?>
+
+<section class="tp-sec">
+    <h2 class="tp-sec__t">実績・信頼</h2>
+    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+        <span><strong style="font-size:1.3rem;"><?= number_format($targetBalance) ?></strong> <span class="muted" style="font-size:.82rem;">pt</span></span>
+        <span class="rank <?= $rankClass ?>" style="font-size:.82rem;padding:3px 11px;"><?= e($targetTitle) ?></span>
+        <span><strong style="font-size:1.1rem;"><?= (int) $targetPraise ?></strong> <span class="muted" style="font-size:.82rem;">件の高評価</span></span>
+    </div>
+</section>
 
 <?php if ($links !== []): ?>
-<div class="card">
-    <div class="card__title">リンク・連絡先</div>
+<section class="tp-sec">
+    <h2 class="tp-sec__t">リンク・連絡先</h2>
     <?php foreach ($links as $l): ?>
-        <p style="margin:6px 0;">
-            <?php if (($l['kind'] ?? '') === 'line_add'): ?>
-                <span style="display:inline-block;background:#06c755;color:#fff;border-radius:8px;padding:2px 8px;font-size:.8rem;">LINE</span>
-            <?php endif; ?>
-            <?= ($l['label'] ?? '') !== '' ? e($l['label']) . '：' : '' ?>
-            <a href="<?= e($l['url']) ?>" target="_blank" rel="noopener nofollow"><?= e($l['url']) ?></a>
-        </p>
+        <div class="tp-linkrow">
+            <?php if (($l['kind'] ?? '') === 'line_add'): ?><span class="tp-linetag">LINE</span><?php endif; ?>
+            <?php if (($l['label'] ?? '') !== ''): ?><span class="muted" style="font-size:.85rem;"><?= e($l['label']) ?></span><?php endif; ?>
+            <a href="<?= e($l['url']) ?>" target="_blank" rel="noopener nofollow" style="word-break:break-all;"><?= e($l['url']) ?></a>
+        </div>
     <?php endforeach; ?>
-    <p class="muted">LINE追加URLから、その場でつながれます。</p>
-</div>
+</section>
+<?php endif; ?>
+
+<?php if ($iAmSelf): ?>
+    <p style="text-align:center;margin:16px 0;"><a class="btn btn--ghost" href="/member/profile.php">プロフィールを編集</a></p>
+<?php else: ?>
+    <nav class="tp-actions" aria-label="アクション">
+        <div class="tp-fabwrap">
+            <form method="post" style="margin:0;" data-confirm="この会員を評価します（＋<?= points_amount('praise') ?>pt）。よろしいですか？">
+                <input type="hidden" name="csrf_token" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="praise">
+                <button class="tp-fab tp-fab--sm" aria-label="評価する" <?= $praised ? 'disabled' : '' ?>>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 10v11M2 13v6a2 2 0 0 0 2 2h13.3a2 2 0 0 0 2-1.7l1.1-7a2 2 0 0 0-2-2.3H14l.9-4.5A2 2 0 0 0 13 3l-4 7H2z"/></svg>
+                </button>
+            </form>
+            <span class="tp-fablbl"><?= $praised ? '評価済' : '評価' ?></span>
+        </div>
+        <div class="tp-fabwrap">
+            <form method="post" style="margin:0;">
+                <input type="hidden" name="csrf_token" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="interest">
+                <button class="tp-fab tp-fab--like<?= $interested ? ' on' : '' ?>" aria-label="気になる">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="<?= $interested ? 'currentColor' : 'none' ?>" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-4.4-9.3-8.6C1 9 2.6 5.5 6 5.5c2 0 3.2 1.1 4 2.2.8-1.1 2-2.2 4-2.2 3.4 0 5 3.5 3.3 6.9C19 16.6 12 21 12 21z"/></svg>
+                </button>
+            </form>
+            <span class="tp-fablbl"><?= $interested ? '気になる済' : '気になる' ?></span>
+        </div>
+        <?php if ($lineUrl !== ''): ?>
+        <div class="tp-fabwrap">
+            <a class="tp-fab tp-fab--line" href="<?= e($lineUrl) ?>" target="_blank" rel="noopener nofollow" aria-label="LINEでつながる">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </a>
+            <span class="tp-fablbl">つながる</span>
+        </div>
+        <?php endif; ?>
+    </nav>
+    <p style="text-align:center;margin:6px 0 16px;">
+        <form method="post" style="display:inline;margin:0;" data-confirm="この会員を通報します（1回のみ・取り消せません）。よろしいですか？">
+            <input type="hidden" name="csrf_token" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="report">
+            <button class="link-quiet" style="background:0;border:0;color:var(--muted);font-size:.8rem;cursor:pointer;text-decoration:underline;" <?= $reported ? 'disabled' : '' ?>><?= $reported ? '通報済み' : 'この会員を通報する' ?></button>
+        </form>
+    </p>
 <?php endif; ?>
 <?php require __DIR__ . '/_footer.php'; ?>
