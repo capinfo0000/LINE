@@ -85,6 +85,7 @@ $photoAbs = member_photo_abs_path($profile);
 $token = csrf_token();
 $pageTitle = 'プロフィール編集';
 $showLogout = true;
+$hideBrand = true;
 require __DIR__ . '/_header.php';
 
 /** チェックボックス群を描画するヘルパー。 */
@@ -103,47 +104,52 @@ $renderChecks = function (array $tags, string $name, array $checked) {
     echo '</div>';
 };
 ?>
-<h1>プロフィール編集</h1>
+<h1 style="font-size:1.5rem;margin:0 0 4px;">プロフィール編集</h1>
+<p class="muted" style="margin:0 0 14px;"><a href="/member/dashboard.php">← マイページ</a></p>
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
 
 <form method="post" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
 
+    <div class="card" style="text-align:center;">
+        <div class="card__title" style="text-align:left;color:var(--coral-d);">プロフィール写真</div>
+        <!-- imgpipe: <?= e(photo_pipeline_tag()) ?> -->
+        <?php if ($photoAbs !== null): ?>
+            <img src="/member/photo.php" alt="現在の写真" style="width:150px;height:150px;object-fit:cover;border-radius:18px;box-shadow:var(--shadow-md);">
+            <div style="margin-top:8px;"><label style="font-weight:normal;display:inline-flex;gap:6px;align-items:center;justify-content:center;"><input type="checkbox" name="photo_delete" value="1" style="width:auto;"> この写真を削除する</label></div>
+        <?php else: ?>
+            <div style="width:150px;height:150px;border-radius:18px;background:#faf6f5;border:2px dashed var(--border);display:grid;place-items:center;margin:0 auto;color:var(--faint);font-size:.85rem;">写真なし</div>
+        <?php endif; ?>
+        <label style="text-align:left;margin-top:14px;">写真をアップロード（JPEG/PNG/WebP）</label>
+        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+        <p class="muted" style="font-size:.8rem;text-align:left;margin:8px 0 0;">大きな写真でもOK。自動で正方形・軽量化されます。</p>
+    </div>
+
     <div class="card">
-        <div class="card__title">基本情報</div>
+        <div class="card__title" style="color:var(--coral-d);">基本情報</div>
         <label>名前</label>
-        <input type="text" name="name_text" maxlength="100" value="<?= e($profile['name_text']) ?>">
+        <input type="text" name="name_text" maxlength="100" value="<?= e($profile['name_text']) ?>" placeholder="例: 田中 由紀">
         <label>年齢</label>
         <input type="text" name="age_text" maxlength="40" value="<?= e($profile['age_text']) ?>" placeholder="例: 30代 / 35歳">
         <label>会社名・屋号／肩書き</label>
-        <input type="text" name="company_title" maxlength="120" value="<?= e($profile['company_title']) ?>">
+        <input type="text" name="company_title" maxlength="120" value="<?= e($profile['company_title']) ?>" placeholder="例: 田中会計事務所 / 代表">
         <label>ひとことPR（一覧に表示される見出し）</label>
-        <input type="text" name="headline" maxlength="120" value="<?= e($profile['headline']) ?>">
+        <input type="text" name="headline" maxlength="120" value="<?= e($profile['headline']) ?>" placeholder="例: 補助金・資金繰りが専門です">
         <label>自己紹介</label>
-        <textarea name="bio" rows="5" maxlength="2000"><?= e($profile['bio']) ?></textarea>
+        <textarea name="bio" rows="5" maxlength="2000" placeholder="経歴・得意なこと・どんな方とつながりたいか など"><?= e($profile['bio']) ?></textarea>
     </div>
 
     <div class="card">
-        <div class="card__title">顔写真</div>
-        <!-- imgpipe: <?= e(photo_pipeline_tag()) ?> -->  <?php /* ↑ページのソース表示で稼働中の画像処理版数を確認できる */ ?>
-        <?php if ($photoAbs !== null): ?>
-            <p><img src="/member/photo.php" alt="現在の写真" style="max-width:140px;border-radius:10px;"></p>
-            <label style="font-weight:normal;"><input type="checkbox" name="photo_delete" value="1"> この写真を削除する</label>
-        <?php endif; ?>
-        <label>写真をアップロード（JPEG/PNG/WebP）</label>
-        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
-    </div>
-
-    <div class="card">
-        <div class="card__title">タグ（あなたの属性）</div>
-        <?php foreach (['area' => '場所', 'job' => '仕事ジャンル', 'purpose' => '目的（求めること）', 'offer' => '提供できること'] as $cat => $label): ?>
-            <p style="margin-bottom:4px;"><strong><?= e($label) ?></strong></p>
-            <div style="margin-bottom:12px;"><?php $renderChecks($grouped[$cat] ?? [], 'tags', $myTagIds); ?></div>
+        <div class="card__title" style="color:var(--coral-d);">タグ（あなたの属性）</div>
+        <p class="muted" style="margin-top:0;font-size:.85rem;">当てはまるものを選んでください（複数可）。</p>
+        <?php foreach (['area' => '📍 場所', 'job' => '💼 仕事ジャンル', 'purpose' => '🎯 目的（求めること）', 'offer' => '🤝 提供できること'] as $cat => $label): ?>
+            <p style="margin:12px 0 6px;font-weight:700;font-size:.88rem;"><?= e($label) ?></p>
+            <?php $renderChecks($grouped[$cat] ?? [], 'tags', $myTagIds); ?>
         <?php endforeach; ?>
     </div>
 
     <div class="card">
-        <div class="card__title">求める条件（おすすめ・検索に使用。未選択＝問わない）</div>
+        <div class="card__title" style="color:var(--coral-d);">求める条件（おすすめ・検索に使用。未選択＝問わない）</div>
         <p style="margin-bottom:4px;"><strong>相手の場所</strong></p>
         <div style="margin-bottom:12px;"><?php $renderChecks($grouped['area'] ?? [], 'seek_area', $prefArea); ?></div>
         <p style="margin-bottom:4px;"><strong>相手の仕事ジャンル</strong></p>
@@ -153,7 +159,7 @@ $renderChecks = function (array $tags, string $name, array $checked) {
     </div>
 
     <div class="card">
-        <div class="card__title">リンク（LINE追加URL・SNS・Web）</div>
+        <div class="card__title" style="color:var(--coral-d);">リンク（LINE追加URL・SNS・Web）</div>
         <p class="muted" style="margin-top:0;">1行目は「LINE追加URL」を推奨します。空欄の行は無視されます（最大10件）。</p>
         <?php
         // 既存＋空行を最大6行表示
@@ -174,7 +180,7 @@ $renderChecks = function (array $tags, string $name, array $checked) {
     </div>
 
     <div class="card">
-        <div class="card__title">表示設定</div>
+        <div class="card__title" style="color:var(--coral-d);">表示設定</div>
         <label style="font-weight:normal;"><input type="checkbox" name="vis_directory" value="1"<?= $vis['directory'] ? ' checked' : '' ?>> 会員ディレクトリに自分を掲載する</label><br>
         <label style="font-weight:normal;"><input type="checkbox" name="vis_line_url" value="1"<?= $vis['line_url'] ? ' checked' : '' ?>> LINE追加URLを他の会員に表示する</label>
     </div>

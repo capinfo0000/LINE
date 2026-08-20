@@ -284,7 +284,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-count b{ color:var(--text); }
 
 /* --- さがす：縦カードグリッド（写真前面・情報オーバーレイ） --- */
-.tp-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:6px; }
+.tp-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:12px; margin-top:6px; }
 .tp-card{ position:relative; border-radius:18px; overflow:hidden; aspect-ratio:3/4.1; box-shadow:var(--shadow-sm); color:#fff; }
 .tp-card img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; }
 .tp-card::after{ content:""; position:absolute; inset:0; z-index:0; background:linear-gradient(180deg,transparent 44%,rgba(0,0,0,.6)); pointer-events:none; }
@@ -377,7 +377,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-secttl .more{ margin-left:auto; font-size:.8rem; color:var(--faint); font-weight:700; text-decoration:none; }
 .tp-rail{ display:flex; gap:12px; overflow-x:auto; scrollbar-width:none; margin:0 -16px; padding:2px 16px 6px; }
 .tp-rail::-webkit-scrollbar{ display:none; }
-.tp-rail .tp-card{ flex:0 0 47%; }
+.tp-rail .tp-card{ flex:0 0 148px; }
 .tp-pickup{ margin:12px 0 4px; border-radius:18px; padding:16px 18px; color:#fff; position:relative; overflow:hidden;
   background:linear-gradient(120deg,#ff9f7a,#f96d6d); }
 .tp-pickup b{ display:block; font-size:1.15rem; font-weight:800; }
