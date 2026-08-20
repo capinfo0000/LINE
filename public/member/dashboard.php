@@ -32,6 +32,7 @@ $age = (string) ($profile['age_text'] ?? '');
 
 $pageTitle = 'マイページ';
 $showLogout = true;
+$hideBrand = true;
 require __DIR__ . '/_header.php';
 ?>
 <?php if ($flash !== ''): ?>

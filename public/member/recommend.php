@@ -29,10 +29,11 @@ $profileThin = ($prefs['seek_area'] === [] && $prefs['seek_job'] === [] && $pref
 $pageTitle = 'あなたへのおすすめ';
 $showLogout = true;
 $wide = true;
+$hideBrand = true;
 require __DIR__ . '/_header.php';
 ?>
-<h1>あなたへのおすすめ</h1>
-<p class="muted"><a href="/member/dashboard.php">← 会員トップ</a> ／ <a href="/member/directory.php">ディレクトリを検索</a></p>
+<h1 style="font-size:1.5rem;margin:0 0 4px;">あなたへのおすすめ</h1>
+<p class="muted"><a href="/member/directory.php">← さがすへ</a></p>
 <p class="muted">「あなたの求める条件に合う」かつ「相手の求める条件にもあなたが合う」相手だけを表示しています。</p>
 
 <?php if ($profileThin): ?>

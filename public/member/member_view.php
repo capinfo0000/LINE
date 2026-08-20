@@ -47,6 +47,7 @@ $hasApprovedPhoto = ($profile['photo_status'] ?? '') === 'approved';
 
 $pageTitle = ($profile['name_text'] !== '' ? $profile['name_text'] : '会員') . ' さんのプロフィール';
 $showLogout = true;
+$hideBrand = true;
 require __DIR__ . '/_header.php';
 ?>
 <?php
