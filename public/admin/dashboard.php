@@ -22,6 +22,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
     exit;
 }
 
+// 開発用サンプル会員（管理者のみ）。
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string) ($_POST['action'] ?? ''), ['seed_samples', 'delete_samples'], true)) {
+    csrf_verify($_POST['csrf_token'] ?? null);
+    if ((int) ($tenant['is_admin'] ?? 0) !== 1) {
+        header('Location: /admin/dashboard.php?msg=' . rawurlencode('権限がありません。') . '&type=ng');
+        exit;
+    }
+    if ((string) $_POST['action'] === 'seed_samples') {
+        $n = seed_sample_members();
+        $m = "サンプル会員を {$n} 名投入しました。";
+    } else {
+        $n = delete_sample_members();
+        $m = "サンプル会員を {$n} 名削除しました。";
+    }
+    header('Location: /admin/dashboard.php?msg=' . rawurlencode($m) . '&type=ok');
+    exit;
+}
+
 $stats = admin_stats();
 
 $pageTitle = 'ダッシュボード';
@@ -122,4 +140,21 @@ $__csrf = csrf_token();
         <?php endif; ?>
     </p>
 </div>
+<?php if ((int) ($tenant['is_admin'] ?? 0) === 1): ?>
+<?php $__samples = sample_member_count(); ?>
+<div class="card">
+    <div class="card__title">開発用：サンプル会員</div>
+    <p class="muted" style="margin-top:0;">さがす／プロフィールの表示確認用のダミー会員です。現在 <strong><?= (int) $__samples ?></strong> 名。本番運用前に削除してください。</p>
+    <p>
+        <form method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="seed_samples">
+            <button class="btn btn--ghost" data-confirm="サンプル会員を投入します（既にある分は追加しません）。よろしいですか？">サンプル会員を投入</button>
+        </form>
+        <form method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="delete_samples">
+            <button class="btn btn--danger" data-confirm="サンプル会員を全員削除します。よろしいですか？"<?= $__samples === 0 ? ' disabled' : '' ?>>サンプル会員を一括削除</button>
+        </form>
+    </p>
+</div>
+<?php endif; ?>
 <?php require __DIR__ . '/_app_footer.php'; ?>

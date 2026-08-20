@@ -27,6 +27,7 @@ require __DIR__ . '/plan.php';
 require __DIR__ . '/zoom.php';
 require __DIR__ . '/booking.php';
 require __DIR__ . '/points.php';
+require __DIR__ . '/samples.php';
 require __DIR__ . '/line.php';
 require __DIR__ . '/admin.php';
 require __DIR__ . '/mail.php';
