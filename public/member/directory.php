@@ -216,6 +216,13 @@ if ($showRail) {
         </a>
     </div>
     <div class="tp-dots"><span></span><span></span><span></span></div>
+
+    <!-- キャンペーンバー -->
+    <a class="tp-coupon" href="/member/points.php">
+        <span class="tp-cbadge">紹介</span>
+        <span class="tp-ctext"><b>5人ご紹介で翌月の月額が0円</b>／紹介はずっと有効</span>
+        <span class="tp-chelp" aria-hidden="true">?</span>
+    </a>
 <?php endif; ?>
 
 <?php if ($showRail && $recCards !== []): ?>
