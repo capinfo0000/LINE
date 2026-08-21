@@ -333,7 +333,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-rankno.top{ background:linear-gradient(135deg,#f0b429,#b8860b); }
 
 /* --- さがす：縦カードグリッド（写真前面・情報オーバーレイ） --- */
-.tp-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:12px; margin-top:6px; }
+.tp-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:6px; }
 .tp-card{ position:relative; border-radius:18px; overflow:hidden; aspect-ratio:3/4.1; box-shadow:var(--shadow-sm); color:#fff; }
 .tp-card img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; }
 .tp-card::after{ content:""; position:absolute; inset:0; z-index:0; background:linear-gradient(180deg,transparent 44%,rgba(0,0,0,.6)); pointer-events:none; }
@@ -451,3 +451,32 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-menu a:last-child{ border-bottom:0; }
 .tp-menu a:hover{ background:#faf6f5; text-decoration:none; }
 .tp-menu a .chev{ margin-left:auto; color:var(--faint); }
+
+/* =====================================================================
+ * さがす（tp-*）レスポンシブ：スマホ2列 → タブレット/PCで多列・広幅
+ * ===================================================================== */
+/* PC時にさがすページを広く使う（一覧が主役）。他ページは従来の中央狭幅のまま。 */
+.container--app{ max-width: 1120px; }
+
+/* ヒーローのスライドはPCで広がり過ぎないよう上限を設ける（複数枚見える）。 */
+.tp-pslide{ flex-basis: min(92%, 440px); }
+
+/* 画面幅ごとの列数（カード最小幅を保ちながら増やす）。 */
+@media (min-width: 560px){
+  .tp-grid{ grid-template-columns:repeat(3,1fr); }
+}
+@media (min-width: 800px){
+  .tp-grid{ grid-template-columns:repeat(4,1fr); gap:14px; }
+  .tp-rail .tp-card{ flex:0 0 168px; }
+}
+@media (min-width: 1000px){
+  .tp-grid{ grid-template-columns:repeat(5,1fr); }
+}
+@media (min-width: 1200px){
+  .tp-grid{ grid-template-columns:repeat(6,1fr); }
+}
+
+/* 広幅時、下部タブバーは中央のコンテンツ幅に合わせて内容を中央寄せ（画面全幅に固定のまま）。 */
+@media (min-width: 720px){
+  .tp-tabbar{ padding-left: max(16px, calc((100vw - 1120px)/2)); padding-right: max(16px, calc((100vw - 1120px)/2)); }
+}

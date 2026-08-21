@@ -90,7 +90,45 @@ function seed_sample_members(): int
         }
         $created++;
     }
+
+    // 既存・新規を問わず、サンプル会員に顔写真を割り当てる（未設定のみ）。
+    attach_sample_photos(false);
+
     return $created;
+}
+
+/**
+ * サンプル会員に同梱の顔写真（src/sample_photos/sampleN.jpg）を割り当てる。
+ * $force=false のときは写真未設定の会員のみ。$force=true は全員上書き。
+ * @return int 写真を設定した人数
+ */
+function attach_sample_photos(bool $force = false): int
+{
+    $dir = __DIR__ . '/sample_photos';
+    $n = 0;
+    for ($i = 1; $i <= 12; $i++) {
+        $email = 'sample' . $i . sample_email_suffix();
+        $m = find_member_by_email($email);
+        if ($m === null) {
+            continue;
+        }
+        $mid = (string) $m['id'];
+        if (!$force) {
+            $prof = get_profile($mid);
+            if (($prof['photo_status'] ?? '') === 'approved') {
+                continue; // 既に写真あり
+            }
+        }
+        $src = $dir . '/sample' . $i . '.jpg';
+        if (!is_file($src)) {
+            continue;
+        }
+        $err = '';
+        if (save_member_photo($mid, ['error' => UPLOAD_ERR_OK, 'size' => filesize($src), 'tmp_name' => $src], $err)) {
+            $n++;
+        }
+    }
+    return $n;
 }
 
 /**

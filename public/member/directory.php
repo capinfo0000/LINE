@@ -88,6 +88,7 @@ $checkedPurpose = array_flip($filters['purpose']);
 $pageTitle = 'さがす';
 $showLogout = true;
 $wide = true;
+$appWide = true;
 $hideBrand = true;
 require __DIR__ . '/_header.php';
 

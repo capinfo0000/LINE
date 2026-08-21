@@ -25,7 +25,7 @@ if ($expected === '' || !hash_equals($expected, $given)) {
 }
 
 $job = (string) ($_GET['job'] ?? '');
-if (!in_array($job, ['remind', 'reconcile', 'recommend', 'thankyou', 'waiver', 'seed', 'unseed'], true)) {
+if (!in_array($job, ['remind', 'reconcile', 'recommend', 'thankyou', 'waiver', 'seed', 'unseed', 'samplephotos'], true)) {
     http_response_code(400);
     exit("unknown job\n");
 }
@@ -125,6 +125,10 @@ try {
     } elseif ($job === 'unseed') {
         $n = delete_sample_members();
         $out = "unseed deleted={$n}";
+    } elseif ($job === 'samplephotos') {
+        // サンプル会員の顔写真を強制的に割り当て直す（既存会員にも反映）。
+        $n = attach_sample_photos(true);
+        $out = "samplephotos set={$n}";
     }
 } catch (\Throwable $e) {
     flock($lock, LOCK_UN);

@@ -9,6 +9,7 @@ declare(strict_types=1);
 $pageTitle = $pageTitle ?? '';
 $showLogout = $showLogout ?? false;
 $wide = $wide ?? false;
+$appWide = $appWide ?? false; // true でPC時に広い一覧レイアウト（さがす等）
 $hideBrand = $hideBrand ?? false; // true で上部の「Enlink」ブランドバーを非表示
 ?>
 <!DOCTYPE html>
@@ -21,7 +22,7 @@ $hideBrand = $hideBrand ?? false; // true で上部の「Enlink」ブランド�
     <script src="/assets/app.js" defer></script>
 </head>
 <body>
-<div class="container<?= $wide ? '' : ' container--narrow' ?>">
+<div class="container<?= $wide ? '' : ' container--narrow' ?><?= $appWide ? ' container--app' : '' ?>">
     <?php if (!$hideBrand): ?>
     <div class="brandbar">Enlink<?php if ($showLogout): ?><a href="/member/logout.php" style="float:right;font-size:.8rem;">ログアウト</a><?php endif; ?></div>
     <?php endif; ?>
