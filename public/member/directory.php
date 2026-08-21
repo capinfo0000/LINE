@@ -99,8 +99,21 @@ $renderCard = function (string $mid, string $nm, string $age, bool $hasPhoto) us
     </div>
     <?php
 };
-// 検索していないときだけ「本日のおすすめ」（双方向マッチ）を出す。
+// 検索していないときだけ「あなたへのおすすめ」（双方向マッチ）を横スクロールで出す。
+// マッチが無ければ全会員の上位をフォールバック表示して、常にカルーセルが出るようにする。
 $recs = !$hasQuery ? compute_recommendations_for((string) $member['id'], 10) : [];
+$recCards = [];
+if (!$hasQuery) {
+    if ($recs !== []) {
+        foreach ($recs as $rc) {
+            $recCards[] = [(string) $rc['member_id'], (string) ($rc['name'] ?? ''), (string) ($rc['age_text'] ?? ''), ($rc['photo_status'] ?? '') === 'approved'];
+        }
+    } else {
+        foreach (array_slice($results, 0, 10) as $r) {
+            $recCards[] = [(string) $r['member_id'], (string) ($r['name_text'] ?? ''), (string) ($r['age_text'] ?? ''), ($r['photo_status'] ?? '') === 'approved'];
+        }
+    }
+}
 ?>
 <h1 style="margin:0 0 12px;font-size:1.5rem;">さがす</h1>
 
@@ -142,15 +155,15 @@ $recs = !$hasQuery ? compute_recommendations_for((string) $member['id'], 10) : [
 </form>
 
 <?php if (!$hasQuery): ?>
-    <div class="tp-pickup"><b>本日のおすすめ</b><span>あなたの条件に合う会員をピックアップ</span></div>
-    <?php if ($recs !== []): ?>
+    <?php if ($recCards !== []): ?>
+        <div class="tp-pickup"><b>あなたへのおすすめ</b><span>あなたに合いそうな会員をピックアップ</span></div>
         <div class="tp-secttl">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 15 8.5 22 9.3l-5 4.6 1.3 6.9L12 17.8 5.7 20.8 7 13.9 2 9.3l7-.8z"/></svg>
-            本日のおすすめ
+            あなたへのおすすめ
             <a class="more" href="/member/recommend.php">すべて見る →</a>
         </div>
         <div class="tp-rail">
-            <?php foreach ($recs as $rc): $renderCard((string) $rc['member_id'], (string) ($rc['name'] ?? ''), (string) ($rc['age_text'] ?? ''), ($rc['photo_status'] ?? '') === 'approved'); endforeach; ?>
+            <?php foreach ($recCards as $c): $renderCard($c[0], $c[1], $c[2], $c[3]); endforeach; ?>
         </div>
     <?php endif; ?>
     <div class="tp-secttl">
