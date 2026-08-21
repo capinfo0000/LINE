@@ -50,8 +50,9 @@ require __DIR__ . '/_header.php';
     <span class="tp-mp-plan">会員ステータス：<strong><?= e($planLabel) ?></strong></span>
 </div>
 
-<div class="tp-tiles">
-    <div class="tp-tile"><b><?= (int) $recv ?></b><span>気になる</span></div>
+<div class="tp-tiles tp-tiles--4">
+    <div class="tp-tile"><b><?= (int) $recv ?></b><span>気になる（受）</span></div>
+    <a class="tp-tile" href="/member/directory.php?tab=footprint"><b><?= (int) footprint_count($id) ?></b><span>足あと</span></a>
     <a class="tp-tile" href="/member/points.php"><b><?= number_format($bal) ?></b><span>ポイント</span></a>
     <a class="tp-tile" href="/member/points.php"><b style="font-size:1rem;line-height:1.9;"><?= e($title) ?></b><span>称号</span></a>
 </div>

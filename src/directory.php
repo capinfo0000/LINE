@@ -104,6 +104,44 @@ function liked_member_ids(string $viewerId): array
 }
 
 /**
+ * 足あとを記録する（$fromId が $toId のプロフィールを閲覧）。
+ * 訪問者ごとに最終閲覧時刻を1件だけ保持（同一相手はUPDATEで更新）。自分自身は記録しない。
+ */
+function record_member_view(string $fromId, string $toId): void
+{
+    if ($fromId === '' || $toId === '' || $fromId === $toId) {
+        return;
+    }
+    $stmt = db()->prepare(
+        'INSERT INTO member_views (from_id, to_id, created_at) VALUES (?, ?, ?)
+         ON CONFLICT(from_id, to_id) DO UPDATE SET created_at = excluded.created_at'
+    );
+    $stmt->execute([$fromId, $toId, time()]);
+}
+
+/**
+ * 自分のプロフィールを見に来た相手（足あと）の会員IDを新しい順で返す。
+ *
+ * @return string[]
+ */
+function footprint_visitor_ids(string $memberId): array
+{
+    $stmt = db()->prepare('SELECT from_id FROM member_views WHERE to_id = ? ORDER BY created_at DESC');
+    $stmt->execute([$memberId]);
+    return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN) ?: []);
+}
+
+/**
+ * 自分への足あと件数（訪問者の実人数）。
+ */
+function footprint_count(string $memberId): int
+{
+    $stmt = db()->prepare('SELECT COUNT(*) FROM member_views WHERE to_id = ?');
+    $stmt->execute([$memberId]);
+    return (int) $stmt->fetchColumn();
+}
+
+/**
  * 会員のタグをカテゴリ別ラベルで返す [category_key => [labels]]。
  */
 function member_tag_labels(string $memberId): array

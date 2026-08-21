@@ -420,6 +420,17 @@ function db_migrate(\PDO $pdo): void
     SQL);
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_interest_to ON member_interests(to_id);');
 
+    // 足あと（プロフィール閲覧履歴）。訪問者ごとに最終閲覧時刻を1件保持（重複はUPDATE）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS member_views (
+            from_id    TEXT NOT NULL,
+            to_id      TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            PRIMARY KEY (from_id, to_id)
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_view_to ON member_views(to_id, created_at);');
+
     // 紹介専用コード（ログインIDとは別の推測されにくいコード）。共有・入力はこのコードで行う。
     db_add_column_if_missing($pdo, 'members', 'referral_code', 'TEXT');
     $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_members_refcode ON members(referral_code) WHERE referral_code IS NOT NULL AND referral_code <> ''");

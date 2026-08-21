@@ -41,6 +41,12 @@ if ($view === null) {
 
 $member = $view['member'];
 $profile = $view['profile'];
+
+// 足あとを記録（自分自身の閲覧は除く）。GET表示時のみ。
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && (string) $viewer['id'] !== $targetId) {
+    record_member_view((string) $viewer['id'], $targetId);
+}
+
 $labels = member_tag_labels($targetId);
 $links = visible_member_links($targetId, $profile);
 $hasApprovedPhoto = ($profile['photo_status'] ?? '') === 'approved';

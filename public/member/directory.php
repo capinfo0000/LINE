@@ -48,6 +48,7 @@ $hasQuery = $filters['area'] || $filters['job'] || $filters['purpose'] || trim($
 $tabs = [
     'osusume' => 'おすすめ',
     'kininaru' => '気になる',
+    'footprint' => '足あと',
     'new' => '新着',
     'ranking' => 'ランキング',
 ];
@@ -62,6 +63,15 @@ if ($hasQuery || isset($_GET['go'])) {
 } elseif ($tab === 'kininaru') {
     // 自分が「気になる」した相手のみ（新しい順）。
     $results = search_directory([], $member['id'], 60, 'points', liked_member_ids($member['id']));
+} elseif ($tab === 'footprint') {
+    // 自分のプロフィールを見に来た相手（足あと・新しい順）。
+    $visitorIds = footprint_visitor_ids($member['id']);
+    $results = search_directory([], $member['id'], 60, 'points', $visitorIds);
+    // 足あとの新しい順を維持（search_directory はポイント順で返すため並べ直す）。
+    if ($results !== [] && $visitorIds !== []) {
+        $order = array_flip($visitorIds);
+        usort($results, static fn ($a, $b) => ($order[(string) $a['member_id']] ?? PHP_INT_MAX) <=> ($order[(string) $b['member_id']] ?? PHP_INT_MAX));
+    }
 } elseif ($tab === 'new') {
     $results = search_directory([], $member['id'], 60, 'new');
 } elseif ($tab === 'ranking') {
@@ -206,13 +216,6 @@ if ($showRail) {
         </a>
     </div>
     <div class="tp-dots"><span></span><span></span><span></span></div>
-
-    <!-- キャンペーンバー -->
-    <a class="tp-coupon" href="/member/points.php">
-        <span class="tp-cbadge">紹介</span>
-        <span class="tp-ctext"><b>5人ご紹介で翌月の月額が0円</b>／紹介はずっと有効</span>
-        <span class="tp-chelp" aria-hidden="true">?</span>
-    </a>
 <?php endif; ?>
 
 <?php if ($showRail && $recCards !== []): ?>
@@ -231,7 +234,7 @@ if ($showRail) {
 if ($hasQuery) {
     echo '<p class="tp-count"><b>' . count($results) . '</b> 名がヒット <span style="color:var(--faint);font-size:.8rem;">・ポイントの高い方が上位</span></p>';
 } else {
-    $secTitle = ['osusume' => 'すべての会員', 'kininaru' => '気になる', 'new' => '新着メンバー', 'ranking' => 'ポイントランキング'][$tab];
+    $secTitle = ['osusume' => 'すべての会員', 'kininaru' => '気になる', 'footprint' => '足あと（あなたを見た人）', 'new' => '新着メンバー', 'ranking' => 'ポイントランキング'][$tab];
     echo '<div class="tp-secttl">';
     echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 3-5.5 6.5-5.5S15.5 16.4 15.5 20"/><circle cx="17" cy="8.5" r="3"/><path d="M17 14.5c3.2 0 5 1.9 5 5.5"/></svg>';
     echo e($secTitle) . ' <span class="more" style="color:var(--faint);font-weight:700;">' . count($results) . '名</span>';
@@ -243,6 +246,8 @@ if ($hasQuery) {
     <div class="card"><p style="margin:0;">
         <?php if ($tab === 'kininaru' && !$hasQuery): ?>
             まだ「気になる」した会員がいません。カードの♡を押すとここに集まります。
+        <?php elseif ($tab === 'footprint' && !$hasQuery): ?>
+            まだ足あとはありません。あなたのプロフィールを見た会員がここに表示されます。
         <?php else: ?>
             条件に合う会員が見つかりませんでした。条件を変えてお試しください。
         <?php endif; ?>
