@@ -283,6 +283,55 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-count{ font-size:.85rem; color:var(--muted); margin:10px 2px; }
 .tp-count b{ color:var(--text); }
 
+/* --- さがす：トップバー（検索＋絞り込みドロップダウン） --- */
+.tp-topbar{ display:flex; align-items:center; gap:8px; margin:2px 0 12px; position:relative; }
+.tp-topbar .tp-search{ flex:1; min-width:0; }
+.tp-filterbox{ position:relative; flex:none; }
+.tp-filtericon{ list-style:none; cursor:pointer; width:44px; height:44px; border-radius:13px; border:1px solid var(--border);
+  background:var(--surface); display:grid; place-items:center; color:var(--coral-d); }
+.tp-filtericon::-webkit-details-marker{ display:none; }
+.tp-filtericon svg{ width:20px; height:20px; }
+.tp-filterbox[open] .tp-filtericon{ background:var(--coral); color:#fff; border-color:var(--coral); }
+.tp-filterpanel{ position:absolute; right:0; top:calc(100% + 8px); z-index:30; width:min(84vw,320px);
+  background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow-md); padding:14px; }
+
+/* --- さがす：カテゴリタブ（横スクロール） --- */
+.tp-cat{ display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; margin:0 -4px 4px; padding:2px 4px; -webkit-overflow-scrolling:touch; }
+.tp-cat::-webkit-scrollbar{ display:none; }
+.tp-cattab{ flex:none; padding:8px 15px; border-radius:999px; font-size:.9rem; font-weight:700; text-decoration:none;
+  color:var(--muted); background:#f4eeee; white-space:nowrap; }
+.tp-cattab.on{ background:var(--coral); color:#fff; box-shadow:0 4px 12px rgba(249,109,109,.35); }
+
+/* --- さがす：ヒーローカルーセル（スワイプ式） --- */
+.tp-promo{ display:flex; gap:10px; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none;
+  margin:12px -4px 6px; padding:0 4px; -webkit-overflow-scrolling:touch; }
+.tp-promo::-webkit-scrollbar{ display:none; }
+.tp-pslide{ scroll-snap-align:center; flex:0 0 92%; border-radius:18px; padding:22px 20px; color:#fff; text-decoration:none;
+  display:flex; flex-direction:column; justify-content:center; min-height:118px; position:relative; overflow:hidden; box-shadow:var(--shadow-sm); }
+.tp-pslide .tp-slabel{ font-size:.7rem; font-weight:800; letter-spacing:.14em; opacity:.9; }
+.tp-pslide b{ font-size:1.28rem; font-weight:800; margin:3px 0 2px; line-height:1.25; }
+.tp-pslide .tp-ssub{ font-size:.82rem; opacity:.95; }
+.tp-pslide--brand{ background:linear-gradient(120deg,#3a2b4d,#1f2937); }
+.tp-pslide--ref{ background:linear-gradient(120deg,#ff9f7a,#f96d6d); }
+.tp-pslide--rank{ background:linear-gradient(120deg,#f0b429,#b8860b); }
+.tp-dots{ display:flex; gap:6px; justify-content:center; margin:2px 0 4px; }
+.tp-dots span{ width:6px; height:6px; border-radius:50%; background:var(--border); }
+.tp-dots span:first-child{ background:var(--coral); }
+
+/* --- さがす：キャンペーンバー --- */
+.tp-coupon{ display:flex; align-items:center; gap:10px; margin:10px 0 4px; padding:11px 14px; border-radius:14px;
+  background:linear-gradient(120deg,#f43f5e,#e0447a); color:#fff; text-decoration:none; box-shadow:var(--shadow-sm); }
+.tp-cbadge{ flex:none; background:rgba(255,255,255,.22); border-radius:8px; padding:3px 9px; font-size:.72rem; font-weight:800; }
+.tp-ctext{ flex:1; min-width:0; font-size:.82rem; line-height:1.3; }
+.tp-ctext b{ font-weight:800; }
+.tp-chelp{ flex:none; width:22px; height:22px; border-radius:50%; border:1.5px solid rgba(255,255,255,.7);
+  display:grid; place-items:center; font-size:.8rem; font-weight:700; }
+
+/* --- さがす：ランキング順位バッジ --- */
+.tp-rankno{ position:absolute; top:8px; right:8px; z-index:2; min-width:24px; height:24px; padding:0 6px; border-radius:8px;
+  background:rgba(17,24,39,.72); color:#fff; font-weight:800; font-size:.82rem; display:grid; place-items:center; }
+.tp-rankno.top{ background:linear-gradient(135deg,#f0b429,#b8860b); }
+
 /* --- さがす：縦カードグリッド（写真前面・情報オーバーレイ） --- */
 .tp-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:12px; margin-top:6px; }
 .tp-card{ position:relative; border-radius:18px; overflow:hidden; aspect-ratio:3/4.1; box-shadow:var(--shadow-sm); color:#fff; }

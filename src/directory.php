@@ -14,12 +14,30 @@ declare(strict_types=1);
  *
  * @param array{area?:int[],job?:int[],purpose?:int[],keyword?:string} $filters
  * @param string $viewerId 除外する自分のID
+ * @param int    $limit    取得件数上限
+ * @param string $order    並び順：'points'（実績上位・既定）/ 'new'（新着）
+ * @param int[]|null $onlyIds 指定時はこの会員IDのみに絞る（気になる一覧など）
  * @return array<int,array> members+profiles の行（visibility.directory=true のみ）
  */
-function search_directory(array $filters, string $viewerId, int $limit = 60): array
+function search_directory(array $filters, string $viewerId, int $limit = 60, string $order = 'points', ?array $onlyIds = null): array
 {
     $where = ["m.status = 'active'", 'm.id != :viewer'];
     $params = [':viewer' => $viewerId];
+
+    // 対象IDの限定（気になる一覧など）。空配列なら結果ゼロ。
+    if ($onlyIds !== null) {
+        $onlyIds = array_values(array_unique(array_filter(array_map('strval', $onlyIds), static fn ($v) => $v !== '')));
+        if ($onlyIds === []) {
+            return [];
+        }
+        $ph = [];
+        foreach ($onlyIds as $i => $id) {
+            $key = ":only{$i}";
+            $ph[] = $key;
+            $params[$key] = $id;
+        }
+        $where[] = 'm.id IN (' . implode(',', $ph) . ')';
+    }
 
     // タグ軸フィルタ（軸内は OR、軸間は AND）。有効タグIDのみ採用。
     foreach (['area', 'job', 'purpose'] as $axis) {
@@ -44,16 +62,19 @@ function search_directory(array $filters, string $viewerId, int $limit = 60): ar
         $where[] = '(p.name_text LIKE :kw OR p.headline LIKE :kw OR p.bio LIKE :kw OR p.company_title LIKE :kw)';
     }
 
-    // 累計獲得ポイント（実績）で上位表示（同点は入会日→作成日の新しい順）。
+    // 並び順：新着＝入会日→作成日の新しい順／既定＝累計獲得ポイント（実績）上位。
     // 実績は消費や減点で下がらないため、ポイントを使っても上位表示の順位は保たれる。
+    $orderBy = $order === 'new'
+        ? 'COALESCE(m.joined_at, m.created_at) DESC, m.created_at DESC'
+        : "(m.plan = 'premium') DESC, points_earned DESC, COALESCE(m.joined_at, 0) DESC, m.created_at DESC";
     $sql = 'SELECT m.id AS member_id, m.login_id, m.joined_at,
                    p.name_text, p.age_text, p.company_title, p.headline, p.bio, p.photo_status, p.visibility_flags,
                    (SELECT COALESCE(SUM(pl.delta), 0) FROM point_ledger pl WHERE pl.member_id = m.id AND pl.delta > 0) AS points_earned
               FROM members m
               JOIN profiles p ON p.member_id = m.id
-             WHERE ' . implode(' AND ', $where) . "
-             ORDER BY (m.plan = 'premium') DESC, points_earned DESC, COALESCE(m.joined_at, 0) DESC, m.created_at DESC
-             LIMIT " . (int) $limit;
+             WHERE ' . implode(' AND ', $where) . '
+             ORDER BY ' . $orderBy . '
+             LIMIT ' . (int) $limit;
 
     $stmt = db()->prepare($sql);
     $stmt->execute($params);
@@ -68,6 +89,18 @@ function search_directory(array $filters, string $viewerId, int $limit = 60): ar
         }
     }
     return $out;
+}
+
+/**
+ * 閲覧者が「気になる」を付けた相手の会員IDを新しい順で返す。
+ *
+ * @return string[]
+ */
+function liked_member_ids(string $viewerId): array
+{
+    $stmt = db()->prepare('SELECT to_id FROM member_interests WHERE from_id = ? ORDER BY created_at DESC');
+    $stmt->execute([$viewerId]);
+    return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN) ?: []);
 }
 
 /**
