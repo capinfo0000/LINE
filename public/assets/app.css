@@ -370,6 +370,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 /* --- プロフィール --- */
 /* プロフィール編集：tapple風の行＋ポップアップ選択 */
 .tp-fields{ border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-top:6px; }
+.tp-fields__h{ margin:16px 0 4px; font-weight:700; font-size:.85rem; color:var(--muted); }
 .tp-field{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:var(--surface);
   border:0; border-bottom:1px solid var(--border); padding:14px; font:inherit; color:var(--text); cursor:pointer; }
 .tp-field:last-child{ border-bottom:0; }
