@@ -15,7 +15,7 @@ $evalType = 'ok';
 
 // 自己紹介を公式LINEに送るまで、他会員のプロフィールは見せない（自分のプレビューは可）。
 if ((string) $viewer['id'] !== $targetId && member_needs_intro($viewer)) {
-    header('Location: /member/intro.php?gate=1');
+    header('Location: /member/directory.php');
     exit;
 }
 

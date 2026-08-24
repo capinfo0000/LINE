@@ -10,9 +10,28 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $member = require_member();
 
-// 自己紹介を公式LINEに送るまで「さがす」は見せない（ロック）。
+// 自己紹介を公式LINEに送るまで「さがす」は見せない。
+// ※ 黙って自己紹介ページへ飛ばすと分かりにくいので、「さがす」画面のままロック案内を表示する。
 if (member_needs_intro($member)) {
-    header('Location: /member/intro.php?gate=1');
+    $pageTitle = 'さがす';
+    $showLogout = true;
+    $wide = true;
+    $appWide = true;
+    $hideBrand = true;
+    require __DIR__ . '/_header.php';
+    ?>
+    <h1 style="margin:0 0 12px;font-size:1.5rem;">さがす</h1>
+    <div class="card" style="text-align:center;">
+        <div style="font-size:2.4rem;line-height:1;margin-bottom:8px;">🔒</div>
+        <div class="card__title" style="justify-content:center;">まだ「さがす」は使えません</div>
+        <p class="muted" style="margin:0 auto 16px;max-width:22em;">
+            会員どうしの検索・閲覧を始めるには、まず<strong>公式LINEのトークに自己紹介を送信</strong>してください。
+            送信が確認されると自動で解除されます。
+        </p>
+        <p style="margin:0;"><a class="btn btn--lg" href="/member/intro.php?gate=1">自己紹介を送る（ひな形を開く）</a></p>
+    </div>
+    <?php
+    require __DIR__ . '/_footer.php';
     exit;
 }
 
