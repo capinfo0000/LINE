@@ -79,47 +79,20 @@ require __DIR__ . '/_header.php';
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
 
 <?php if ($gated): ?>
-<div class="flash flash--ng" style="font-weight:600;">
-    🔒 「さがす」を見るには、まず<strong>公式LINEのトークに自己紹介を送信</strong>してください。<br>
-    <span style="font-weight:400;font-size:.88rem;">送信が確認されると自動で解除されます（反映まで少し時間がかかる場合があります）。</span>
-</div>
-<?php endif; ?>
-
-<div class="flash" style="background:#fff7f6;border:1px solid var(--coral-soft);">
-    <b style="color:var(--coral-d);">公式LINEへの最初のあいさつ</b>
-    <p style="margin:6px 0 0;font-size:.9rem;">下のひな形を送るだけ。手順は簡単3ステップです。</p>
-    <ol style="margin:8px 0 0;padding-left:1.2em;font-size:.88rem;">
-        <li>下のひな形を<strong>編集して「保存」</strong></li>
-        <li><strong>「コピー」</strong>で本文をコピー</li>
-        <li><strong>公式LINEのトークを開いて貼り付け→送信</strong></li>
-    </ol>
-</div>
-
-<?php if ($profileThin): ?>
-<div class="flash flash--ng">
-    プロフィールが未入力です。先に <a href="/member/profile.php">プロフィールを編集</a> すると、より充実したひな形が作れます。
-</div>
+<div class="flash flash--ng">🔒 まず<strong>公式LINEに自己紹介を送信</strong>してください。確認できると「さがす」が使えます。</div>
 <?php endif; ?>
 
 <form method="post" class="card">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
-    <div class="card__title" style="color:var(--coral-d);">あなたのひな形（編集して保存できます）</div>
-    <textarea id="introText" name="intro_text" rows="14" style="width:100%;font-size:.95rem;line-height:1.6;"><?= e($display) ?></textarea>
+    <textarea id="introText" name="intro_text" rows="15" style="width:100%;font-size:.95rem;line-height:1.6;"><?= e($display) ?></textarea>
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        <button type="submit" class="btn">保存する</button>
+        <button type="submit" class="btn">保存</button>
         <button type="button" class="btn btn--ghost" data-copy-target="introText" data-copied-label="✓ コピーしました">コピー</button>
-        <a class="btn btn--ghost" href="/member/intro.php?reset=1" data-confirm="プロフィールから作り直します（未保存の編集は消えます）。よろしいですか？">テンプレートに戻す</a>
+        <?php if ($officialUrl !== ''): ?>
+            <a class="btn" href="<?= e($officialUrl) ?>" target="_blank" rel="noopener" style="background:#06c755;border-color:#06c755;">公式LINEを開く →</a>
+        <?php endif; ?>
+        <a class="btn btn--ghost" href="/member/intro.php?reset=1" data-confirm="プロフィールから作り直します（未保存の編集は消えます）。よろしいですか？">作り直す</a>
     </div>
-    <?php if ($officialUrl !== ''): ?>
-        <p style="margin:14px 0 0;"><a class="btn" href="<?= e($officialUrl) ?>" target="_blank" rel="noopener" style="background:#06c755;border-color:#06c755;">公式LINEを開く →</a></p>
-        <p class="muted" style="font-size:.8rem;margin:6px 0 0;">コピーしてから開くと、そのまま貼り付けて送信できます。</p>
-    <?php else: ?>
-        <p class="muted" style="font-size:.8rem;margin:12px 0 0;">※ コピーしたら、Enlink公式LINEのトークを開いて貼り付け、送信してください。</p>
-    <?php endif; ?>
-    <p class="muted" style="font-size:.8rem;margin:10px 0 0;">
-        ※ 「保存する」で内容を保存できます。コピーした内容は<strong>公式LINEのトーク</strong>に貼り付けて送信してください。
-        <?php if ($savedIntro !== '' && !$reset): ?><br>現在は<strong>保存済みの内容</strong>を表示しています。<?php endif; ?>
-    </p>
 </form>
 
 <?php require __DIR__ . '/_footer.php'; ?>
