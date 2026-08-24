@@ -240,7 +240,6 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
             <label class="tp-avedit">
                 <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" hidden>
                 <?php if ($photoAbs !== null): ?><img src="/member/photo.php" alt="顔写真"><?php else: ?><span class="tp-avedit__ph"><?= $camSvg ?></span><?php endif; ?>
-                <span class="tp-cam-badge"><?= $camSvg ?></span>
             </label>
         </div>
         <?php if ($coverAbs !== null || $photoAbs !== null): ?>
@@ -257,10 +256,10 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
             <?php $renderField('m-company', '会社・肩書き', 'f-company', 'company_title', (string) $profile['company_title'], (string) $profile['company_title'], 'text', '例: 田中会計事務所 / 代表', false, ['maxlength' => '120']); ?>
             <?php $renderField('m-headline', 'ひとことPR', 'f-headline', 'headline', (string) $profile['headline'], (string) $profile['headline'], 'text', '例: 補助金・資金繰りが専門です', false, ['maxlength' => '120']); ?>
             <?php $renderTextareaField('m-bio', '自己紹介', 'f-bio', 'bio', (string) $profile['bio'], '経歴・得意なこと・どんな方とつながりたいか など'); ?>
-            <?php $renderPicker('m-area', '📍 場所', $grouped['area'] ?? [], 'tags', $myTagIds, 'gt-area'); ?>
-            <?php $renderPicker('m-job', '💼 仕事ジャンル', $grouped['job'] ?? [], 'tags', $myTagIds, 'gt-job'); ?>
-            <?php $renderPicker('m-purpose', '🎯 目的（求めること）', $grouped['purpose'] ?? [], 'tags', $myTagIds, 'gt-purpose'); ?>
-            <?php $renderPicker('m-offer', '🤝 提供できること', $grouped['offer'] ?? [], 'tags', $myTagIds, 'gt-offer'); ?>
+            <?php $renderPicker('m-area', '場所', $grouped['area'] ?? [], 'tags', $myTagIds, 'gt-area'); ?>
+            <?php $renderPicker('m-job', '仕事ジャンル', $grouped['job'] ?? [], 'tags', $myTagIds, 'gt-job'); ?>
+            <?php $renderPicker('m-purpose', '目的（求めること）', $grouped['purpose'] ?? [], 'tags', $myTagIds, 'gt-purpose'); ?>
+            <?php $renderPicker('m-offer', '提供できること', $grouped['offer'] ?? [], 'tags', $myTagIds, 'gt-offer'); ?>
             <?php $renderPicker('m-sarea', '相手の場所（求める条件）', $grouped['area'] ?? [], 'seek_area', $prefArea, 'gt-sarea'); ?>
             <?php $renderPicker('m-sjob', '相手の仕事ジャンル（求める条件）', $grouped['job'] ?? [], 'seek_job', $prefJob, 'gt-sjob'); ?>
             <?php $renderPicker('m-spurpose', '相手の目的（求める条件）', $grouped['purpose'] ?? [], 'seek_purpose', $prefPurpose, 'gt-spurpose'); ?>
