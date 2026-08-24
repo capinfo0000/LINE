@@ -16,9 +16,15 @@ $msgType = 'ok';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
     if ((string) ($_POST['action'] ?? '') === 'referral') {
-        $r = record_referral($memberId, (string) ($_POST['referrer_code'] ?? ''));
-        $msg = $r['message'];
-        $msgType = $r['ok'] ? 'ok' : 'ng';
+        // 紹介制度は課金開始後のみ受付（未公開フェーズの前倒し実行を防ぐ）。
+        if (!billing_started()) {
+            $msg = '紹介制度は現在準備中です。制度開始までお待ちください。';
+            $msgType = 'ng';
+        } else {
+            $r = record_referral($memberId, (string) ($_POST['referrer_code'] ?? ''));
+            $msg = $r['message'];
+            $msgType = $r['ok'] ? 'ok' : 'ng';
+        }
     }
 }
 
@@ -52,7 +58,7 @@ require __DIR__ . '/_header.php';
     <div class="card__title">紹介であなたのコードを共有</div>
     <p>友人が入会時にあなたのコードを入力すると、<strong>あなたに<?= points_amount('referrer') ?>pt・相手に<?= points_amount('joiner') ?>pt</strong>が入ります。</p>
     <p>あなたの紹介コード：
-        <input class="js-select" type="text" value="<?= e(member_referral_code($member)) ?>" readonly style="max-width:200px;font-weight:700;letter-spacing:.08em;" onclick="this.select()">
+        <input class="js-select" type="text" value="<?= e(member_referral_code($member)) ?>" readonly style="max-width:200px;font-weight:700;letter-spacing:.08em;">
     </p>
     <p class="muted" style="font-size:.82rem;">※このコードはログインIDとは別です。安心して共有できます。</p>
 </div>

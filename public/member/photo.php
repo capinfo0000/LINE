@@ -43,8 +43,19 @@ if ($abs === null) {
 
 $info = @getimagesize($abs);
 $mime = $info['mime'] ?? 'application/octet-stream';
+
+// 画像はURLが固定なので、内容の変化を ETag（mtime+サイズ）で検知して再検証させる。
+// これで差し替え後に古い画像がキャッシュされ続ける問題を防ぐ（毎回全量DLはしない）。
+clearstatcache(true, $abs);
+$etag = '"' . substr(md5((string) filemtime($abs) . '-' . (string) filesize($abs)), 0, 20) . '"';
+header('Cache-Control: private, max-age=0, must-revalidate');
+header('ETag: ' . $etag);
+header('X-Content-Type-Options: nosniff');
+$ifNoneMatch = trim((string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? ''));
+if ($ifNoneMatch !== '' && $ifNoneMatch === $etag) {
+    http_response_code(304);
+    exit;
+}
 header('Content-Type: ' . $mime);
 header('Content-Length: ' . (string) filesize($abs));
-header('Cache-Control: private, max-age=300');
-header('X-Content-Type-Options: nosniff');
 readfile($abs);

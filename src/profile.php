@@ -130,10 +130,15 @@ function normalize_birthdate(string $raw): string
         return '';
     }
     [$y, $mo, $da] = [(int) $m[1], (int) $m[2], (int) $m[3]];
-    if (!checkdate($mo, $da, $y) || $y < 1900 || $y > (int) date('Y')) {
+    if (!checkdate($mo, $da, $y) || $y < 1900) {
         return '';
     }
-    return sprintf('%04d-%02d-%02d', $y, $mo, $da);
+    $norm = sprintf('%04d-%02d-%02d', $y, $mo, $da);
+    // 未来日は不可（当年内の未来日も含めて弾く）。
+    if ($norm > date('Y-m-d')) {
+        return '';
+    }
+    return $norm;
 }
 
 /** 生年月日(YYYY-MM-DD)から満年齢を算出（不正なら null）。 */

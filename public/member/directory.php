@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         toggle_interest((string) $member['id'], $likeTo);
     }
     $ret = (string) ($_POST['return'] ?? '/member/directory.php');
-    if (!preg_match('#^/member/[A-Za-z0-9_./?=&%-]*$#', $ret)) {
+    if (!preg_match('#^/member/[A-Za-z0-9_./?=&%+-]*$#', $ret)) {
         $ret = '/member/directory.php'; // オープンリダイレクト対策
     }
     header('Location: ' . $ret);
@@ -86,12 +86,18 @@ if ($hasQuery || isset($_GET['go'])) {
     // キーワード/絞り込み検索：実績上位順。
     $results = search_directory($filters, $member['id']);
 } elseif ($tab === 'kininaru') {
-    // 自分が「気になる」した相手のみ（新しい順）。
-    $results = search_directory([], $member['id'], 60, 'points', liked_member_ids($member['id']));
+    // 自分が「気になる」した相手のみ（♡を付けた新しい順）。
+    // 取得は対象ID全件（上限は十分大きく）→ liked の並び順で並べ直す。
+    $likedIds = liked_member_ids($member['id']);
+    $results = search_directory([], $member['id'], max(200, count($likedIds)), 'points', $likedIds);
+    if ($results !== [] && $likedIds !== []) {
+        $order = array_flip($likedIds);
+        usort($results, static fn ($a, $b) => ($order[(string) $a['member_id']] ?? PHP_INT_MAX) <=> ($order[(string) $b['member_id']] ?? PHP_INT_MAX));
+    }
 } elseif ($tab === 'footprint') {
     // 自分のプロフィールを見に来た相手（足あと・新しい順）。
     $visitorIds = footprint_visitor_ids($member['id']);
-    $results = search_directory([], $member['id'], 60, 'points', $visitorIds);
+    $results = search_directory([], $member['id'], max(200, count($visitorIds)), 'points', $visitorIds);
     // 足あとの新しい順を維持（search_directory はポイント順で返すため並べ直す）。
     if ($results !== [] && $visitorIds !== []) {
         $order = array_flip($visitorIds);

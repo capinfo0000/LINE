@@ -349,7 +349,9 @@ function csrf_verify(?string $token): void
         // 同一ホストの参照元にだけ「戻る」を許可（オープンリダイレクト対策）。
         $back = (string) ($_SERVER['HTTP_REFERER'] ?? '');
         $safe = '/';
-        if ($back !== '' && parse_url($back, PHP_URL_HOST) === ($_SERVER['HTTP_HOST'] ?? '')) {
+        // ポートを含む HTTP_HOST とホスト名のみの parse_url を揃えて比較（同一オリジンのみ許可）。
+        $host = parse_url('//' . (string) ($_SERVER['HTTP_HOST'] ?? ''), PHP_URL_HOST);
+        if ($back !== '' && parse_url($back, PHP_URL_HOST) === $host) {
             $safe = $back;
         }
         header('Content-Type: text/html; charset=UTF-8');

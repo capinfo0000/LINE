@@ -157,7 +157,7 @@ $hasAnyTag = ($labels['area'] ?? []) || ($labels['job'] ?? []) || ($labels['purp
     <dl class="tp-kv">
         <?php if (($profile['company_title'] ?? '') !== ''): ?><dt>会社・肩書き</dt><dd><?= e($profile['company_title']) ?></dd><?php endif; ?>
         <?php if ($area !== ''): ?><dt>エリア</dt><dd><?= e($area) ?></dd><?php endif; ?>
-        <?php if (($profile['age_text'] ?? '') !== ''): ?><dt>年齢</dt><dd><?= e($profile['age_text']) ?></dd><?php endif; ?>
+        <?php if ($ageDisp !== ''): ?><dt>年齢</dt><dd><?= e($ageDisp) ?></dd><?php endif; ?>
     </dl>
 </section>
 <?php endif; ?>

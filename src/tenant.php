@@ -66,11 +66,11 @@ function recent_failed_logins_by_ip(string $ip, int $windowSec = 900): int
     return (int) $stmt->fetchColumn();
 }
 
-/** 失敗を記録する。 */
+/** 失敗を記録する。IPは判定側 recent_failed_logins_by_ip(client_ip()) と揃える。 */
 function record_failed_login(string $email): void
 {
     $stmt = db()->prepare('INSERT INTO login_attempts (identifier, ip, created_at) VALUES (?, ?, ?)');
-    $stmt->execute([strtolower(trim($email)), $_SERVER['REMOTE_ADDR'] ?? '', time()]);
+    $stmt->execute([strtolower(trim($email)), client_ip(), time()]);
 }
 
 /** 成功時に失敗履歴をクリアする。 */

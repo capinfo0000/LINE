@@ -525,7 +525,8 @@ function line_handle_event(array $event): array
         // 判定：ひな形の目印「enlink」を含む or 十分な長さ（予約キーワードは除外）。
         $contact = find_line_contact($userId);
         $linkedMemberId = $contact !== null ? (string) ($contact['member_id'] ?? '') : '';
-        if ($mtype === 'text' && $linkedMemberId !== '') {
+        // 単独のメールアドレスは自己紹介ではなくメール登録として扱うため除外する。
+        if ($mtype === 'text' && $linkedMemberId !== '' && !filter_var($text, FILTER_VALIDATE_EMAIL)) {
             $member = find_member_by_id($linkedMemberId);
             if ($member !== null && !member_intro_submitted($member) && member_needs_intro($member)) {
                 $looksIntro = mb_stripos($text, 'enlink') !== false

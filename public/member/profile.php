@@ -30,8 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     foreach ((array) ($_POST['link_url'] ?? []) as $u) {
         $u = trim((string) $u);
-        if ($u !== '' && !preg_match('#^https?://#i', $u)) {
-            $errors[] = 'リンクのURLは「https://」から始まる形式で入力してください（例: https://example.com）。';
+        if ($u !== '' && !is_valid_link_url($u)) {
+            $errors[] = 'リンクのURLが正しくありません。「https://」から始まる正しいURLを入力してください（例: https://example.com）。';
             break;
         }
     }
@@ -76,37 +76,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     set_member_links($memberId, $links);
 
-    // 顔写真：削除 or アップロード
-    if (!empty($_POST['photo_delete'])) {
-        delete_member_photo($memberId);
-    } elseif (($_FILES['photo']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+    // 顔写真：新しいファイルがあればアップロード優先、無ければ削除指定を処理。
+    if (($_FILES['photo']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
         $perr = '';
         if (!save_member_photo($memberId, $_FILES['photo'], $perr)) {
             $msg = $perr;
             $msgType = 'ng';
         }
+    } elseif (!empty($_POST['photo_delete'])) {
+        delete_member_photo($memberId);
     }
 
-    // カバー画像（全会員公開）：削除 or アップロード
-    if (!empty($_POST['cover_delete'])) {
-        delete_member_image($memberId, 'cover_path');
-    } elseif (($_FILES['cover']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+    // カバー画像（全会員公開）：アップロード優先、無ければ削除指定を処理。
+    if (($_FILES['cover']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
         $cerr = '';
         if (!save_member_image($memberId, 'cover_path', 'cover', $_FILES['cover'], 1200, $cerr)) {
             $msg = $cerr;
             $msgType = 'ng';
         }
+    } elseif (!empty($_POST['cover_delete'])) {
+        delete_member_image($memberId, 'cover_path');
     }
 
-    // 名刺画像（全会員公開）：削除 or アップロード
-    if (!empty($_POST['card_delete'])) {
-        delete_member_image($memberId, 'card_path');
-    } elseif (($_FILES['card']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+    // 名刺画像（全会員公開）：アップロード優先、無ければ削除指定を処理。
+    if (($_FILES['card']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
         $kerr = '';
         if (!save_member_image($memberId, 'card_path', 'card', $_FILES['card'], 1000, $kerr)) {
             $msg = $kerr;
             $msgType = 'ng';
         }
+    } elseif (!empty($_POST['card_delete'])) {
+        delete_member_image($memberId, 'card_path');
     }
 
     if ($msg === '') {
@@ -130,6 +130,31 @@ $coverAbs = member_image_abs_path($profile, 'cover_path');
 $cardAbs = member_image_abs_path($profile, 'card_path');
 $birthdate = (string) ($profile['birthdate'] ?? '');
 $currentAge = $birthdate !== '' ? compute_age($birthdate) : null;
+
+// 検証エラーで保存をスキップした場合は、DB値ではなく「送信された内容」で再表示する
+// （ユーザーが打ち込んだ変更を失わせない）。
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msgType === 'ng') {
+    $profile['name_text']     = (string) ($_POST['name_text'] ?? $profile['name_text']);
+    $profile['company_title'] = (string) ($_POST['company_title'] ?? $profile['company_title']);
+    $profile['headline']      = (string) ($_POST['headline'] ?? $profile['headline']);
+    $profile['bio']           = (string) ($_POST['bio'] ?? $profile['bio']);
+    $birthdate  = (string) ($_POST['birthdate'] ?? $birthdate);
+    $currentAge = normalize_birthdate($birthdate) !== '' ? compute_age($birthdate) : null;
+    $myTagIds   = array_flip(array_map('intval', (array) ($_POST['tags'] ?? [])));
+    $prefArea   = array_flip(array_map('intval', (array) ($_POST['seek_area'] ?? [])));
+    $prefJob    = array_flip(array_map('intval', (array) ($_POST['seek_job'] ?? [])));
+    $prefPurpose = array_flip(array_map('intval', (array) ($_POST['seek_purpose'] ?? [])));
+    $pk = (array) ($_POST['link_kind'] ?? []);
+    $pl = (array) ($_POST['link_label'] ?? []);
+    $pu = (array) ($_POST['link_url'] ?? []);
+    $links = [];
+    foreach ($pu as $i => $u) {
+        if (trim((string) $u) === '' && trim((string) ($pl[$i] ?? '')) === '') {
+            continue;
+        }
+        $links[] = ['kind' => (string) ($pk[$i] ?? 'other'), 'label' => (string) ($pl[$i] ?? ''), 'url' => (string) $u];
+    }
+}
 
 $token = csrf_token();
 $pageTitle = 'プロフィール編集';
