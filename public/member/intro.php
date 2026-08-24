@@ -66,6 +66,7 @@ $display = (!$reset && $savedIntro !== '') ? $savedIntro : $template;
 
 $profileThin = ($profile['name_text'] ?? '') === '' && $headline === '' && $bio === '';
 $token = csrf_token();
+$openChatUrl = active_openchat_url();
 
 $pageTitle = '自己紹介ひな形';
 $showLogout = true;
@@ -79,9 +80,13 @@ require __DIR__ . '/_header.php';
 <div class="flash" style="background:#fff7f6;border:1px solid var(--coral-soft);">
     <b style="color:var(--coral-d);">グループLINE（オープンチャット）での最初のあいさつ</b>
     <p style="margin:6px 0 0;font-size:.9rem;">
-        入室したら、まず自己紹介を投稿しましょう。下のひな形を<strong>自由に編集して保存</strong>し、
-        「コピー」ボタンでコピー → オープンチャットに貼り付けて送信してください。
+        入室したら、まず自己紹介を投稿しましょう。手順は簡単3ステップです。
     </p>
+    <ol style="margin:8px 0 0;padding-left:1.2em;font-size:.88rem;">
+        <li>下のひな形を<strong>編集して「保存」</strong></li>
+        <li><strong>「コピー」</strong>で本文をコピー</li>
+        <li><strong>オープンチャットを開いて貼り付け→送信</strong></li>
+    </ol>
 </div>
 
 <?php if ($profileThin): ?>
@@ -99,6 +104,12 @@ require __DIR__ . '/_header.php';
         <button type="button" class="btn btn--ghost" data-copy-target="introText" data-copied-label="✓ コピーしました">コピー</button>
         <a class="btn btn--ghost" href="/member/intro.php?reset=1" data-confirm="プロフィールから作り直します（未保存の編集は消えます）。よろしいですか？">テンプレートに戻す</a>
     </div>
+    <?php if ($openChatUrl !== null): ?>
+        <p style="margin:14px 0 0;"><a class="btn" href="<?= e($openChatUrl) ?>" target="_blank" rel="noopener" style="background:#06c755;border-color:#06c755;">オープンチャットを開く →</a></p>
+        <p class="muted" style="font-size:.8rem;margin:6px 0 0;">コピーしてから開くと、そのまま貼り付けて送信できます。</p>
+    <?php else: ?>
+        <p class="muted" style="font-size:.8rem;margin:12px 0 0;">※ オープンチャットの参加URLは、入会時のLINEメッセージからご確認ください。</p>
+    <?php endif; ?>
     <p class="muted" style="font-size:.8rem;margin:10px 0 0;">
         ※ 「保存する」で内容を保存できます。コピーした内容はオープンチャットに貼り付けて送信してください。
         <?php if ($savedIntro !== '' && !$reset): ?><br>現在は<strong>保存済みの内容</strong>を表示しています。<?php endif; ?>
