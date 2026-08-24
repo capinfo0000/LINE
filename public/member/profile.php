@@ -229,26 +229,38 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
 
     <div class="card">
         <!-- imgpipe: <?= e(photo_pipeline_tag()) ?> -->
-        <label style="margin-top:0;">カバー画像（背景・全会員に公開／横長推奨）</label>
-        <?php if ($coverAbs !== null): ?>
-            <img src="/member/photo.php?kind=cover" alt="現在のカバー画像" style="width:100%;height:130px;object-fit:cover;border-radius:14px;box-shadow:var(--shadow-sm);margin-top:4px;">
-            <div style="margin-top:6px;"><label style="font-weight:normal;display:inline-flex;gap:6px;align-items:center;"><input type="checkbox" name="cover_delete" value="1" style="width:auto;"> 削除する</label></div>
+        <?php
+        $camSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+        ?>
+        <!-- カバー＋顔写真（インスタ風エディタ） -->
+        <div class="tp-editcover">
+            <label class="tp-cov">
+                <input type="file" name="cover" accept="image/jpeg,image/png,image/webp" hidden>
+                <?php if ($coverAbs !== null): ?><img src="/member/photo.php?kind=cover" alt="カバー画像"><?php endif; ?>
+                <span class="tp-cam"><?= $camSvg ?> カバー画像</span>
+            </label>
+            <label class="tp-avedit">
+                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" hidden>
+                <?php if ($photoAbs !== null): ?><img src="/member/photo.php" alt="顔写真"><?php else: ?><span class="tp-avedit__ph"><?= $camSvg ?></span><?php endif; ?>
+                <span class="tp-cam-badge"><?= $camSvg ?></span>
+            </label>
+        </div>
+        <?php if ($coverAbs !== null || $photoAbs !== null): ?>
+        <div class="tp-imgdel">
+            <?php if ($photoAbs !== null): ?><label><input type="checkbox" name="photo_delete" value="1"> 顔写真を削除</label><?php endif; ?>
+            <?php if ($coverAbs !== null): ?><label><input type="checkbox" name="cover_delete" value="1"> カバーを削除</label><?php endif; ?>
+        </div>
         <?php endif; ?>
-        <input type="file" name="cover" accept="image/jpeg,image/png,image/webp">
 
-        <label>顔写真</label>
-        <?php if ($photoAbs !== null): ?>
-            <img src="/member/photo.php" alt="現在の写真" style="width:110px;height:110px;object-fit:cover;border-radius:16px;box-shadow:var(--shadow-md);margin-top:4px;">
-            <div style="margin-top:6px;"><label style="font-weight:normal;display:inline-flex;gap:6px;align-items:center;"><input type="checkbox" name="photo_delete" value="1" style="width:auto;"> 削除する</label></div>
-        <?php endif; ?>
-        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
-
-        <label>名刺画像（全会員に公開）</label>
+        <label style="margin-top:16px;">名刺画像（全会員に公開）</label>
+        <label class="tp-cardedit">
+            <input type="file" name="card" accept="image/jpeg,image/png,image/webp" hidden>
+            <?php if ($cardAbs !== null): ?><img src="/member/photo.php?kind=card" alt="名刺画像"><?php else: ?><span class="tp-cardedit__ph"><?= $camSvg ?> 名刺画像を選ぶ</span><?php endif; ?>
+            <?php if ($cardAbs !== null): ?><span class="tp-cam"><?= $camSvg ?> 変更</span><?php endif; ?>
+        </label>
         <?php if ($cardAbs !== null): ?>
-            <img src="/member/photo.php?kind=card" alt="現在の名刺画像" style="max-width:100%;border-radius:12px;box-shadow:var(--shadow-sm);margin-top:4px;">
-            <div style="margin-top:6px;"><label style="font-weight:normal;display:inline-flex;gap:6px;align-items:center;"><input type="checkbox" name="card_delete" value="1" style="width:auto;"> 削除する</label></div>
+        <div class="tp-imgdel"><label><input type="checkbox" name="card_delete" value="1"> 名刺を削除</label></div>
         <?php endif; ?>
-        <input type="file" name="card" accept="image/jpeg,image/png,image/webp">
 
         <hr style="border:0;border-top:1px solid var(--border);margin:18px 0;">
         <div class="tp-fields">
