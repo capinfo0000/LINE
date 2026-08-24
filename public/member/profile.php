@@ -252,16 +252,6 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
         </div>
         <?php endif; ?>
 
-        <label style="margin-top:16px;">名刺画像（全会員に公開）</label>
-        <label class="tp-cardedit">
-            <input type="file" name="card" accept="image/jpeg,image/png,image/webp" hidden>
-            <?php if ($cardAbs !== null): ?><img src="/member/photo.php?kind=card" alt="名刺画像"><?php else: ?><span class="tp-cardedit__ph"><?= $camSvg ?> 名刺画像を選ぶ</span><?php endif; ?>
-            <?php if ($cardAbs !== null): ?><span class="tp-cam"><?= $camSvg ?> 変更</span><?php endif; ?>
-        </label>
-        <?php if ($cardAbs !== null): ?>
-        <div class="tp-imgdel"><label><input type="checkbox" name="card_delete" value="1"> 名刺を削除</label></div>
-        <?php endif; ?>
-
         <hr style="border:0;border-top:1px solid var(--border);margin:18px 0;">
         <div class="tp-fields">
             <?php $renderField('m-name', '名前', 'f-name', 'name_text', (string) $profile['name_text'], (string) $profile['name_text'], 'text', '例: 田中 由紀', false, ['maxlength' => '100']); ?>
@@ -288,6 +278,11 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
             <button type="button" class="tp-field" data-modal-open="m-links">
                 <span class="tp-field__l">リンク</span>
                 <span class="tp-field__v<?= $linkCount === 0 ? ' is-empty' : '' ?>" id="linkSummary"><?= $linkCount > 0 ? $linkCount . '件' : '未設定' ?></span>
+                <span class="tp-field__c">›</span>
+            </button>
+            <button type="button" class="tp-field" data-modal-open="m-card">
+                <span class="tp-field__l">名刺画像</span>
+                <span class="tp-field__v<?= $cardAbs === null ? ' is-empty' : '' ?>"><?= $cardAbs === null ? '未設定' : '登録済み' ?></span>
                 <span class="tp-field__c">›</span>
             </button>
         </div>
@@ -322,6 +317,23 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
         </div>
     </div>
     <template id="linkRowTpl"><?php $renderLinkRow(); ?></template>
+
+    <!-- 名刺画像 編集モーダル -->
+    <div class="modal" id="m-card">
+        <div class="modal__box">
+            <button type="button" class="modal__close" data-modal-close aria-label="閉じる">×</button>
+            <div class="modal__title">名刺画像</div>
+            <p class="modal__lead">全会員に公開されます。個人情報の記載にご注意ください。</p>
+            <label class="tp-cardedit">
+                <input type="file" name="card" accept="image/jpeg,image/png,image/webp" hidden>
+                <?php if ($cardAbs !== null): ?><img src="/member/photo.php?kind=card" alt="名刺画像"><span class="tp-cam"><?= $camSvg ?> 変更</span><?php else: ?><span class="tp-cardedit__ph"><?= $camSvg ?> 名刺画像を選ぶ</span><?php endif; ?>
+            </label>
+            <?php if ($cardAbs !== null): ?>
+            <div class="tp-imgdel"><label><input type="checkbox" name="card_delete" value="1"> 名刺を削除</label></div>
+            <?php endif; ?>
+            <div class="modal__actions"><button type="button" class="btn" data-modal-close>決定</button></div>
+        </div>
+    </div>
 
     <p><button type="submit" class="btn">保存する</button>
        <a class="btn btn--ghost" href="/member/dashboard.php">戻る</a></p>
