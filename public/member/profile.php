@@ -202,6 +202,20 @@ $renderTextareaField = function (string $modalId, string $label, string $key, st
     </div>
     <?php
 };
+
+/** リンク1行（種別・ラベル・URL）を描画する。追加行のテンプレートでも使用。 */
+$renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' => '']) {
+    ?>
+    <div class="tp-linkrow-edit" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+        <select name="link_kind[]" style="max-width:120px;">
+            <option value="line_add"<?= ($lk['kind'] ?? '') === 'line_add' ? ' selected' : '' ?>>LINE追加</option>
+            <option value="other"<?= ($lk['kind'] ?? '') !== 'line_add' ? ' selected' : '' ?>>その他</option>
+        </select>
+        <input type="text" name="link_label[]" placeholder="ラベル(任意)" value="<?= e($lk['label'] ?? '') ?>" style="max-width:120px;">
+        <input type="url" name="link_url[]" placeholder="https://..." value="<?= e($lk['url'] ?? '') ?>" style="flex:1;min-width:170px;">
+    </div>
+    <?php
+};
 ?>
 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 6px;">
     <h1 style="font-size:1.5rem;margin:0;">プロフィール編集</h1>
@@ -251,33 +265,52 @@ $renderTextareaField = function (string $modalId, string $label, string $key, st
             <?php $renderPicker('m-sarea', '相手の場所（求める条件）', $grouped['area'] ?? [], 'seek_area', $prefArea, 'gt-sarea'); ?>
             <?php $renderPicker('m-sjob', '相手の仕事ジャンル（求める条件）', $grouped['job'] ?? [], 'seek_job', $prefJob, 'gt-sjob'); ?>
             <?php $renderPicker('m-spurpose', '相手の目的（求める条件）', $grouped['purpose'] ?? [], 'seek_purpose', $prefPurpose, 'gt-spurpose'); ?>
+            <?php
+            // リンク：基本情報と同じ行スタイル。件数サマリを表示し、タップでポップアップ編集。
+            $linkCount = 0;
+            foreach ($links as $lk) {
+                if (trim((string) ($lk['url'] ?? '')) !== '') {
+                    $linkCount++;
+                }
+            }
+            ?>
+            <button type="button" class="tp-field" data-modal-open="m-links">
+                <span class="tp-field__l">リンク</span>
+                <span class="tp-field__v<?= $linkCount === 0 ? ' is-empty' : '' ?>" id="linkSummary"><?= $linkCount > 0 ? $linkCount . '件' : '未設定' ?></span>
+                <span class="tp-field__c">›</span>
+            </button>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card__title" style="color:var(--coral-d);">リンク・表示設定</div>
-        <p class="muted" style="margin-top:0;font-size:.85rem;">1行目は「LINE追加URL」推奨。空欄の行は無視されます。</p>
-        <?php
-        // 既存＋空行を最大6行表示
-        $rows = $links;
-        while (count($rows) < 6) {
-            $rows[] = ['kind' => count($rows) === 0 ? 'line_add' : 'other', 'label' => '', 'url' => ''];
-        }
-        foreach ($rows as $i => $lk): ?>
-            <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
-                <select name="link_kind[]" style="max-width:130px;">
-                    <option value="line_add"<?= ($lk['kind'] ?? '') === 'line_add' ? ' selected' : '' ?>>LINE追加</option>
-                    <option value="other"<?= ($lk['kind'] ?? '') !== 'line_add' ? ' selected' : '' ?>>その他</option>
-                </select>
-                <input type="text" name="link_label[]" placeholder="ラベル(任意)" value="<?= e($lk['label'] ?? '') ?>" style="max-width:130px;">
-                <input type="url" name="link_url[]" placeholder="https://..." value="<?= e($lk['url'] ?? '') ?>" style="flex:1;min-width:180px;">
+    <!-- リンク編集モーダル（自分で件数を追加できる） -->
+    <div class="modal" id="m-links">
+        <div class="modal__box">
+            <button type="button" class="modal__close" data-modal-close aria-label="閉じる">×</button>
+            <div class="modal__title">リンク</div>
+            <p class="modal__lead">LINE追加URL・SNS・Webなど。1行目は「LINE追加」推奨。空欄の行は無視されます。</p>
+            <div id="linkRows">
+                <?php
+                $rows = $links;
+                if ($rows === []) {
+                    $rows[] = ['kind' => 'line_add', 'label' => '', 'url' => ''];
+                }
+                foreach ($rows as $lk) {
+                    $renderLinkRow($lk);
+                }
+                ?>
             </div>
-        <?php endforeach; ?>
-
-        <div style="border-top:1px solid var(--border);margin:14px 0 0;padding-top:14px;">
-            <label style="font-weight:normal;"><input type="checkbox" name="vis_directory" value="1"<?= $vis['directory'] ? ' checked' : '' ?>> 会員ディレクトリに自分を掲載する</label><br>
-            <label style="font-weight:normal;"><input type="checkbox" name="vis_line_url" value="1"<?= $vis['line_url'] ? ' checked' : '' ?>> LINE追加URLを他の会員に表示する</label>
+            <p style="margin:4px 0 0;"><button type="button" class="btn btn--ghost" data-clone="linkRowTpl" data-clone-into="linkRows">＋ リンクを追加</button></p>
+            <div class="modal__actions"><button type="button" class="btn" data-modal-close>決定</button></div>
         </div>
+    </div>
+    <template id="linkRowTpl"><?php $renderLinkRow(); ?></template>
+
+    <div class="card">
+        <div class="card__title" style="color:var(--coral-d);">表示設定</div>
+        <label style="font-weight:normal;"><input type="checkbox" name="vis_directory" value="1"<?= $vis['directory'] ? ' checked' : '' ?>> 会員ディレクトリに掲載する</label>
+        <p class="muted" style="font-size:.8rem;margin:2px 0 10px 24px;">OFFにすると、他の会員の「さがす」や検索に表示されません（非公開）。</p>
+        <label style="font-weight:normal;"><input type="checkbox" name="vis_line_url" value="1"<?= $vis['line_url'] ? ' checked' : '' ?>> LINE追加URLを他の会員に表示する</label>
+        <p class="muted" style="font-size:.8rem;margin:2px 0 0 24px;">上の「リンク」で登録したLINE追加URLを、プロフィールで他の会員に見せます。</p>
     </div>
 
     <p><button type="submit" class="btn">保存する</button>

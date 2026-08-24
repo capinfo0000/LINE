@@ -198,5 +198,34 @@
       inp.addEventListener(ev, function () { refreshField(inp.getAttribute('data-field')); });
       refreshField(inp.getAttribute('data-field'));
     });
+
+    // 行の複製（例：リンクを追加）。data-clone="<templateのid>" data-clone-into="<格納先のid>"
+    document.querySelectorAll('[data-clone]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var tpl = document.getElementById(btn.getAttribute('data-clone'));
+        var into = document.getElementById(btn.getAttribute('data-clone-into'));
+        if (tpl && into && tpl.content) {
+          into.appendChild(tpl.content.cloneNode(true));
+          var last = into.querySelector('.tp-linkrow-edit:last-child input[type="url"]');
+          if (last) { last.focus(); }
+        }
+      });
+    });
+
+    // リンク件数サマリ（#linkRows の入力に応じて #linkSummary を更新）。追加行にも委譲で対応。
+    var linkRows = document.getElementById('linkRows');
+    var linkSummary = document.getElementById('linkSummary');
+    if (linkRows && linkSummary) {
+      var updLinks = function () {
+        var n = 0;
+        linkRows.querySelectorAll('input[type="url"]').forEach(function (u) {
+          if ((u.value || '').trim() !== '') { n++; }
+        });
+        linkSummary.textContent = n > 0 ? (n + '件') : '未設定';
+        linkSummary.classList.toggle('is-empty', n === 0);
+      };
+      linkRows.addEventListener('input', updLinks);
+      updLinks();
+    }
   });
 })();
