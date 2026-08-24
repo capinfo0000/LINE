@@ -114,23 +114,54 @@ $showLogout = true;
 $hideBrand = true;
 require __DIR__ . '/_header.php';
 
-/** チェックボックス群を描画するヘルパー。 */
-$renderChecks = function (array $tags, string $name, array $checked) {
+/** チェックボックス群を描画するヘルパー（data-group で行サマリと連動）。 */
+$renderChecks = function (array $tags, string $name, array $checked, string $group = '') {
     if ($tags === []) {
         return;
     }
+    $g = $group !== '' ? ' data-group="' . e($group) . '"' : '';
     echo '<div class="chips">';
     foreach ($tags as $t) {
         $id = (int) $t['id'];
         $isC = isset($checked[$id]);
         echo '<label class="chip">'
-            . '<input type="checkbox" name="' . e($name) . '[]" value="' . $id . '"' . ($isC ? ' checked' : '') . '>'
+            . '<input type="checkbox" name="' . e($name) . '[]" value="' . $id . '"' . ($isC ? ' checked' : '') . $g . '>'
             . '<span>' . e($t['label']) . '</span></label>';
     }
     echo '</div>';
 };
+
+/** tapple風の「行タップ→ポップアップで選択」ピッカー（行＋モーダル）を出力する。 */
+$renderPicker = function (string $modalId, string $rowLabel, array $tags, string $name, array $checked, string $group) use ($renderChecks) {
+    $sel = [];
+    foreach ($tags as $t) {
+        if (isset($checked[(int) $t['id']])) {
+            $sel[] = (string) $t['label'];
+        }
+    }
+    $summary = $sel !== [] ? implode('、', $sel) : '未選択';
+    ?>
+    <button type="button" class="tp-field" data-modal-open="<?= e($modalId) ?>">
+        <span class="tp-field__l"><?= e($rowLabel) ?></span>
+        <span class="tp-field__v<?= $sel === [] ? ' is-empty' : '' ?>" data-summary="<?= e($group) ?>"><?= e($summary) ?></span>
+        <span class="tp-field__c">›</span>
+    </button>
+    <div class="modal" id="<?= e($modalId) ?>">
+        <div class="modal__box">
+            <button type="button" class="modal__close" data-modal-close aria-label="閉じる">×</button>
+            <div class="modal__title"><?= e($rowLabel) ?></div>
+            <p class="modal__lead">当てはまるものを選んでください（複数可）</p>
+            <?php $renderChecks($tags, $name, $checked, $group); ?>
+            <div class="modal__actions"><button type="button" class="btn" data-modal-close>決定</button></div>
+        </div>
+    </div>
+    <?php
+};
 ?>
-<h1 style="font-size:1.5rem;margin:0 0 4px;">プロフィール編集</h1>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 6px;">
+    <h1 style="font-size:1.5rem;margin:0;">プロフィール編集</h1>
+    <a class="btn btn--ghost" href="/member/member_view.php?id=<?= e($memberId) ?>" style="padding:8px 16px;border-radius:999px;">👁 プレビュー</a>
+</div>
 <p class="muted" style="margin:0 0 14px;"><a href="/member/dashboard.php">← マイページ</a></p>
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
 
@@ -193,21 +224,22 @@ $renderChecks = function (array $tags, string $name, array $checked) {
 
     <div class="card">
         <div class="card__title" style="color:var(--coral-d);">タグ（あなたの属性）</div>
-        <p class="muted" style="margin-top:0;font-size:.85rem;">当てはまるものを選んでください（複数可）。</p>
-        <?php foreach (['area' => '📍 場所', 'job' => '💼 仕事ジャンル', 'purpose' => '🎯 目的（求めること）', 'offer' => '🤝 提供できること'] as $cat => $label): ?>
-            <p style="margin:12px 0 6px;font-weight:700;font-size:.88rem;"><?= e($label) ?></p>
-            <?php $renderChecks($grouped[$cat] ?? [], 'tags', $myTagIds); ?>
-        <?php endforeach; ?>
+        <p class="muted" style="margin-top:0;font-size:.85rem;">項目をタップして選択してください（複数可）。</p>
+        <div class="tp-fields">
+            <?php $renderPicker('m-area', '📍 場所', $grouped['area'] ?? [], 'tags', $myTagIds, 'gt-area'); ?>
+            <?php $renderPicker('m-job', '💼 仕事ジャンル', $grouped['job'] ?? [], 'tags', $myTagIds, 'gt-job'); ?>
+            <?php $renderPicker('m-purpose', '🎯 目的（求めること）', $grouped['purpose'] ?? [], 'tags', $myTagIds, 'gt-purpose'); ?>
+            <?php $renderPicker('m-offer', '🤝 提供できること', $grouped['offer'] ?? [], 'tags', $myTagIds, 'gt-offer'); ?>
+        </div>
     </div>
 
     <div class="card">
         <div class="card__title" style="color:var(--coral-d);">求める条件（おすすめ・検索に使用。未選択＝問わない）</div>
-        <p style="margin-bottom:4px;"><strong>相手の場所</strong></p>
-        <div style="margin-bottom:12px;"><?php $renderChecks($grouped['area'] ?? [], 'seek_area', $prefArea); ?></div>
-        <p style="margin-bottom:4px;"><strong>相手の仕事ジャンル</strong></p>
-        <div style="margin-bottom:12px;"><?php $renderChecks($grouped['job'] ?? [], 'seek_job', $prefJob); ?></div>
-        <p style="margin-bottom:4px;"><strong>相手の目的</strong></p>
-        <div style="margin-bottom:12px;"><?php $renderChecks($grouped['purpose'] ?? [], 'seek_purpose', $prefPurpose); ?></div>
+        <div class="tp-fields">
+            <?php $renderPicker('m-sarea', '相手の場所', $grouped['area'] ?? [], 'seek_area', $prefArea, 'gt-sarea'); ?>
+            <?php $renderPicker('m-sjob', '相手の仕事ジャンル', $grouped['job'] ?? [], 'seek_job', $prefJob, 'gt-sjob'); ?>
+            <?php $renderPicker('m-spurpose', '相手の目的', $grouped['purpose'] ?? [], 'seek_purpose', $prefPurpose, 'gt-spurpose'); ?>
+        </div>
     </div>
 
     <div class="card">

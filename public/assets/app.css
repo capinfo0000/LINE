@@ -368,6 +368,17 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .rank--rookie{ background:#f1f5f9; color:#64748b; }
 
 /* --- プロフィール --- */
+/* プロフィール編集：tapple風の行＋ポップアップ選択 */
+.tp-fields{ border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-top:6px; }
+.tp-field{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:var(--surface);
+  border:0; border-bottom:1px solid var(--border); padding:14px; font:inherit; color:var(--text); cursor:pointer; }
+.tp-field:last-child{ border-bottom:0; }
+.tp-field:hover{ background:#faf6f5; }
+.tp-field__l{ font-weight:700; font-size:.92rem; flex:none; }
+.tp-field__v{ flex:1; text-align:right; font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tp-field__v.is-empty{ color:var(--faint); }
+.tp-field__c{ flex:none; color:var(--faint); font-size:1.15rem; line-height:1; }
+
 /* プロフィール詳細：インスタ風ヘッダー（カバー＋丸アイコン重ね） */
 .tp-ig{ margin:-16px -16px 0; }
 .tp-ig-cover{ position:relative; height:170px; overflow:hidden; background:#faf6f5; }

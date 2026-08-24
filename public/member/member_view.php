@@ -27,7 +27,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $targetId !== '') {
     }
 }
 
-$view = $targetId !== '' ? viewable_member_profile($targetId) : null;
+// 本人のプレビューは、ディレクトリ非掲載でも常に閲覧できるようにする。
+if ($targetId !== '' && (string) $viewer['id'] === $targetId) {
+    $selfMember = find_member_by_id($targetId);
+    $view = $selfMember !== null ? ['member' => $selfMember, 'profile' => get_profile($targetId)] : null;
+} else {
+    $view = $targetId !== '' ? viewable_member_profile($targetId) : null;
+}
 if ($view === null) {
     http_response_code(404);
     $pageTitle = '会員が見つかりません';

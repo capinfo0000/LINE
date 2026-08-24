@@ -143,5 +143,27 @@
     document.querySelectorAll('.modal[data-auto-open]').forEach(function (m) {
       m.classList.add('is-open');
     });
+
+    // ピッカー行（tapple風）：モーダル内チェックの選択状況を行サマリに反映。
+    function pickerLabel(input) {
+      var l = input.closest('label');
+      var s = l && l.querySelector('span');
+      return s ? s.textContent.trim() : input.value;
+    }
+    function refreshPicker(group) {
+      var boxes = document.querySelectorAll('input[data-group="' + group + '"]');
+      var chosen = [];
+      boxes.forEach(function (b) { if (b.checked) { chosen.push(pickerLabel(b)); } });
+      document.querySelectorAll('[data-summary="' + group + '"]').forEach(function (el) {
+        el.textContent = chosen.length ? chosen.join('、') : '未選択';
+        el.classList.toggle('is-empty', chosen.length === 0);
+      });
+    }
+    var pickerGroups = {};
+    document.querySelectorAll('[data-summary]').forEach(function (el) { pickerGroups[el.getAttribute('data-summary')] = 1; });
+    document.querySelectorAll('input[data-group]').forEach(function (b) {
+      b.addEventListener('change', function () { refreshPicker(b.getAttribute('data-group')); });
+    });
+    Object.keys(pickerGroups).forEach(refreshPicker);
   });
 })();
