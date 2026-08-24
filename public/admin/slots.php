@@ -174,8 +174,12 @@ require __DIR__ . '/_app_header.php';
                         <input type="hidden" name="slot_id" value="<?= e($s['id']) ?>">
                         <button class="btn" style="padding:2px 8px;">Zoom発行</button>
                     </form>
-                    <?php elseif ((int) $s['booked_count'] > 0): ?>
-                    <form method="post" style="display:inline;" data-confirm="Zoomリンクを再発行し、申込者<?= (int) $s['booked_count'] ?>名へ新URLをLINE送信します。よろしいですか？">
+                    <?php else:
+                        // 発行済みの枠には常に再発行ボタンを出す（申込者0名でも再発行だけ実行できる）。
+                        $cf2 = (int) $s['booked_count'] > 0
+                            ? 'Zoomリンクを再発行し、申込者' . (int) $s['booked_count'] . '名へ新URLをLINE送信します。よろしいですか？'
+                            : 'Zoomリンクを再発行します（申込者がいないためLINE送信はありません）。よろしいですか？'; ?>
+                    <form method="post" style="display:inline;" data-confirm="<?= e($cf2) ?>">
                         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="rezoom">
                         <input type="hidden" name="slot_id" value="<?= e($s['id']) ?>">
                         <button class="btn" style="padding:2px 8px;">リンク再発行＋送信</button>
