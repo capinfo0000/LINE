@@ -28,7 +28,9 @@ if (member_needs_intro($member)) {
             会員どうしの検索・閲覧を始めるには、まず<strong>公式LINEのトークに自己紹介を送信</strong>してください。
             送信が確認されると自動で解除されます。
         </p>
-        <p style="margin:0;"><a class="btn btn--lg" href="/member/intro.php?gate=1">自己紹介を送る（ひな形を開く）</a></p>
+        <p style="margin:0 0 10px;"><a class="btn btn--lg" href="/member/intro.php?gate=1">自己紹介を送る（ひな形を開く）</a></p>
+        <p style="margin:0;"><a class="btn btn--ghost" href="/member/directory.php">送信した／再読み込みして確認</a></p>
+        <p class="muted" style="font-size:.8rem;margin:10px 0 0;">送信するとすぐに反映されます。この画面は自動で切り替わらないため、上のボタンで再読み込みしてください。</p>
     </div>
     <?php
     require __DIR__ . '/_footer.php';
