@@ -120,6 +120,7 @@ function site_setting_defs(): array
         'biz_address' => ['label' => '所在地', 'type' => 'text', 'default' => '', 'hint' => '「請求があれば遅滞なく開示」の運用も可能です。'],
         'biz_email'   => ['label' => '連絡先メールアドレス', 'type' => 'text', 'default' => '', 'hint' => ''],
         'biz_tel'     => ['label' => '連絡先電話番号', 'type' => 'text', 'default' => '', 'hint' => ''],
+        'line_official_url' => ['label' => '公式LINEのトークURL', 'type' => 'text', 'default' => '', 'hint' => '例: https://line.me/R/ti/p/@034gqrjg　会員の「自己紹介を送る」画面に「公式LINEを開く」ボタンが表示されます。'],
         'price_note'  => ['label' => '販売価格の表記', 'type' => 'textarea', 'default' => "月額会費 500円（税込）／月。\n※会員数が一定数に達するまでは無料でご利用いただけます。\n※ご紹介の特典条件を満たす場合、月額会費が無料となることがあります。", 'hint' => ''],
         'cancel_note' => ['label' => 'キャンセル・返金ポリシー本文', 'type' => 'textarea', 'default' => '', 'hint' => '空欄の場合は既定の文面を表示します。'],
         'privacy_note' => ['label' => 'プライバシーポリシーの追記', 'type' => 'textarea', 'default' => '', 'hint' => '既定の文面の後に追記されます（空欄可）。'],

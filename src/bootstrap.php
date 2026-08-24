@@ -110,7 +110,8 @@ function send_baseline_security_headers(): void
     // CAPTCHA(Turnstile)有効時は、そのウィジェット配信元を許可リストに加える。
     $captchaHost = captcha_enabled() ? ' https://challenges.cloudflare.com' : '';
     $nonce = "'nonce-" . csp_nonce() . "'";
-    header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; "
+    // img-src に blob: を許可：ファイル選択直後のプレビュー（URL.createObjectURL）を表示するため。
+    header("Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:; "
         . "style-src 'self' $nonce; style-src-attr 'unsafe-inline'; "
         . "script-src 'self' $nonce" . $captchaHost . "; "
         . "connect-src 'self'" . $captchaHost . "; "

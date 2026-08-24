@@ -53,6 +53,10 @@ require __DIR__ . '/_app_header.php';
 
     <div class="card">
         <div class="card__title">価格・ポリシーの文面</div>
+        <label><?= e($defs['line_official_url']['label']) ?></label>
+        <input type="text" name="line_official_url" value="<?= e(site_setting('line_official_url')) ?>" maxlength="300" placeholder="https://line.me/R/ti/p/@xxxxxxx">
+        <p class="hint" style="margin:4px 0 0;"><?= e($defs['line_official_url']['hint']) ?></p>
+
         <?php foreach (['price_note', 'cancel_note', 'privacy_note', 'terms_note'] as $k): ?>
             <label><?= e($defs[$k]['label']) ?></label>
             <textarea name="<?= e($k) ?>" rows="5" maxlength="8000"><?= e(site_setting($k)) ?></textarea>

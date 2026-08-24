@@ -66,7 +66,11 @@ $display = (!$reset && $savedIntro !== '') ? $savedIntro : $template;
 
 $profileThin = ($profile['name_text'] ?? '') === '' && $headline === '' && $bio === '';
 $token = csrf_token();
-$officialUrl = (string) (env('LINE_OFFICIAL_URL', '') ?? '');
+// 公式LINEのトークURL：管理画面「各種設定」優先、無ければ .env をフォールバック。
+$officialUrl = site_setting('line_official_url');
+if ($officialUrl === '') {
+    $officialUrl = (string) (env('LINE_OFFICIAL_URL', '') ?? '');
+}
 $gated = member_needs_intro($member); // まだ公式LINEに送っていない＝ロック中
 
 $pageTitle = '自己紹介ひな形';
@@ -75,7 +79,12 @@ $hideBrand = true;
 require __DIR__ . '/_header.php';
 ?>
 <h1 style="font-size:1.4rem;margin:0 0 4px;">自己紹介を公式LINEに送る</h1>
-<p class="muted" style="margin:0 0 12px;"><a href="/member/dashboard.php">← マイページ</a></p>
+<p class="muted" style="margin:0 0 12px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+    <a href="/member/dashboard.php">← マイページ</a>
+    <?php if ($officialUrl !== ''): ?>
+        <a href="<?= e($officialUrl) ?>" target="_blank" rel="noopener" style="color:#06c755;font-weight:700;">公式LINEを開く →</a>
+    <?php endif; ?>
+</p>
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
 
 <?php if ($gated): ?>
