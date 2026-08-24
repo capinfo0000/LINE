@@ -13,6 +13,12 @@ $targetId = (string) ($_GET['id'] ?? '');
 $evalMsg = '';
 $evalType = 'ok';
 
+// 自己紹介を公式LINEに送るまで、他会員のプロフィールは見せない（自分のプレビューは可）。
+if ((string) $viewer['id'] !== $targetId && member_needs_intro($viewer)) {
+    header('Location: /member/intro.php?gate=1');
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $targetId !== '') {
     csrf_verify($_POST['csrf_token'] ?? null);
     $act = (string) ($_POST['action'] ?? '');

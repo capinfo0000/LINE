@@ -475,8 +475,10 @@ function db_migrate(\PDO $pdo): void
     // カバー画像（Instagram風の背景・全会員公開）と名刺画像（全会員公開）。
     db_add_column_if_missing($pdo, 'profiles', 'cover_path', 'TEXT');
     db_add_column_if_missing($pdo, 'profiles', 'card_path', 'TEXT');
-    // 自己紹介ひな形（グループLINE/オープンチャット投稿用に本人が編集・保存する文面）。
+    // 自己紹介ひな形（公式LINEに送る文面。本人が編集・保存）。
     db_add_column_if_missing($pdo, 'profiles', 'intro_text', 'TEXT');
+    // 公式LINEへ自己紹介を送信済みかの記録（さがすの閲覧ロック解除に使用）。
+    db_add_column_if_missing($pdo, 'members', 'intro_submitted_at', 'INTEGER');
 
     // タグマスタの初期投入（未投入時のみ）。
     seed_tag_master($pdo);

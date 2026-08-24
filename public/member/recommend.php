@@ -10,6 +10,13 @@ declare(strict_types=1);
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $member = require_member();
+
+// 自己紹介を公式LINEに送るまでロック。
+if (member_needs_intro($member)) {
+    header('Location: /member/intro.php?gate=1');
+    exit;
+}
+
 $recs = compute_recommendations_for($member['id'], 20);
 
 // プランによる表示数の制限（無料フェーズ／プレミアムは無制限）。

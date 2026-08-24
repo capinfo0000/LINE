@@ -177,6 +177,40 @@ function change_member_login_id(string $memberId, string $newId): array
     return ['ok' => true, 'message' => 'ログインIDを変更しました。次回から新しいIDでログインしてください。'];
 }
 
+/** 公式LINEへの自己紹介が送信済みか。 */
+function member_intro_submitted(array $member): bool
+{
+    return (int) ($member['intro_submitted_at'] ?? 0) > 0;
+}
+
+/** 自己紹介の送信を記録する（冪等：既に記録済みなら何もしない）。 */
+function mark_intro_submitted(string $memberId): void
+{
+    $stmt = db()->prepare('UPDATE members SET intro_submitted_at = ? WHERE id = ? AND (intro_submitted_at IS NULL OR intro_submitted_at = 0)');
+    $stmt->execute([time(), $memberId]);
+}
+
+/** 自己紹介ロック（公式LINEに送るまで さがすを見せない）が有効か。既定ON。 */
+function intro_gate_enabled(): bool
+{
+    return app_setting_get('intro_gate', '1') !== '0';
+}
+
+/**
+ * この会員は「さがす」閲覧前に自己紹介の送信が必要か。
+ * ロックONかつ、LINE連携あり（公式LINEに送れる）かつ、未送信のとき true。
+ */
+function member_needs_intro(array $member): bool
+{
+    if (!intro_gate_enabled()) {
+        return false;
+    }
+    if ((string) ($member['line_user_id'] ?? '') === '') {
+        return false; // LINE未連携（管理発行・サンプル等）はロック対象外
+    }
+    return !member_intro_submitted($member);
+}
+
 function find_member_by_id(string $id): ?array
 {
     $stmt = db()->prepare('SELECT * FROM members WHERE id = ?');

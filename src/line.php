@@ -521,6 +521,25 @@ function line_handle_event(array $event): array
         $mtype = (string) ($event['message']['type'] ?? '');
         $text = trim((string) ($event['message']['text'] ?? ''));
 
+        // 会員本人が公式LINEに自己紹介を送ったら、さがすの閲覧ロックを解除する。
+        // 判定：ひな形の目印「enlink」を含む or 十分な長さ（予約キーワードは除外）。
+        $contact = find_line_contact($userId);
+        $linkedMemberId = $contact !== null ? (string) ($contact['member_id'] ?? '') : '';
+        if ($mtype === 'text' && $linkedMemberId !== '') {
+            $member = find_member_by_id($linkedMemberId);
+            if ($member !== null && !member_intro_submitted($member) && member_needs_intro($member)) {
+                $looksIntro = mb_stripos($text, 'enlink') !== false
+                    || (mb_strlen($text) >= 30
+                        && mb_strpos($text, '説明会') === false
+                        && mb_strpos($text, 'セミナー') === false
+                        && mb_strpos($text, '面談') === false);
+                if ($looksIntro) {
+                    mark_intro_submitted($linkedMemberId);
+                    return [line_text("自己紹介を受け付けました！ありがとうございます😊\n会員サイトの「さがす」がご利用いただけるようになりました。")];
+                }
+            }
+        }
+
         // メールアドレスらしき入力は面談段階のメール登録として扱う。
         if ($mtype === 'text' && filter_var($text, FILTER_VALIDATE_EMAIL)) {
             set_line_contact_email($userId, $text);

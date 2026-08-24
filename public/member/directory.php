@@ -10,6 +10,12 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $member = require_member();
 
+// 自己紹介を公式LINEに送るまで「さがす」は見せない（ロック）。
+if (member_needs_intro($member)) {
+    header('Location: /member/intro.php?gate=1');
+    exit;
+}
+
 // カードの♡「気になる」トグル（POST）。処理後はPRGで元の検索条件のURLへ戻す。
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
