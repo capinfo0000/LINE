@@ -106,6 +106,89 @@ function admin_set_tag_active(int $tagId, bool $active): void
     $stmt->execute([$active ? 1 : 0, $tagId]);
 }
 
+/**
+ * 各種サイト設定（特商法表記・ポリシー等）のキー定義。
+ * ラベル・入力種別（text/textarea）・初期値・補足を持つ。
+ *
+ * @return array<string,array{label:string,type:string,default:string,hint:string}>
+ */
+function site_setting_defs(): array
+{
+    return [
+        'biz_name'    => ['label' => '販売事業者（事業者名／屋号）', 'type' => 'text', 'default' => '', 'hint' => '特定商取引法の表記に使用します。'],
+        'biz_owner'   => ['label' => '運営責任者（氏名）', 'type' => 'text', 'default' => '', 'hint' => ''],
+        'biz_address' => ['label' => '所在地', 'type' => 'text', 'default' => '', 'hint' => '「請求があれば遅滞なく開示」の運用も可能です。'],
+        'biz_email'   => ['label' => '連絡先メールアドレス', 'type' => 'text', 'default' => '', 'hint' => ''],
+        'biz_tel'     => ['label' => '連絡先電話番号', 'type' => 'text', 'default' => '', 'hint' => ''],
+        'price_note'  => ['label' => '販売価格の表記', 'type' => 'textarea', 'default' => "月額会費 500円（税込）／月。\n※会員数が一定数に達するまでは無料でご利用いただけます。\n※ご紹介の特典条件を満たす場合、月額会費が無料となることがあります。", 'hint' => ''],
+        'cancel_note' => ['label' => 'キャンセル・返金ポリシー本文', 'type' => 'textarea', 'default' => '', 'hint' => '空欄の場合は既定の文面を表示します。'],
+        'privacy_note' => ['label' => 'プライバシーポリシーの追記', 'type' => 'textarea', 'default' => '', 'hint' => '既定の文面の後に追記されます（空欄可）。'],
+        'terms_note'  => ['label' => '利用規約の追記', 'type' => 'textarea', 'default' => '', 'hint' => '既定の文面の後に追記されます（空欄可）。'],
+    ];
+}
+
+/** サイト設定の値を取得（未設定なら定義の初期値）。 */
+function site_setting(string $key): string
+{
+    $defs = site_setting_defs();
+    $default = (string) ($defs[$key]['default'] ?? '');
+    $v = app_setting_get('site_' . $key, null);
+    return ($v === null || $v === '') ? $default : $v;
+}
+
+/** サイト設定の保存（定義済みキーのみ）。 */
+function site_setting_save(array $input): int
+{
+    $n = 0;
+    foreach (site_setting_defs() as $key => $def) {
+        if (!array_key_exists($key, $input)) {
+            continue;
+        }
+        $val = (string) $input[$key];
+        $val = $def['type'] === 'textarea' ? mb_substr($val, 0, 8000) : mb_substr(trim($val), 0, 300);
+        app_setting_set('site_' . $key, $val);
+        $n++;
+    }
+    audit_log('admin.site_settings_saved', ['count' => $n]);
+    return $n;
+}
+
+/**
+ * タグを削除する。会員に付いている紐付け・求める条件からも取り除く。
+ * @return bool 削除できたら true
+ */
+function admin_delete_tag(int $tagId): bool
+{
+    if ($tagId <= 0) {
+        return false;
+    }
+    // 会員のタグ紐付けを解除。
+    db()->prepare('DELETE FROM member_tags WHERE tag_id = ?')->execute([$tagId]);
+    // 求める条件（JSON配列で保持）からも該当IDを除去。
+    $rows = db()->query('SELECT member_id, seek_area, seek_job, seek_purpose FROM match_preferences')->fetchAll();
+    $upd = db()->prepare('UPDATE match_preferences SET seek_area = ?, seek_job = ?, seek_purpose = ? WHERE member_id = ?');
+    foreach ($rows as $r) {
+        $changed = false;
+        $vals = [];
+        foreach (['seek_area', 'seek_job', 'seek_purpose'] as $col) {
+            $ids = json_decode((string) ($r[$col] ?? '[]'), true);
+            $ids = is_array($ids) ? array_map('intval', $ids) : [];
+            $filtered = array_values(array_filter($ids, static fn ($v) => $v !== $tagId));
+            if (count($filtered) !== count($ids)) {
+                $changed = true;
+            }
+            $vals[$col] = json_encode($filtered);
+        }
+        if ($changed) {
+            $upd->execute([$vals['seek_area'], $vals['seek_job'], $vals['seek_purpose'], $r['member_id']]);
+        }
+    }
+    $stmt = db()->prepare('DELETE FROM tags WHERE id = ?');
+    $stmt->execute([$tagId]);
+    audit_log('admin.tag_deleted', ['tag' => $tagId]);
+    return $stmt->rowCount() > 0;
+}
+
 /* ------------------------- 一斉配信（LINE Push） ------------------------- */
 
 /** 一斉配信の宛先数（active 会員で line_user_id を持つ人数）＝推定課金通数。 */

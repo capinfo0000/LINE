@@ -43,7 +43,10 @@ require dirname(__DIR__) . '/src/bootstrap.php';
         <p>カード情報の入力・処理は決済代行サービス Stripe 上で安全に行われます。<strong>当方は、カード番号・
            有効期限・セキュリティコードなどの決済情報を一切受け取らず、保管・閲覧もできません。</strong></p>
 
-        <p class="muted" style="margin-top:24px;">※ 本ページの記載は暫定です。正式な返金規定・特商法表記は別途定めます。</p>
+        <?php $__cancel = site_setting('cancel_note'); ?>
+        <?php if (trim($__cancel) !== ''): ?>
+        <p><?= nl2br(e($__cancel)) ?></p>
+        <?php endif; ?>
         <p style="margin-top:16px;"><a href="/">← トップへ戻る</a></p>
     </div>
 </body>

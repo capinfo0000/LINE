@@ -77,7 +77,7 @@ require __DIR__ . '/_app_header.php';
         </strong>
     </p>
     <p class="hint" style="margin:0 0 12px;">
-        初期運用：公式LINEを友だち追加すると、その場で無料会員を発行しログインID・仮パスワードをLINE送信します（じゃんじゃん登録）。<br>
+        初期運用：公式LINEを友だち追加すると、その場で無料会員を発行しログインID・仮パスワードをLINE送信します。<br>
         通常運用：友だち追加後は説明会をご案内し、希望者の決済後にログイン情報を送信します。
     </p>
     <form method="post" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -86,7 +86,7 @@ require __DIR__ . '/_app_header.php';
         <?php if ($__signup === 'auto'): ?>
             <input type="hidden" name="mode" value="normal">
             <button type="submit" class="btn btn--ghost" data-confirm="通常運用（説明会→決済→発行）に切り替えます。よろしいですか？">通常運用に切り替える</button>
-            <span class="hint">※ じゃんじゃん登録を止めて、説明会ベースの運用にします。</span>
+            <span class="hint">※ 説明会ベースの運用に切り替えます。</span>
         <?php else: ?>
             <input type="hidden" name="mode" value="auto">
             <button type="submit" class="btn" data-confirm="初期運用（友だち追加で即・無料発行）に切り替えます。よろしいですか？">初期運用に切り替える</button>

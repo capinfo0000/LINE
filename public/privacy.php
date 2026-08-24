@@ -39,5 +39,9 @@ require __DIR__ . '/_legal_header.php';
 <h2>6. 改定</h2>
 <p>本ポリシーは必要に応じて改定し、本ページに掲示します。</p>
 
-<p class="muted">制定日：［YYYY年MM月DD日］　／　※本ページはテンプレートです。実運用前に内容を確定してください。</p>
+<?php $__note = site_setting('privacy_note'); ?>
+<?php if (trim($__note) !== ''): ?>
+<h2>補足</h2>
+<p><?= nl2br(e($__note)) ?></p>
+<?php endif; ?>
 <?php require __DIR__ . '/_legal_footer.php'; ?>

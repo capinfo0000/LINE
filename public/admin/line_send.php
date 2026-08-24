@@ -35,6 +35,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_hide_unreachable']
     csrf_verify($_POST['csrf_token'] ?? null);
     set_line_contact_hidden((string) $_POST['do_unhide_one'], false);
     $msg = '連絡先を表示に戻しました。';
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_delete_one'])) {
+    // 連絡先を手動で完全削除（会員アカウントは残し、LINE紐付けのみ解除）。
+    csrf_verify($_POST['csrf_token'] ?? null);
+    $msg = delete_line_contact((string) $_POST['do_delete_one'])
+        ? '連絡先を削除しました。'
+        : '連絡先が見つかりませんでした。';
 }
 
 // 表示名が未取得の友だちに、LINEプロフィールから名前を補完（旧チャネル分は取得できずスキップ）。
@@ -321,6 +327,8 @@ require __DIR__ . '/_app_header.php';
                         <?php else: ?>
                             <button form="cform" type="submit" name="do_hide_one" value="<?= e($u) ?>" class="btn btn--ghost btn--sm">隠す</button>
                         <?php endif; ?>
+                        <button form="cform" type="submit" name="do_delete_one" value="<?= e($u) ?>" class="btn btn--ghost btn--sm" style="color:var(--dng);border-color:var(--dng-bg);"
+                                data-confirm="この連絡先を完全に削除します（元に戻せません）。会員アカウントは残り、LINEの紐付けだけ解除されます。よろしいですか？">削除</button>
                     </div>
                 <?php endforeach; endif; ?>
             </div>

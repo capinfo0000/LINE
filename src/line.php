@@ -152,6 +152,33 @@ function set_line_contact_hidden(string $userId, bool $hidden): void
         ->execute([$hidden ? 1 : 0, time(), $userId]);
 }
 
+/**
+ * LINE連絡先を手動で完全削除する（旧LINEの不達連絡先の掃除用）。
+ * 連絡先レコード・送受信ログ・保留キューを削除し、会員が紐付いていれば
+ * その会員の line_user_id を解除する（会員アカウント自体は削除しない）。
+ * @return bool 削除できたら true
+ */
+function delete_line_contact(string $userId): bool
+{
+    if ($userId === '') {
+        return false;
+    }
+    // 会員紐付けの解除（会員は残す）。
+    db()->prepare('UPDATE members SET line_user_id = NULL WHERE line_user_id = ?')->execute([$userId]);
+    // 付随データの掃除（存在するものだけ・冪等）。
+    foreach (['line_messages', 'slot_url_pending', 'bookings'] as $tbl) {
+        try {
+            db()->prepare("DELETE FROM {$tbl} WHERE line_user_id = ?")->execute([$userId]);
+        } catch (\Throwable $e) {
+            // 列やテーブルが無い場合は無視。
+        }
+    }
+    $stmt = db()->prepare('DELETE FROM line_contacts WHERE line_user_id = ?');
+    $stmt->execute([$userId]);
+    audit_log('line.contact_deleted', ['line' => substr($userId, 0, 10)]);
+    return $stmt->rowCount() > 0;
+}
+
 /** 非表示の連絡先をすべて表示に戻す。 */
 function unhide_all_contacts(): int
 {
@@ -345,7 +372,7 @@ function line_text_quickreply(string $text, array $items): array
  */
 /**
  * 登録運用モード。
- *  - 'auto'  ：初期運用。友だち追加で即・無料会員を発行し、ID/PWをLINE送信（じゃんじゃん登録）。
+ *  - 'auto'  ：初期運用。友だち追加で即・無料会員を発行し、ID/PWをLINE送信。
  *  - 'normal'：通常運用。説明会 → 希望者は決済 → ログイン情報送信（従来フロー）。
  * 管理画面から切り替え可能。既定は 'auto'（初期フェーズ）。
  */

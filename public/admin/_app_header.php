@@ -18,11 +18,12 @@ $current = basename($_SERVER['SCRIPT_NAME'] ?? '');
 $navItems = [
     ['dashboard.php', '', 'ダッシュボード', ['dashboard.php']],
     ['members.php',   '', '会員管理',       ['members.php', 'member_detail.php']],
-    ['slots.php',     '', '説明会・面談',   ['slots.php']],
+    ['slots.php',     '', '説明会',         ['slots.php']],
     ['line_send.php', '', 'LINE配信',       ['line_send.php']],
-    ['contacts.php',  '', 'LINE申込者',     ['contacts.php']],
+    ['contacts.php',  '', '申し込み者',     ['contacts.php']],
     ['openchat.php',  '', 'オープンチャット', ['openchat.php']],
     ['tags.php',      '', 'タグ管理',       ['tags.php']],
+    ['settings_site.php', '', '各種設定',   ['settings_site.php']],
     ['account.php',   '', 'アカウント設定', ['account.php']],
 ];
 if ((int) ($tenant['is_admin'] ?? 0) === 1) {
