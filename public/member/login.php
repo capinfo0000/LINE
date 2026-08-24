@@ -71,4 +71,10 @@ require __DIR__ . '/_header.php';
 </form>
 <p class="muted"><a href="/member/forgot.php">パスワードを忘れた場合</a></p>
 <p class="muted">ログインID・パスワードは入会手続き完了時にお渡ししています。</p>
+<p class="muted" style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;font-size:.82rem;">
+    <a href="/tokushoho.php">特定商取引法に基づく表記</a> ／
+    <a href="/policy.php">キャンセル・返金ポリシー</a> ／
+    <a href="/terms.php">利用規約</a> ／
+    <a href="/privacy.php">プライバシーポリシー</a>
+</p>
 <?php require __DIR__ . '/_footer.php'; ?>

@@ -25,7 +25,7 @@ if ($expected === '' || !hash_equals($expected, $given)) {
 }
 
 $job = (string) ($_GET['job'] ?? '');
-if (!in_array($job, ['remind', 'reconcile', 'recommend', 'thankyou', 'waiver', 'seed', 'unseed', 'samplephotos'], true)) {
+if (!in_array($job, ['remind', 'reconcile', 'recommend', 'thankyou', 'waiver', 'seed', 'unseed', 'samplephotos', 'diag'], true)) {
     http_response_code(400);
     exit("unknown job\n");
 }
@@ -125,6 +125,26 @@ try {
     } elseif ($job === 'unseed') {
         $n = delete_sample_members();
         $out = "unseed deleted={$n}";
+    } elseif ($job === 'diag') {
+        // 運用診断（秘密情報は出力しない）。自己紹介ロック・LINE受信の状況を確認する。
+        $L = [];
+        $L[] = 'code_version=intro_gate_fix_2';
+        $L[] = 'signup_mode=' . signup_mode();
+        $L[] = 'intro_gate=' . (intro_gate_enabled() ? 'ON' : 'OFF');
+        $L[] = 'line_token=' . (line_channel_token() !== null ? 'set' : 'MISSING');
+        $L[] = 'line_secret=' . (line_channel_secret() !== null ? 'set' : 'MISSING');
+        $q = static fn (string $sql): string => (string) db()->query($sql)->fetchColumn();
+        $L[] = 'contacts=' . $q('SELECT COUNT(*) FROM line_contacts');
+        $L[] = 'contacts_linked=' . $q('SELECT COUNT(*) FROM line_contacts WHERE member_id IS NOT NULL');
+        $L[] = 'members_total=' . $q('SELECT COUNT(*) FROM members');
+        $L[] = 'members_with_line=' . $q("SELECT COUNT(*) FROM members WHERE line_user_id IS NOT NULL AND line_user_id <> ''");
+        $L[] = 'intro_done=' . $q('SELECT COUNT(*) FROM members WHERE intro_submitted_at IS NOT NULL AND intro_submitted_at > 0');
+        $L[] = 'gated_now=' . $q("SELECT COUNT(*) FROM members WHERE line_user_id IS NOT NULL AND line_user_id <> '' AND (intro_submitted_at IS NULL OR intro_submitted_at = 0)");
+        $L[] = 'inbound_24h=' . $q("SELECT COUNT(*) FROM line_messages WHERE direction = 'in' AND created_at > " . (time() - 86400));
+        $L[] = 'inbound_7d=' . $q("SELECT COUNT(*) FROM line_messages WHERE direction = 'in' AND created_at > " . (time() - 7 * 86400));
+        $last = $q("SELECT COALESCE(MAX(created_at), 0) FROM line_messages WHERE direction = 'in'");
+        $L[] = 'last_inbound=' . ((int) $last > 0 ? gmdate('Y-m-d H:i', (int) $last + 9 * 3600) . ' JST' : 'none');
+        $out = implode("\n", $L);
     } elseif ($job === 'samplephotos') {
         // サンプル会員の顔写真を強制的に割り当て直す（既存会員にも反映）。
         $n = attach_sample_photos(true);

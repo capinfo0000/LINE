@@ -98,7 +98,7 @@ $avatarBg = $hasApprovedPhoto ? '' : ' style="background:linear-gradient(150deg,
 ?>
 <!-- インスタ風ヘッダー：カバー画像＋丸アイコン重ね -->
 <div class="tp-ig">
-    <div class="tp-ig-cover"<?= $coverAbs === null ? ' style="background:linear-gradient(120deg,#ff9f7a,#f96d6d)"' : '' ?>>
+    <div class="tp-ig-cover"<?= $coverAbs === null ? ' style="background:linear-gradient(120deg,#fdba74,#f97316)"' : '' ?>>
         <?php if ($coverAbs !== null): ?><img src="/member/photo.php?id=<?= e($targetId) ?>&kind=cover&v=<?= (int)($profile['updated_at'] ?? 0) ?>" alt="カバー画像"><?php endif; ?>
         <a class="tp-hback" href="/member/directory.php" aria-label="ディレクトリへ戻る">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -210,7 +210,7 @@ $hasAnyTag = ($labels['area'] ?? []) || ($labels['job'] ?? []) || ($labels['purp
             <form method="post" style="margin:0;">
                 <input type="hidden" name="csrf_token" value="<?= e($csrf) ?>"><input type="hidden" name="action" value="interest">
                 <button class="tp-fab tp-fab--like<?= $interested ? ' on' : '' ?>" aria-label="気になる">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="<?= $interested ? 'currentColor' : 'none' ?>" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-4.4-9.3-8.6C1 9 2.6 5.5 6 5.5c2 0 3.2 1.1 4 2.2.8-1.1 2-2.2 4-2.2 3.4 0 5 3.5 3.3 6.9C19 16.6 12 21 12 21z"/></svg>
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="<?= $interested ? 'currentColor' : 'none' ?>" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v16l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
                 </button>
             </form>
             <span class="tp-fablbl"><?= $interested ? '気になる済' : '気になる' ?></span>
