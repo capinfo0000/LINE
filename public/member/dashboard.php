@@ -60,9 +60,10 @@ require __DIR__ . '/_header.php';
 <div class="tp-menu">
     <a href="/member/member_view.php?id=<?= e($id) ?>">👀 プロフィールを確認<span class="chev">›</span></a>
     <a href="/member/profile.php">✏️ プロフィールを編集<span class="chev">›</span></a>
-    <a href="/member/points.php">⭐ ポイント・紹介<span class="chev">›</span></a>
+    <a href="/member/intro.php">💬 自己紹介ひな形（LINE用）<span class="chev">›</span></a>
+    <a href="/member/points.php">⭐ ポイント<?= billing_started() ? '・紹介' : '' ?><span class="chev">›</span></a>
     <a href="/member/billing.php">💳 お支払い・解約<span class="chev">›</span></a>
-    <a href="/member/change_password.php">🔒 パスワード変更<span class="chev">›</span></a>
+    <a href="/member/account.php">🪪 ログインID・パスワード<span class="chev">›</span></a>
     <a href="/member/logout.php">↩️ ログアウト<span class="chev">›</span></a>
 </div>
 

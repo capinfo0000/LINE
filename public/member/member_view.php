@@ -80,7 +80,12 @@ $csrf = csrf_token();
 ?>
 <?php if ($evalMsg !== ''): ?><div class="flash <?= $evalType === 'ok' ? 'flash--ok' : 'flash--ng' ?>" style="margin-bottom:10px;"><?= e($evalMsg) ?></div><?php endif; ?>
 
-<div class="tp-wrap">
+<?php $coverAbs = member_image_abs_path($profile, 'cover_path'); ?>
+<?php if ($coverAbs !== null): ?>
+<div class="tp-cover"><img src="/member/photo.php?id=<?= e($targetId) ?>&kind=cover" alt="カバー画像"></div>
+<?php endif; ?>
+
+<div class="tp-wrap<?= $coverAbs !== null ? ' tp-wrap--cover' : '' ?>">
     <div class="tp-hero"<?= $heroStyle ?>>
         <a class="tp-hback" href="/member/directory.php" aria-label="ディレクトリへ戻る">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -142,6 +147,14 @@ $hasAnyTag = ($labels['area'] ?? []) || ($labels['job'] ?? []) || ($labels['purp
         <?php if ($area !== ''): ?><dt>エリア</dt><dd><?= e($area) ?></dd><?php endif; ?>
         <?php if (($profile['age_text'] ?? '') !== ''): ?><dt>年齢</dt><dd><?= e($profile['age_text']) ?></dd><?php endif; ?>
     </dl>
+</section>
+<?php endif; ?>
+
+<?php $cardAbs = member_image_abs_path($profile, 'card_path'); ?>
+<?php if ($cardAbs !== null): ?>
+<section class="tp-sec">
+    <h2 class="tp-sec__t">名刺</h2>
+    <img src="/member/photo.php?id=<?= e($targetId) ?>&kind=card" alt="名刺画像" style="max-width:100%;border-radius:12px;box-shadow:var(--shadow-sm);">
 </section>
 <?php endif; ?>
 

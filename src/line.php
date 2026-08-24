@@ -343,6 +343,41 @@ function line_text_quickreply(string $text, array $items): array
  *
  * @return array<int,array>
  */
+/**
+ * 登録運用モード。
+ *  - 'auto'  ：初期運用。友だち追加で即・無料会員を発行し、ID/PWをLINE送信（じゃんじゃん登録）。
+ *  - 'normal'：通常運用。説明会 → 希望者は決済 → ログイン情報送信（従来フロー）。
+ * 管理画面から切り替え可能。既定は 'auto'（初期フェーズ）。
+ */
+function signup_mode(): string
+{
+    return app_setting_get('signup_mode', 'auto') === 'normal' ? 'normal' : 'auto';
+}
+
+/** 登録運用モードを設定する（'auto' | 'normal'）。 */
+function set_signup_mode(string $mode): void
+{
+    app_setting_set('signup_mode', $mode === 'normal' ? 'normal' : 'auto');
+}
+
+/**
+ * 初期運用（auto）の友だち追加時メッセージ：即・無料会員を発行して案内する。
+ * 認証情報の送信は provision → deliver_member_credentials が別途 Push する。
+ */
+function line_auto_signup_messages(string $userId): array
+{
+    $r = provision_free_member_from_contact($userId);
+    if (($r['status'] ?? '') === 'done' || ($r['status'] ?? '') === 'linked') {
+        return [line_text(
+            "友だち追加ありがとうございます！Enlinkです😊\n\n"
+            . "そのままご利用いただけます。別途、会員サイトの【ログインID・仮パスワード】をお送りします。\n\n"
+            . "ログイン後、プロフィールを設定してください。ご不明点はこのトークからお気軽にどうぞ。"
+        )];
+    }
+    // 発行に失敗した場合は従来の案内にフォールバック。
+    return line_onboarding_messages();
+}
+
 function line_onboarding_messages(): array
 {
     $greeting = "友だち追加ありがとうございます！Enlinkです😊\n\n"
@@ -472,8 +507,12 @@ function line_handle_event(array $event): array
     line_log_message($userId, 'in', $type === 'postback' ? 'postback' : 'message', $type, false);
 
     if ($type === 'follow') {
-        get_or_create_line_contact($userId);
+        get_or_create_line_contact($userId); // 表示名も取得（管理での個別対応用）
         set_line_contact_state($userId, 'added');
+        // 初期運用：即・無料会員を発行してID/PWを送信。通常運用：説明会案内。
+        if (signup_mode() === 'auto') {
+            return line_auto_signup_messages($userId);
+        }
         return line_onboarding_messages();
     }
 

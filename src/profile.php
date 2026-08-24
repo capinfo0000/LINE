@@ -43,6 +43,7 @@ function get_profile(string $memberId): array
             'member_id' => $memberId,
             'name_text' => '', 'age_text' => '', 'company_title' => '',
             'headline' => '', 'bio' => '', 'photo_path' => null, 'photo_status' => 'none',
+            'birthdate' => '', 'cover_path' => null, 'card_path' => null,
             'visibility_flags' => '{}', 'updated_at' => null,
         ];
     }
@@ -74,25 +75,72 @@ function save_profile(string $memberId, array $d): void
         'line_url'  => !empty($vis['line_url']),
     ], JSON_UNESCAPED_UNICODE);
 
+    // 生年月日（YYYY-MM-DD）。指定があれば検証し、表示用の年齢(age_text)を自動算出する。
+    // 生年月日そのものは公開しない（表示は年齢のみ）。
+    $birthdate = array_key_exists('birthdate', $d)
+        ? normalize_birthdate((string) $d['birthdate'])
+        : (string) ($existing['birthdate'] ?? '');
+    $ageText = (string) ($d['age_text'] ?? $existing['age_text']);
+    if ($birthdate !== '') {
+        $age = compute_age($birthdate);
+        if ($age !== null) {
+            $ageText = (string) $age; // 生年月日から年齢を上書き（常に最新）
+        }
+    }
+
     $fields = [
         'name_text'     => mb_substr(trim((string) ($d['name_text'] ?? $existing['name_text'])), 0, 100),
-        'age_text'      => mb_substr(trim((string) ($d['age_text'] ?? $existing['age_text'])), 0, 40),
+        'age_text'      => mb_substr(trim($ageText), 0, 40),
         'company_title' => mb_substr(trim((string) ($d['company_title'] ?? $existing['company_title'])), 0, 120),
         'headline'      => mb_substr(trim((string) ($d['headline'] ?? $existing['headline'])), 0, 120),
         'bio'           => mb_substr(trim((string) ($d['bio'] ?? $existing['bio'])), 0, 2000),
     ];
 
     $stmt = db()->prepare(
-        'INSERT INTO profiles (member_id, name_text, age_text, company_title, headline, bio, visibility_flags, updated_at)
-         VALUES (:m,:n,:a,:c,:h,:b,:v,:t)
+        'INSERT INTO profiles (member_id, name_text, age_text, company_title, headline, bio, birthdate, visibility_flags, updated_at)
+         VALUES (:m,:n,:a,:c,:h,:b,:bd,:v,:t)
          ON CONFLICT(member_id) DO UPDATE SET
-            name_text=:n, age_text=:a, company_title=:c, headline=:h, bio=:b, visibility_flags=:v, updated_at=:t'
+            name_text=:n, age_text=:a, company_title=:c, headline=:h, bio=:b, birthdate=:bd, visibility_flags=:v, updated_at=:t'
     );
     $stmt->execute([
         ':m' => $memberId, ':n' => $fields['name_text'], ':a' => $fields['age_text'],
         ':c' => $fields['company_title'], ':h' => $fields['headline'], ':b' => $fields['bio'],
-        ':v' => $visJson, ':t' => time(),
+        ':bd' => $birthdate, ':v' => $visJson, ':t' => time(),
     ]);
+}
+
+/** 生年月日文字列を YYYY-MM-DD に正規化（不正・空は ''）。 */
+function normalize_birthdate(string $raw): string
+{
+    $raw = trim($raw);
+    if ($raw === '') {
+        return '';
+    }
+    // YYYY-MM-DD / YYYY/MM/DD を受理。
+    if (!preg_match('/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/', $raw, $m)) {
+        return '';
+    }
+    [$y, $mo, $da] = [(int) $m[1], (int) $m[2], (int) $m[3]];
+    if (!checkdate($mo, $da, $y) || $y < 1900 || $y > (int) date('Y')) {
+        return '';
+    }
+    return sprintf('%04d-%02d-%02d', $y, $mo, $da);
+}
+
+/** 生年月日(YYYY-MM-DD)から満年齢を算出（不正なら null）。 */
+function compute_age(string $birthdate): ?int
+{
+    $bd = normalize_birthdate($birthdate);
+    if ($bd === '') {
+        return null;
+    }
+    [$y, $mo, $da] = array_map('intval', explode('-', $bd));
+    $today = getdate();
+    $age = $today['year'] - $y;
+    if ($today['mon'] < $mo || ($today['mon'] === $mo && $today['mday'] < $da)) {
+        $age--;
+    }
+    return max(0, $age);
 }
 
 /* ------------------------- タグ ------------------------- */
@@ -450,12 +498,112 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
 /** 顔写真の絶対パス（無ければ null）。 */
 function member_photo_abs_path(array $profile): ?string
 {
-    $rel = (string) ($profile['photo_path'] ?? '');
+    return member_image_abs_path($profile, 'photo_path');
+}
+
+/** 任意の画像列（photo_path/cover_path/card_path）の絶対パス（無ければ null）。 */
+function member_image_abs_path(array $profile, string $column): ?string
+{
+    $rel = (string) ($profile[$column] ?? '');
     if ($rel === '') {
         return null;
     }
     $abs = dirname(current_db_path()) . '/' . $rel;
     return is_file($abs) ? $abs : null;
+}
+
+/**
+ * カバー画像・名刺画像などの付随画像を保存する（正方形化せず、最大幅に縮小）。
+ * $column は profiles の列名（cover_path / card_path）。$kind は保存ファイル名の接尾辞。
+ *
+ * @param array{tmp_name?:string,size?:int,error?:int} $file
+ */
+function save_member_image(string $memberId, string $column, string $kind, array $file, int $maxW, string &$error = ''): bool
+{
+    $errCode = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+    if ($errCode !== UPLOAD_ERR_OK) {
+        $error = '画像のアップロードに失敗しました。';
+        return false;
+    }
+    if (($file['size'] ?? 0) > 10 * 1024 * 1024) {
+        $error = '画像サイズが大きすぎます（10MBまで）。';
+        return false;
+    }
+    $tmp = (string) ($file['tmp_name'] ?? '');
+    if ($tmp === '' || !is_readable($tmp)) {
+        $error = '画像を読み取れませんでした。';
+        return false;
+    }
+    $info = @getimagesize($tmp);
+    if ($info === false) {
+        $error = '画像ファイルとして認識できませんでした。';
+        return false;
+    }
+    $extMap = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+    $mime = $info['mime'] ?? '';
+    if (!isset($extMap[$mime])) {
+        $error = '対応していない画像形式です（JPEG/PNG/WebP のみ）。';
+        return false;
+    }
+    $dir = uploads_dir();
+    $processed = false;
+    $outExt = $extMap[$mime];
+    $dest = null;
+
+    if (function_exists('imagecreatefromstring')) {
+        $src = @imagecreatefromstring((string) file_get_contents($tmp));
+        if ($src !== false) {
+            $src = gd_apply_exif_orientation($src, $tmp, $mime);
+            $w = imagesx($src);
+            $h = imagesy($src);
+            $scale = $w > $maxW ? $maxW / $w : 1.0;
+            $nw = max(1, (int) round($w * $scale));
+            $nh = max(1, (int) round($h * $scale));
+            $dst = imagecreatetruecolor($nw, $nh);
+            $useWebp = function_exists('imagewebp');
+            if ($useWebp) {
+                imagealphablending($dst, false);
+                imagesavealpha($dst, true);
+            }
+            imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
+            $outExt = $useWebp ? 'webp' : 'jpg';
+            $dest = $dir . '/' . $memberId . '_' . $kind . '.' . $outExt;
+            $processed = $useWebp ? imagewebp($dst, $dest, 78) : imagejpeg($dst, $dest, 82);
+            imagedestroy($dst);
+            imagedestroy($src);
+        }
+    }
+    if (!$processed) {
+        $dest = $dir . '/' . $memberId . '_' . $kind . '.' . $outExt;
+        if (!@copy($tmp, $dest)) {
+            $error = '画像の保存に失敗しました。';
+            return false;
+        }
+    }
+    @chmod($dest, 0600);
+    foreach (['jpg', 'png', 'webp'] as $e2) {
+        if ($e2 !== $outExt) {
+            @unlink($dir . '/' . $memberId . '_' . $kind . '.' . $e2);
+        }
+    }
+    $rel = 'uploads/' . $memberId . '_' . $kind . '.' . $outExt;
+    // profiles 行が無い場合に備えて存在保証してから更新。
+    save_profile($memberId, []);
+    $stmt = db()->prepare("UPDATE profiles SET {$column} = ?, updated_at = ? WHERE member_id = ?");
+    $stmt->execute([$rel, time(), $memberId]);
+    return true;
+}
+
+/** 付随画像（cover_path/card_path）を削除する。 */
+function delete_member_image(string $memberId, string $column): void
+{
+    $profile = get_profile($memberId);
+    $abs = member_image_abs_path($profile, $column);
+    if ($abs !== null) {
+        @unlink($abs);
+    }
+    $stmt = db()->prepare("UPDATE profiles SET {$column} = NULL, updated_at = ? WHERE member_id = ?");
+    $stmt->execute([time(), $memberId]);
 }
 
 /** 顔写真を削除する。 */

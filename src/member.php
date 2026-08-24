@@ -146,6 +146,37 @@ function find_member_by_login_id(string $loginId): ?array
     return $row ?: null;
 }
 
+/**
+ * ログインIDを変更する。半角英数字と _ . - の4〜20文字。小文字で保存し重複を禁止。
+ *
+ * @return array{ok:bool, message:string}
+ */
+function change_member_login_id(string $memberId, string $newId): array
+{
+    $newId = strtolower(trim($newId));
+    if ($newId === '') {
+        return ['ok' => false, 'message' => '新しいログインIDを入力してください。'];
+    }
+    if (!preg_match('/^[a-z0-9_.\-]{4,20}$/', $newId)) {
+        return ['ok' => false, 'message' => 'ログインIDは半角英数字と _ . - の4〜20文字で入力してください。'];
+    }
+    $current = find_member_by_id($memberId);
+    if ($current === null) {
+        return ['ok' => false, 'message' => '会員が見つかりません。'];
+    }
+    if ((string) $current['login_id'] === $newId) {
+        return ['ok' => false, 'message' => '現在のログインIDと同じです。'];
+    }
+    $other = find_member_by_login_id($newId);
+    if ($other !== null && (string) $other['id'] !== $memberId) {
+        return ['ok' => false, 'message' => 'このログインIDは既に使われています。別のIDをお試しください。'];
+    }
+    $stmt = db()->prepare('UPDATE members SET login_id = ? WHERE id = ?');
+    $stmt->execute([$newId, $memberId]);
+    audit_log('member.login_id_change', ['member' => $memberId]);
+    return ['ok' => true, 'message' => 'ログインIDを変更しました。次回から新しいIDでログインしてください。'];
+}
+
 function find_member_by_id(string $id): ?array
 {
     $stmt = db()->prepare('SELECT * FROM members WHERE id = ?');

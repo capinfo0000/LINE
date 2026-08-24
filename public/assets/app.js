@@ -67,6 +67,38 @@
     document.querySelectorAll('.js-select').forEach(function (el) {
       el.addEventListener('click', function () { el.select(); });
     });
+
+    // クリップボードにコピー: data-copy-target="<textarea/inputのid>" のボタンで内容をコピー。
+    document.querySelectorAll('[data-copy-target]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var el = document.getElementById(btn.getAttribute('data-copy-target'));
+        if (!el) { return; }
+        var text = ('value' in el) ? el.value : el.textContent;
+        var done = function () {
+          var label = btn.getAttribute('data-copied-label') || 'コピーしました';
+          var orig = btn.textContent;
+          btn.textContent = label;
+          btn.classList.add('is-copied');
+          setTimeout(function () { btn.textContent = orig; btn.classList.remove('is-copied'); }, 1600);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(el, done); });
+        } else {
+          fallbackCopy(el, done);
+        }
+      });
+    });
+    function fallbackCopy(el, done) {
+      try {
+        if (el.select) { el.focus(); el.select(); }
+        else {
+          var r = document.createRange(); r.selectNodeContents(el);
+          var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        }
+        document.execCommand('copy');
+        done();
+      } catch (e) { /* noop */ }
+    }
     // 変更で所属フォームを送信（イベント切替の select 等）
     document.querySelectorAll('.js-autosubmit').forEach(function (el) {
       el.addEventListener('change', function () { if (el.form) { el.form.submit(); } });

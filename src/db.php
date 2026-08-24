@@ -470,8 +470,17 @@ function db_migrate(\PDO $pdo): void
     // アップロードは即 'approved' になったため、既存の 'pending' のみを一度だけ引き上げる。
     $pdo->exec("UPDATE profiles SET photo_status = 'approved' WHERE photo_status = 'pending'");
 
+    // 生年月日（YYYY-MM-DD）。年齢は表示時に算出。生年月日そのものは非公開。
+    db_add_column_if_missing($pdo, 'profiles', 'birthdate', 'TEXT');
+    // カバー画像（Instagram風の背景・全会員公開）と名刺画像（全会員公開）。
+    db_add_column_if_missing($pdo, 'profiles', 'cover_path', 'TEXT');
+    db_add_column_if_missing($pdo, 'profiles', 'card_path', 'TEXT');
+
     // タグマスタの初期投入（未投入時のみ）。
     seed_tag_master($pdo);
+
+    // 職業ジャンルを新しい24分類へ移行（冪等：リネーム＋追加＋並び替え）。
+    migrate_job_tags($pdo);
 }
 
 /**
@@ -504,7 +513,7 @@ function seed_tag_master(\PDO $pdo): void
         '徳島', '香川', '愛媛', '高知',
         '福岡', '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島', '沖縄',
     ];
-    $jobs = ['IT・Web', '製造', '建設', '飲食', '小売', '医療・福祉', '士業', '金融', '不動産', '教育', 'クリエイティブ', '広告・マーケ', 'コンサル', 'その他'];
+    $jobs = job_genre_master();
     // purpose と offer は同じ価値ボキャブラリを共有（求めること↔提供できること の重なりでマッチ）
     $values = ['協業', '顧客紹介', '販路開拓', '仕入・調達', '資金・出資', '採用・人材', '技術・開発', 'ノウハウ提供', '情報交換', '仲間づくり'];
 
@@ -521,6 +530,59 @@ function seed_tag_master(\PDO $pdo): void
     foreach ($values as $v) {
         $insTag->execute(['purpose', $v, $sort]);
         $insTag->execute(['offer', $v, $sort]);
+        $sort++;
+    }
+}
+
+/** 職業ジャンルの正式マスタ（24分類・表示順）。 */
+function job_genre_master(): array
+{
+    return [
+        'IT・Web・通信', '製造・メーカー', '建設・建築・設備', '飲食・食品', '小売・EC',
+        '医療・福祉', '士業', '金融・保険', '不動産・住宅', '教育・研修',
+        'クリエイティブ', '広告・マーケティング', 'コンサル', '人材・採用', '美容・健康',
+        'イベント・エンタメ・スポーツ', '旅行・宿泊・観光', '物流・運輸', '農林水産・畜産',
+        '商社・貿易', 'エネルギー・インフラ', '生活・各種サービス', '行政・自治体・団体・NPO', 'その他',
+    ];
+}
+
+/**
+ * 職業ジャンル(job)タグを新しい24分類へ移行する（冪等）。
+ * 旧ラベルはリネームでタグIDを保持（既存の会員タグ紐付けを壊さない）。
+ * 新規ラベルは追加、全体の並び順を新マスタ順に更新する。
+ */
+function migrate_job_tags(\PDO $pdo): void
+{
+    // 旧 → 新 のリネーム（該当タグがあれば label を更新。衝突時は IGNORE で温存）。
+    $rename = [
+        'IT・Web'   => 'IT・Web・通信',
+        '製造'      => '製造・メーカー',
+        '建設'      => '建設・建築・設備',
+        '飲食'      => '飲食・食品',
+        '小売'      => '小売・EC',
+        '金融'      => '金融・保険',
+        '不動産'    => '不動産・住宅',
+        '教育'      => '教育・研修',
+        '広告・マーケ' => '広告・マーケティング',
+    ];
+    foreach ($rename as $old => $new) {
+        // 新ラベルが既に存在する場合はリネームせず（UNIQUE衝突回避）、そのまま残す。
+        $exists = $pdo->prepare('SELECT 1 FROM tags WHERE category_key = ? AND label = ? LIMIT 1');
+        $exists->execute(['job', $new]);
+        if ($exists->fetchColumn()) {
+            continue;
+        }
+        $upd = $pdo->prepare('UPDATE tags SET label = ? WHERE category_key = ? AND label = ?');
+        $upd->execute([$new, 'job', $old]);
+    }
+
+    // 新マスタを INSERT OR IGNORE で補完し、並び順(sort)と有効フラグを更新。
+    $ins = $pdo->prepare('INSERT OR IGNORE INTO tags (category_key, label, sort, is_active) VALUES (?,?,?,1)');
+    $updSort = $pdo->prepare('UPDATE tags SET sort = ?, is_active = 1 WHERE category_key = ? AND label = ?');
+    $sort = 0;
+    foreach (job_genre_master() as $j) {
+        $ins->execute(['job', $j, $sort]);
+        $updSort->execute([$sort, 'job', $j]);
         $sort++;
     }
 }

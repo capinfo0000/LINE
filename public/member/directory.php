@@ -182,10 +182,10 @@ if ($showRail) {
             <?php else: ?>
                 <p class="muted" style="font-size:.8rem;margin:10px 0 0;">仕事ジャンル・目的・キーワード検索は<strong>プレミアム</strong>限定です。<a href="/member/billing.php">プレミアムにする</a></p>
             <?php endif; ?>
-            <p style="margin:14px 0 2px;display:flex;gap:8px;">
-                <button type="submit" class="btn" style="flex:1;">この条件で検索</button>
+            <div class="tp-filteractions">
+                <button type="submit" class="btn">この条件で検索</button>
                 <a class="btn btn--ghost" href="/member/directory.php">クリア</a>
-            </p>
+            </div>
         </div>
     </details>
 </form>

@@ -22,6 +22,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
     exit;
 }
 
+// 登録運用モード（初期＝auto／通常＝normal）の切替。
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'signup_mode') {
+    csrf_verify($_POST['csrf_token'] ?? null);
+    $sm = (string) ($_POST['mode'] ?? 'auto') === 'normal' ? 'normal' : 'auto';
+    set_signup_mode($sm);
+    $label = $sm === 'auto' ? '初期運用（友だち追加で即発行）' : '通常運用（説明会→決済→発行）';
+    header('Location: /admin/dashboard.php?msg=' . rawurlencode('登録運用モードを「' . $label . '」に変更しました。') . '&type=ok');
+    exit;
+}
+
 // 開発用サンプル会員（管理者のみ）。
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string) ($_POST['action'] ?? ''), ['seed_samples', 'delete_samples'], true)) {
     csrf_verify($_POST['csrf_token'] ?? null);
@@ -49,6 +59,33 @@ require __DIR__ . '/_app_header.php';
 <?php if ($flash !== ''): ?>
     <div class="flash <?= $flashType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($flash) ?></div>
 <?php endif; ?>
+
+<?php $__signup = signup_mode(); ?>
+<div class="card">
+    <div class="card__title" style="margin:0 0 8px;">登録運用モード</div>
+    <p style="margin:0 0 10px;">
+        現在：<strong style="color:<?= $__signup === 'auto' ? 'var(--accent-d)' : '#166534' ?>;">
+            <?= $__signup === 'auto' ? '初期運用（友だち追加で即・無料発行）' : '通常運用（説明会→決済→発行）' ?>
+        </strong>
+    </p>
+    <p class="hint" style="margin:0 0 12px;">
+        初期運用：公式LINEを友だち追加すると、その場で無料会員を発行しログインID・仮パスワードをLINE送信します（じゃんじゃん登録）。<br>
+        通常運用：友だち追加後は説明会をご案内し、希望者の決済後にログイン情報を送信します。
+    </p>
+    <form method="post" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+        <input type="hidden" name="action" value="signup_mode">
+        <?php if ($__signup === 'auto'): ?>
+            <input type="hidden" name="mode" value="normal">
+            <button type="submit" class="btn btn--ghost" data-confirm="通常運用（説明会→決済→発行）に切り替えます。よろしいですか？">通常運用に切り替える</button>
+            <span class="hint">※ じゃんじゃん登録を止めて、説明会ベースの運用にします。</span>
+        <?php else: ?>
+            <input type="hidden" name="mode" value="auto">
+            <button type="submit" class="btn" data-confirm="初期運用（友だち追加で即・無料発行）に切り替えます。よろしいですか？">初期運用に切り替える</button>
+            <span class="hint">※ 友だち追加で即・無料会員を発行する運用にします。</span>
+        <?php endif; ?>
+    </form>
+</div>
 
 <div class="stat-grid">
     <div class="stat"><span class="stat__num accent"><?= (int) $stats['members_active'] ?></span><span class="stat__label">有効会員（全<?= (int) $stats['members_total'] ?>）</span></div>

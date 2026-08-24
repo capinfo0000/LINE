@@ -292,8 +292,13 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-filtericon::-webkit-details-marker{ display:none; }
 .tp-filtericon svg{ width:20px; height:20px; }
 .tp-filterbox[open] .tp-filtericon{ background:var(--coral); color:#fff; border-color:var(--coral); }
-.tp-filterpanel{ position:absolute; right:0; top:calc(100% + 8px); z-index:30; width:min(84vw,320px);
+.tp-filterpanel{ position:absolute; right:0; top:calc(100% + 8px); z-index:60; width:min(90vw,340px);
+  max-height:min(72vh,560px); overflow-y:auto; -webkit-overflow-scrolling:touch;
   background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow-md); padding:14px; }
+/* 「この条件で検索」を常に見える位置に固定（長いチェックリストでも押せる）。 */
+.tp-filteractions{ position:sticky; bottom:-14px; margin:14px -14px -14px; padding:12px 14px;
+  background:var(--surface); border-top:1px solid var(--border); display:flex; gap:8px; }
+.tp-filteractions .btn{ flex:1; }
 
 /* --- さがす：カテゴリタブ（横スクロール） --- */
 .tp-cat{ display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; margin:0 -4px 4px; padding:2px 4px; -webkit-overflow-scrolling:touch; }
@@ -363,6 +368,11 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .rank--rookie{ background:#f1f5f9; color:#64748b; }
 
 /* --- プロフィール --- */
+/* プロフィール詳細：カバー画像（インスタ風の背景バナー） */
+.tp-cover{ margin:-16px -16px 0; height:170px; overflow:hidden; background:#faf6f5; }
+.tp-cover img{ width:100%; height:100%; object-fit:cover; display:block; }
+/* カバーがある場合、ポートレートヒーローを少し重ねて一体感を出す。 */
+.tp-wrap--cover{ margin-top:-26px; border-radius:20px 20px 0 0; overflow:hidden; position:relative; z-index:1; }
 .tp-wrap{ margin:-16px -16px 0; }
 .tp-hero{ position:relative; aspect-ratio:4/5; max-height:72vh; display:grid; place-items:center; overflow:hidden; }
 .tp-hero img{ width:100%; height:100%; object-fit:cover; }

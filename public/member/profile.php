@@ -19,10 +19,10 @@ $grouped = all_tags_grouped();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
 
-    // 本文＋表示制御
+    // 本文＋表示制御（年齢は生年月日から自動算出。生年月日は非公開）
     save_profile($memberId, [
         'name_text'     => (string) ($_POST['name_text'] ?? ''),
-        'age_text'      => (string) ($_POST['age_text'] ?? ''),
+        'birthdate'     => (string) ($_POST['birthdate'] ?? ''),
         'company_title' => (string) ($_POST['company_title'] ?? ''),
         'headline'      => (string) ($_POST['headline'] ?? ''),
         'bio'           => (string) ($_POST['bio'] ?? ''),
@@ -65,6 +65,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // カバー画像（全会員公開）：削除 or アップロード
+    if (!empty($_POST['cover_delete'])) {
+        delete_member_image($memberId, 'cover_path');
+    } elseif (($_FILES['cover']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+        $cerr = '';
+        if (!save_member_image($memberId, 'cover_path', 'cover', $_FILES['cover'], 1200, $cerr)) {
+            $msg = $cerr;
+            $msgType = 'ng';
+        }
+    }
+
+    // 名刺画像（全会員公開）：削除 or アップロード
+    if (!empty($_POST['card_delete'])) {
+        delete_member_image($memberId, 'card_path');
+    } elseif (($_FILES['card']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+        $kerr = '';
+        if (!save_member_image($memberId, 'card_path', 'card', $_FILES['card'], 1000, $kerr)) {
+            $msg = $kerr;
+            $msgType = 'ng';
+        }
+    }
+
     if ($msg === '') {
         $msg = 'プロフィールを保存しました。';
     }
@@ -81,6 +103,10 @@ $prefJob = array_flip($prefs['seek_job']);
 $prefPurpose = array_flip($prefs['seek_purpose']);
 $links = get_member_links($memberId);
 $photoAbs = member_photo_abs_path($profile);
+$coverAbs = member_image_abs_path($profile, 'cover_path');
+$cardAbs = member_image_abs_path($profile, 'card_path');
+$birthdate = (string) ($profile['birthdate'] ?? '');
+$currentAge = $birthdate !== '' ? compute_age($birthdate) : null;
 
 $token = csrf_token();
 $pageTitle = 'プロフィール編集';
@@ -111,6 +137,18 @@ $renderChecks = function (array $tags, string $name, array $checked) {
 <form method="post" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
 
+    <div class="card">
+        <div class="card__title" style="color:var(--coral-d);">カバー画像（背景・全会員に公開）</div>
+        <?php if ($coverAbs !== null): ?>
+            <img src="/member/photo.php?kind=cover" alt="現在のカバー画像" style="width:100%;height:140px;object-fit:cover;border-radius:14px;box-shadow:var(--shadow-sm);">
+            <div style="margin-top:8px;"><label style="font-weight:normal;display:inline-flex;gap:6px;align-items:center;"><input type="checkbox" name="cover_delete" value="1" style="width:auto;"> このカバー画像を削除する</label></div>
+        <?php else: ?>
+            <div style="width:100%;height:140px;border-radius:14px;background:linear-gradient(120deg,#ffe9e6,#faf6f5);border:2px dashed var(--border);display:grid;place-items:center;color:var(--faint);font-size:.85rem;">カバー画像なし（横長の画像がおすすめ）</div>
+        <?php endif; ?>
+        <label style="margin-top:14px;">カバー画像をアップロード（JPEG/PNG/WebP・横長推奨）</label>
+        <input type="file" name="cover" accept="image/jpeg,image/png,image/webp">
+    </div>
+
     <div class="card" style="text-align:center;">
         <div class="card__title" style="text-align:left;color:var(--coral-d);">プロフィール写真</div>
         <!-- imgpipe: <?= e(photo_pipeline_tag()) ?> -->
@@ -126,11 +164,25 @@ $renderChecks = function (array $tags, string $name, array $checked) {
     </div>
 
     <div class="card">
+        <div class="card__title" style="color:var(--coral-d);">名刺画像（全会員に公開）</div>
+        <?php if ($cardAbs !== null): ?>
+            <img src="/member/photo.php?kind=card" alt="現在の名刺画像" style="max-width:100%;border-radius:12px;box-shadow:var(--shadow-sm);">
+            <div style="margin-top:8px;"><label style="font-weight:normal;display:inline-flex;gap:6px;align-items:center;"><input type="checkbox" name="card_delete" value="1" style="width:auto;"> この名刺画像を削除する</label></div>
+        <?php else: ?>
+            <div style="width:100%;height:120px;border-radius:12px;background:#faf6f5;border:2px dashed var(--border);display:grid;place-items:center;color:var(--faint);font-size:.85rem;">名刺画像なし</div>
+        <?php endif; ?>
+        <label style="margin-top:14px;">名刺画像をアップロード（JPEG/PNG/WebP）</label>
+        <input type="file" name="card" accept="image/jpeg,image/png,image/webp">
+        <p class="muted" style="font-size:.8rem;margin:8px 0 0;">名刺の写真をそのままアップロードできます。個人情報の記載にご注意ください。</p>
+    </div>
+
+    <div class="card">
         <div class="card__title" style="color:var(--coral-d);">基本情報</div>
         <label>名前</label>
         <input type="text" name="name_text" maxlength="100" value="<?= e($profile['name_text']) ?>" placeholder="例: 田中 由紀">
-        <label>年齢</label>
-        <input type="text" name="age_text" maxlength="40" value="<?= e($profile['age_text']) ?>" placeholder="例: 30代 / 35歳">
+        <label>生年月日<?php if ($currentAge !== null): ?>（現在 <?= (int) $currentAge ?> 歳）<?php endif; ?></label>
+        <input type="date" name="birthdate" value="<?= e($birthdate) ?>" min="1900-01-01" max="<?= e(date('Y-m-d')) ?>">
+        <p class="muted" style="font-size:.8rem;margin:6px 0 0;">生年月日は<strong>公開されません</strong>。他の会員には「年齢」だけが表示されます。</p>
         <label>会社名・屋号／肩書き</label>
         <input type="text" name="company_title" maxlength="120" value="<?= e($profile['company_title']) ?>" placeholder="例: 田中会計事務所 / 代表">
         <label>ひとことPR（一覧に表示される見出し）</label>

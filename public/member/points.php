@@ -47,6 +47,7 @@ require __DIR__ . '/_header.php';
     <p class="muted">受けた評価 <?= (int) $myPraise ?> 件／紹介した人数 <?= (int) $myRefCount ?> 名</p>
 </div>
 
+<?php if (billing_started()): ?>
 <div class="card">
     <div class="card__title">紹介であなたのコードを共有</div>
     <p>友人が入会時にあなたのコードを入力すると、<strong>あなたに<?= points_amount('referrer') ?>pt・相手に<?= points_amount('joiner') ?>pt</strong>が入ります。</p>
@@ -70,6 +71,12 @@ require __DIR__ . '/_header.php';
         <p class="muted" style="margin-top:6px;">※登録は1回だけ・あとから変更できません。</p>
     <?php endif; ?>
 </div>
+<?php else: ?>
+<div class="card">
+    <div class="card__title">紹介制度について</div>
+    <p class="muted" style="margin:0;">紹介コード・紹介特典は、<strong>本サービスの制度開始（課金開始）時に公開</strong>予定です。今しばらくお待ちください。</p>
+</div>
+<?php endif; ?>
 
 <div class="card">
     <div class="card__title">ポイント履歴</div>
