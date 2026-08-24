@@ -21,6 +21,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
     $action = (string) ($_POST['action'] ?? '');
     switch ($action) {
+        case 'unlock_intro':
+            mark_intro_submitted($id);
+            audit_log('admin.intro_unlocked', ['member' => $id]);
+            $msg = '自己紹介ロックを解除しました（「さがす」が使えます）。';
+            break;
+        case 'relock_intro':
+            db()->prepare('UPDATE members SET intro_submitted_at = NULL WHERE id = ?')->execute([$id]);
+            audit_log('admin.intro_relocked', ['member' => $id]);
+            $msg = '自己紹介ロックを再設定しました。';
+            break;
         case 'delete_member':
             // 会員を完全削除（元に戻せない）。削除後は一覧へ戻す。
             if (admin_delete_member($id)) {
@@ -155,6 +165,35 @@ $myReports = $myReports->fetchAll();
         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>">
         <button class="btn" name="action" value="reissue" data-confirm="ID/PWを再発行して配布します。よろしいですか？">ID/PWを再発行して配布</button>
     </form>
+    <?php
+    $__introDone = member_intro_submitted($member);
+    $__gated = member_needs_intro($member);
+    ?>
+    <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px;">
+        <label style="margin-top:0;">自己紹介ロック（「さがす」の閲覧）</label>
+        <p class="hint" style="margin:0 0 8px;">
+            <?php if (!intro_gate_enabled()): ?>
+                現在ロック機能はOFFです（全員が「さがす」を利用できます）。
+            <?php elseif ((string) ($member['line_user_id'] ?? '') === ''): ?>
+                この会員はLINE未連携のため、ロックの対象外です。
+            <?php elseif ($__gated): ?>
+                <strong style="color:var(--dng);">ロック中</strong>（公式LINEへの自己紹介が未確認）。
+                会員が送信済みなのに解除されない場合は、下のボタンで手動解除できます。
+            <?php else: ?>
+                <strong style="color:#166534;">解除済み</strong>（自己紹介の送信を確認しました）。
+            <?php endif; ?>
+        </p>
+        <form method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>">
+            <?php if ($__introDone): ?>
+                <button class="btn btn--ghost" name="action" value="relock_intro"
+                        data-confirm="この会員に自己紹介ロックを再設定します。よろしいですか？">ロックを再設定</button>
+            <?php else: ?>
+                <button class="btn" name="action" value="unlock_intro"
+                        data-confirm="この会員の自己紹介ロックを解除します（「さがす」が使えるようになります）。よろしいですか？">ロックを手動解除</button>
+            <?php endif; ?>
+        </form>
+    </div>
     <form method="post">
         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>">
         <label>ステータス変更</label>

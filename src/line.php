@@ -552,17 +552,32 @@ function line_handle_event(array $event): array
         // 判定：ひな形の目印「enlink」を含む or 十分な長さ（予約キーワードは除外）。
         $contact = find_line_contact($userId);
         $linkedMemberId = $contact !== null ? (string) ($contact['member_id'] ?? '') : '';
+        // 会員の特定：連絡先の紐付け → 無ければ members.line_user_id から直接引く。
+        // （紐付け漏れで永久ロックになるのを防ぐ）
+        $member = $linkedMemberId !== '' ? find_member_by_id($linkedMemberId) : null;
+        if ($member === null) {
+            $member = find_member_by_line_user_id($userId);
+        }
         // 単独のメールアドレスは自己紹介ではなくメール登録として扱うため除外する。
-        if ($mtype === 'text' && $linkedMemberId !== '' && !filter_var($text, FILTER_VALIDATE_EMAIL)) {
-            $member = find_member_by_id($linkedMemberId);
-            if ($member !== null && !member_intro_submitted($member) && member_needs_intro($member)) {
-                $looksIntro = mb_stripos($text, 'enlink') !== false
-                    || (mb_strlen($text) >= 30
-                        && mb_strpos($text, '説明会') === false
-                        && mb_strpos($text, 'セミナー') === false
-                        && mb_strpos($text, '面談') === false);
+        if ($mtype === 'text' && $member !== null && !filter_var($text, FILTER_VALIDATE_EMAIL)) {
+            if (!member_intro_submitted($member) && member_needs_intro($member)) {
+                // 予約系キーワードだけは自己紹介として扱わない。
+                $isReserved = mb_strpos($text, '説明会') !== false
+                    || mb_strpos($text, 'セミナー') !== false
+                    || mb_strpos($text, '面談') !== false;
+                // 目印「enlink」、複数行（ひな形は複数行）、または10文字以上を自己紹介とみなす。
+                $looksIntro = !$isReserved && (
+                    mb_stripos($text, 'enlink') !== false
+                    || mb_strpos($text, "\n") !== false
+                    || mb_strlen($text) >= 10
+                );
                 if ($looksIntro) {
-                    mark_intro_submitted($linkedMemberId);
+                    $mid = (string) $member['id'];
+                    mark_intro_submitted($mid);
+                    // 連絡先の紐付けが抜けていれば、ここで補完しておく。
+                    if ($linkedMemberId === '' && $contact !== null) {
+                        link_line_contact_member($userId, $mid);
+                    }
                     return [line_text("自己紹介を受け付けました！ありがとうございます😊\n会員サイトの「さがす」がご利用いただけるようになりました。")];
                 }
             }

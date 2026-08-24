@@ -211,6 +211,18 @@ function member_needs_intro(array $member): bool
     return !member_intro_submitted($member);
 }
 
+/** LINEのuserIdから会員を探す（連絡先の紐付けが無い場合のフォールバック用）。 */
+function find_member_by_line_user_id(string $lineUserId): ?array
+{
+    if ($lineUserId === '') {
+        return null;
+    }
+    $stmt = db()->prepare('SELECT * FROM members WHERE line_user_id = ? LIMIT 1');
+    $stmt->execute([$lineUserId]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
 function find_member_by_id(string $id): ?array
 {
     $stmt = db()->prepare('SELECT * FROM members WHERE id = ?');
