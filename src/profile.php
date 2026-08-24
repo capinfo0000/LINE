@@ -43,7 +43,7 @@ function get_profile(string $memberId): array
             'member_id' => $memberId,
             'name_text' => '', 'age_text' => '', 'company_title' => '',
             'headline' => '', 'bio' => '', 'photo_path' => null, 'photo_status' => 'none',
-            'birthdate' => '', 'cover_path' => null, 'card_path' => null,
+            'birthdate' => '', 'cover_path' => null, 'card_path' => null, 'intro_text' => '',
             'visibility_flags' => '{}', 'updated_at' => null,
         ];
     }
@@ -107,6 +107,15 @@ function save_profile(string $memberId, array $d): void
         ':c' => $fields['company_title'], ':h' => $fields['headline'], ':b' => $fields['bio'],
         ':bd' => $birthdate, ':v' => $visJson, ':t' => time(),
     ]);
+}
+
+/** 自己紹介ひな形（オープンチャット投稿用の編集済み文面）を保存する。 */
+function save_intro_text(string $memberId, string $text): void
+{
+    $text = mb_substr($text, 0, 3000);
+    save_profile($memberId, []); // 行の存在を保証
+    $stmt = db()->prepare('UPDATE profiles SET intro_text = ?, updated_at = ? WHERE member_id = ?');
+    $stmt->execute([$text, time(), $memberId]);
 }
 
 /** 生年月日文字列を YYYY-MM-DD に正規化（不正・空は ''）。 */
