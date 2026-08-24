@@ -157,6 +157,51 @@ $renderPicker = function (string $modalId, string $rowLabel, array $tags, string
     </div>
     <?php
 };
+
+/** テキスト/日付の「行タップ→ポップアップ編集」フィールド。$isAge=true は日付入力で行に年齢を表示。 */
+$renderField = function (string $modalId, string $label, string $key, string $name, string $rawValue, string $displayValue, string $inputType = 'text', string $placeholder = '', bool $isAge = false, array $attrs = []) {
+    $empty = $displayValue === '';
+    $extra = '';
+    foreach ($attrs as $k => $v) {
+        $extra .= ' ' . $k . '="' . e((string) $v) . '"';
+    }
+    ?>
+    <button type="button" class="tp-field" data-modal-open="<?= e($modalId) ?>">
+        <span class="tp-field__l"><?= e($label) ?></span>
+        <span class="tp-field__v<?= $empty ? ' is-empty' : '' ?>" data-fieldval="<?= e($key) ?>"><?= $empty ? '未設定' : e($displayValue) ?></span>
+        <span class="tp-field__c">›</span>
+    </button>
+    <div class="modal" id="<?= e($modalId) ?>">
+        <div class="modal__box">
+            <button type="button" class="modal__close" data-modal-close aria-label="閉じる">×</button>
+            <div class="modal__title"><?= e($label) ?></div>
+            <input type="<?= e($inputType) ?>" name="<?= e($name) ?>" value="<?= e($rawValue) ?>" data-field="<?= e($key) ?>"<?= $isAge ? ' data-field-age' : '' ?> placeholder="<?= e($placeholder) ?>"<?= $extra ?>>
+            <div class="modal__actions"><button type="button" class="btn" data-modal-close>決定</button></div>
+        </div>
+    </div>
+    <?php
+};
+
+/** テキストエリア（自己紹介など）の「行タップ→ポップアップ編集」フィールド。 */
+$renderTextareaField = function (string $modalId, string $label, string $key, string $name, string $value, string $placeholder = '') {
+    $empty = trim($value) === '';
+    $preview = $empty ? '' : mb_substr(preg_replace('/\s+/u', ' ', $value), 0, 24);
+    ?>
+    <button type="button" class="tp-field" data-modal-open="<?= e($modalId) ?>">
+        <span class="tp-field__l"><?= e($label) ?></span>
+        <span class="tp-field__v<?= $empty ? ' is-empty' : '' ?>" data-fieldval="<?= e($key) ?>"><?= $empty ? '未設定' : e($preview) ?></span>
+        <span class="tp-field__c">›</span>
+    </button>
+    <div class="modal" id="<?= e($modalId) ?>">
+        <div class="modal__box">
+            <button type="button" class="modal__close" data-modal-close aria-label="閉じる">×</button>
+            <div class="modal__title"><?= e($label) ?></div>
+            <textarea name="<?= e($name) ?>" data-field="<?= e($key) ?>" rows="6" maxlength="2000" placeholder="<?= e($placeholder) ?>" style="width:100%;"><?= e($value) ?></textarea>
+            <div class="modal__actions"><button type="button" class="btn" data-modal-close>決定</button></div>
+        </div>
+    </div>
+    <?php
+};
 ?>
 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 6px;">
     <h1 style="font-size:1.5rem;margin:0;">プロフィール編集</h1>
@@ -209,17 +254,13 @@ $renderPicker = function (string $modalId, string $rowLabel, array $tags, string
 
     <div class="card">
         <div class="card__title" style="color:var(--coral-d);">基本情報</div>
-        <label>名前</label>
-        <input type="text" name="name_text" maxlength="100" value="<?= e($profile['name_text']) ?>" placeholder="例: 田中 由紀">
-        <label>生年月日<?php if ($currentAge !== null): ?>（現在 <?= (int) $currentAge ?> 歳）<?php endif; ?></label>
-        <input type="date" name="birthdate" value="<?= e($birthdate) ?>" min="1900-01-01" max="<?= e(date('Y-m-d')) ?>">
-        <p class="muted" style="font-size:.8rem;margin:6px 0 0;">生年月日は<strong>公開されません</strong>。他の会員には「年齢」だけが表示されます。</p>
-        <label>会社名・屋号／肩書き</label>
-        <input type="text" name="company_title" maxlength="120" value="<?= e($profile['company_title']) ?>" placeholder="例: 田中会計事務所 / 代表">
-        <label>ひとことPR（一覧に表示される見出し）</label>
-        <input type="text" name="headline" maxlength="120" value="<?= e($profile['headline']) ?>" placeholder="例: 補助金・資金繰りが専門です">
-        <label>自己紹介</label>
-        <textarea name="bio" rows="5" maxlength="2000" placeholder="経歴・得意なこと・どんな方とつながりたいか など"><?= e($profile['bio']) ?></textarea>
+        <div class="tp-fields">
+            <?php $renderField('m-name', '名前', 'f-name', 'name_text', (string) $profile['name_text'], (string) $profile['name_text'], 'text', '例: 田中 由紀', false, ['maxlength' => '100']); ?>
+            <?php $renderField('m-birth', '生年月日（年齢のみ公開）', 'f-birth', 'birthdate', $birthdate, $currentAge !== null ? $currentAge . '歳' : '', 'date', '', true, ['min' => '1900-01-01', 'max' => date('Y-m-d')]); ?>
+            <?php $renderField('m-company', '会社・肩書き', 'f-company', 'company_title', (string) $profile['company_title'], (string) $profile['company_title'], 'text', '例: 田中会計事務所 / 代表', false, ['maxlength' => '120']); ?>
+            <?php $renderField('m-headline', 'ひとことPR', 'f-headline', 'headline', (string) $profile['headline'], (string) $profile['headline'], 'text', '例: 補助金・資金繰りが専門です', false, ['maxlength' => '120']); ?>
+            <?php $renderTextareaField('m-bio', '自己紹介', 'f-bio', 'bio', (string) $profile['bio'], '経歴・得意なこと・どんな方とつながりたいか など'); ?>
+        </div>
     </div>
 
     <div class="card">

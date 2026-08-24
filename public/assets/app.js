@@ -165,5 +165,38 @@
       b.addEventListener('change', function () { refreshPicker(b.getAttribute('data-group')); });
     });
     Object.keys(pickerGroups).forEach(refreshPicker);
+
+    // テキスト/日付フィールドの行サマリ（data-field → data-fieldval）を更新。
+    function ageFromDate(s) {
+      var m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+      if (!m) { return null; }
+      var t = new Date();
+      var y = t.getFullYear() - (+m[1]);
+      if ((t.getMonth() + 1) < (+m[2]) || ((t.getMonth() + 1) === (+m[2]) && t.getDate() < (+m[3]))) { y--; }
+      return y < 0 ? null : y;
+    }
+    function refreshField(key) {
+      var input = document.querySelector('[data-field="' + key + '"]');
+      if (!input) { return; }
+      var val = (input.value || '').trim();
+      var text, empty = (val === '');
+      if (input.hasAttribute('data-field-age')) {
+        var a = val ? ageFromDate(val) : null;
+        text = (a !== null) ? (a + '歳') : '未設定';
+        empty = (a === null);
+      } else {
+        text = empty ? '未設定' : val.replace(/\s+/g, ' ');
+        if (text.length > 24) { text = text.slice(0, 24) + '…'; }
+      }
+      document.querySelectorAll('[data-fieldval="' + key + '"]').forEach(function (el) {
+        el.textContent = text;
+        el.classList.toggle('is-empty', empty);
+      });
+    }
+    document.querySelectorAll('[data-field]').forEach(function (inp) {
+      var ev = (inp.tagName === 'SELECT' || inp.type === 'date') ? 'change' : 'input';
+      inp.addEventListener(ev, function () { refreshField(inp.getAttribute('data-field')); });
+      refreshField(inp.getAttribute('data-field'));
+    });
   });
 })();
