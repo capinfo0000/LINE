@@ -224,16 +224,12 @@ $renderPicker = function (string $modalId, string $rowLabel, array $tags, string
 
     <div class="card">
         <div class="card__title" style="color:var(--coral-d);">タグ・求める条件</div>
-        <p class="muted" style="margin-top:0;font-size:.85rem;">項目をタップして選択してください（複数可）。</p>
-        <p class="tp-fields__h">あなたの属性</p>
+        <p class="muted" style="margin-top:0;font-size:.85rem;">項目をタップして選択してください（複数可）。「相手の〜」は求める条件（未選択＝問わない）。</p>
         <div class="tp-fields">
             <?php $renderPicker('m-area', '📍 場所', $grouped['area'] ?? [], 'tags', $myTagIds, 'gt-area'); ?>
             <?php $renderPicker('m-job', '💼 仕事ジャンル', $grouped['job'] ?? [], 'tags', $myTagIds, 'gt-job'); ?>
             <?php $renderPicker('m-purpose', '🎯 目的（求めること）', $grouped['purpose'] ?? [], 'tags', $myTagIds, 'gt-purpose'); ?>
             <?php $renderPicker('m-offer', '🤝 提供できること', $grouped['offer'] ?? [], 'tags', $myTagIds, 'gt-offer'); ?>
-        </div>
-        <p class="tp-fields__h">求める条件（おすすめ・検索に使用／未選択＝問わない）</p>
-        <div class="tp-fields">
             <?php $renderPicker('m-sarea', '相手の場所', $grouped['area'] ?? [], 'seek_area', $prefArea, 'gt-sarea'); ?>
             <?php $renderPicker('m-sjob', '相手の仕事ジャンル', $grouped['job'] ?? [], 'seek_job', $prefJob, 'gt-sjob'); ?>
             <?php $renderPicker('m-spurpose', '相手の目的', $grouped['purpose'] ?? [], 'seek_purpose', $prefPurpose, 'gt-spurpose'); ?>
