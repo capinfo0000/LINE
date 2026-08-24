@@ -346,7 +346,24 @@ function csrf_verify(?string $token): void
     if ($expected === '' || !is_string($token) || !hash_equals($expected, $token)) {
         audit_log('csrf.fail', ['path' => $_SERVER['SCRIPT_NAME'] ?? '']);
         http_response_code(400);
-        exit('不正なリクエストです（CSRF トークン不一致）。画面を開き直してください。');
+        // 同一ホストの参照元にだけ「戻る」を許可（オープンリダイレクト対策）。
+        $back = (string) ($_SERVER['HTTP_REFERER'] ?? '');
+        $safe = '/';
+        if ($back !== '' && parse_url($back, PHP_URL_HOST) === ($_SERVER['HTTP_HOST'] ?? '')) {
+            $safe = $back;
+        }
+        header('Content-Type: text/html; charset=UTF-8');
+        exit('<!doctype html><html lang="ja"><head><meta charset="utf-8">'
+            . '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            . '<title>送信できませんでした</title><link rel="stylesheet" href="/assets/app.css"></head>'
+            . '<body><div class="container container--narrow" style="padding-top:40px;">'
+            . '<div class="flash flash--ng"><strong>送信できませんでした。</strong><br>'
+            . 'フォームを長い時間開いたままにしていた可能性があります。'
+            . 'また、アップロードした画像が大きすぎる場合にも起こることがあります。</div>'
+            . '<p class="muted" style="font-size:.85rem;">お手数ですが、画面を開き直してもう一度お試しください。'
+            . '画像を送る場合は、少し小さめの画像でお試しください。</p>'
+            . '<p><a class="btn" href="' . e($safe) . '">前の画面に戻る</a></p>'
+            . '</div></body></html>');
     }
 }
 
