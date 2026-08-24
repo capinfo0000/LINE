@@ -26,10 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'company_title' => (string) ($_POST['company_title'] ?? ''),
         'headline'      => (string) ($_POST['headline'] ?? ''),
         'bio'           => (string) ($_POST['bio'] ?? ''),
-        'visibility'    => [
-            'directory' => !empty($_POST['vis_directory']),
-            'line_url'  => !empty($_POST['vis_line_url']),
-        ],
+        // 表示設定は常にON（ディレクトリ掲載・LINE追加URL表示）で固定。
+        'visibility'    => ['directory' => true, 'line_url' => true],
     ]);
 
     // タグ（全カテゴリの選択を集約）
@@ -286,13 +284,6 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
                 <span class="tp-field__c">›</span>
             </button>
         </div>
-
-        <hr style="border:0;border-top:1px solid var(--border);margin:18px 0;">
-        <div class="card__title" style="color:var(--coral-d);margin-bottom:8px;">表示設定</div>
-        <label style="font-weight:normal;"><input type="checkbox" name="vis_directory" value="1"<?= $vis['directory'] ? ' checked' : '' ?>> 会員ディレクトリに掲載する</label>
-        <p class="muted" style="font-size:.8rem;margin:2px 0 10px 24px;">OFFにすると、他の会員の「さがす」や検索に表示されません（非公開）。</p>
-        <label style="font-weight:normal;"><input type="checkbox" name="vis_line_url" value="1"<?= $vis['line_url'] ? ' checked' : '' ?>> LINE追加URLを他の会員に表示する</label>
-        <p class="muted" style="font-size:.8rem;margin:2px 0 0 24px;">上の「リンク」で登録したLINE追加URLを、プロフィールで他の会員に見せます。</p>
     </div>
 
     <!-- リンク編集モーダル（自分で件数を追加できる） -->
