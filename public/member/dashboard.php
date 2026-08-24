@@ -41,7 +41,7 @@ require __DIR__ . '/_header.php';
 
 <div class="tp-mp-head">
     <div class="tp-mp-av"<?= $hasPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 66% 54%),hsl(' . $hue2 . ' 64% 45%))"' ?>>
-        <?php if ($hasPhoto): ?><img src="/member/photo.php?id=<?= e($id) ?>" alt=""><?php else: ?><?= e($ini) ?><?php endif; ?>
+        <?php if ($hasPhoto): ?><img src="/member/photo.php?id=<?= e($id) ?>&v=<?= (int) ($profile['updated_at'] ?? 0) ?>" alt=""><?php else: ?><?= e($ini) ?><?php endif; ?>
     </div>
     <div class="tp-mp-name"><?= e($nm) ?></div>
     <?php if ($age !== '' || $area !== ''): ?>

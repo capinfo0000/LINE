@@ -279,17 +279,18 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
         <!-- imgpipe: <?= e(photo_pipeline_tag()) ?> -->
         <?php
         $camSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+        $imgV = (int) ($profile['updated_at'] ?? 0); // キャッシュバスター（保存直後に即反映）
         ?>
         <!-- カバー＋顔写真（インスタ風エディタ） -->
         <div class="tp-editcover">
             <label class="tp-cov">
                 <input type="file" name="cover" accept="image/jpeg,image/png,image/webp" hidden>
-                <?php if ($coverAbs !== null): ?><img src="/member/photo.php?kind=cover" alt="カバー画像"><?php endif; ?>
+                <?php if ($coverAbs !== null): ?><img src="/member/photo.php?kind=cover&v=<?= $imgV ?>" alt="カバー画像"><?php endif; ?>
                 <span class="tp-cam"><?= $camSvg ?> カバー画像</span>
             </label>
             <label class="tp-avedit">
                 <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" hidden>
-                <?php if ($photoAbs !== null): ?><img src="/member/photo.php" alt="顔写真"><?php else: ?><span class="tp-avedit__ph"><?= $camSvg ?></span><?php endif; ?>
+                <?php if ($photoAbs !== null): ?><img src="/member/photo.php?v=<?= $imgV ?>" alt="顔写真"><?php else: ?><span class="tp-avedit__ph"><?= $camSvg ?></span><?php endif; ?>
             </label>
         </div>
         <?php if ($coverAbs !== null || $photoAbs !== null): ?>
@@ -366,7 +367,7 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
             <p class="modal__lead">全会員に公開されます。個人情報の記載にご注意ください。</p>
             <label class="tp-cardedit">
                 <input type="file" name="card" accept="image/jpeg,image/png,image/webp" hidden>
-                <?php if ($cardAbs !== null): ?><img src="/member/photo.php?kind=card" alt="名刺画像"><span class="tp-cam"><?= $camSvg ?> 変更</span><?php else: ?><span class="tp-cardedit__ph"><?= $camSvg ?> 名刺画像を選ぶ</span><?php endif; ?>
+                <?php if ($cardAbs !== null): ?><img src="/member/photo.php?kind=card&v=<?= $imgV ?>" alt="名刺画像"><span class="tp-cam"><?= $camSvg ?> 変更</span><?php else: ?><span class="tp-cardedit__ph"><?= $camSvg ?> 名刺画像を選ぶ</span><?php endif; ?>
             </label>
             <?php if ($cardAbs !== null): ?>
             <div class="tp-imgdel"><label><input type="checkbox" name="card_delete" value="1"> 名刺を削除</label></div>

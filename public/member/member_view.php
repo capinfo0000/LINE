@@ -99,14 +99,14 @@ $avatarBg = $hasApprovedPhoto ? '' : ' style="background:linear-gradient(150deg,
 <!-- インスタ風ヘッダー：カバー画像＋丸アイコン重ね -->
 <div class="tp-ig">
     <div class="tp-ig-cover"<?= $coverAbs === null ? ' style="background:linear-gradient(120deg,#ff9f7a,#f96d6d)"' : '' ?>>
-        <?php if ($coverAbs !== null): ?><img src="/member/photo.php?id=<?= e($targetId) ?>&kind=cover" alt="カバー画像"><?php endif; ?>
+        <?php if ($coverAbs !== null): ?><img src="/member/photo.php?id=<?= e($targetId) ?>&kind=cover&v=<?= (int)($profile['updated_at'] ?? 0) ?>" alt="カバー画像"><?php endif; ?>
         <a class="tp-hback" href="/member/directory.php" aria-label="ディレクトリへ戻る">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </a>
     </div>
     <div class="tp-ig-head">
         <div class="tp-ig-av"<?= $avatarBg ?>>
-            <?php if ($hasApprovedPhoto): ?><img src="/member/photo.php?id=<?= e($targetId) ?>" alt=""><?php else: ?><span><?= e($ini) ?></span><?php endif; ?>
+            <?php if ($hasApprovedPhoto): ?><img src="/member/photo.php?id=<?= e($targetId) ?>&v=<?= (int)($profile['updated_at'] ?? 0) ?>" alt=""><?php else: ?><span><?= e($ini) ?></span><?php endif; ?>
         </div>
         <?php $ageDisp = (string) ($profile['age_text'] ?? ''); if ($ageDisp !== '' && ctype_digit($ageDisp)) { $ageDisp .= '歳'; } ?>
         <div class="tp-ig-name"><b><?= e($nm) ?></b><?php if ($ageDisp !== ''): ?><span class="age"><?= e($ageDisp) ?></span><?php endif; ?></div>
@@ -166,7 +166,7 @@ $hasAnyTag = ($labels['area'] ?? []) || ($labels['job'] ?? []) || ($labels['purp
 <?php if ($cardAbs !== null): ?>
 <section class="tp-sec">
     <h2 class="tp-sec__t">名刺</h2>
-    <img src="/member/photo.php?id=<?= e($targetId) ?>&kind=card" alt="名刺画像" style="max-width:100%;border-radius:12px;box-shadow:var(--shadow-sm);">
+    <img src="/member/photo.php?id=<?= e($targetId) ?>&kind=card&v=<?= (int)($profile['updated_at'] ?? 0) ?>" alt="名刺画像" style="max-width:100%;border-radius:12px;box-shadow:var(--shadow-sm);">
 </section>
 <?php endif; ?>
 
