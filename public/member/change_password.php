@@ -50,7 +50,11 @@ require __DIR__ . '/_header.php';
 <?php if ($forced): ?>
     <p class="muted">安全のため、仮パスワードから<strong>ご自身のパスワードへ変更</strong>してください。変更するまで他の画面はご利用いただけません。</p>
 <?php endif; ?>
-<?php if ($error !== ''): ?><p class="err"><?= e($error) ?></p><?php endif; ?>
+<?php if ($error !== ''): ?>
+    <div class="flash flash--ng"><?= e($error) ?>
+        <div style="font-size:.82rem;margin-top:6px;font-weight:400;">パスワードは<strong>8文字以上</strong>で、新しいパスワードと確認用が一致している必要があります。</div>
+    </div>
+<?php endif; ?>
 <form method="post" class="card">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
     <?php if (!$forced): ?>

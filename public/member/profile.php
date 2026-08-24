@@ -19,6 +19,30 @@ $grouped = all_tags_grouped();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
 
+    // 入力チェック：問題があれば「何がダメで・どうすればいいか」を明示する。
+    $errors = [];
+    $inBirth = trim((string) ($_POST['birthdate'] ?? ''));
+    if ($inBirth !== '' && normalize_birthdate($inBirth) === '') {
+        $errors[] = '生年月日が正しくありません。カレンダーから実在する日付を選び直してください（例: 1990-05-20）。';
+    }
+    if (trim((string) ($_POST['name_text'] ?? '')) === '') {
+        $errors[] = '名前が未入力です。他の会員に表示される名前を入力してください。';
+    }
+    foreach ((array) ($_POST['link_url'] ?? []) as $u) {
+        $u = trim((string) $u);
+        if ($u !== '' && !preg_match('#^https?://#i', $u)) {
+            $errors[] = 'リンクのURLは「https://」から始まる形式で入力してください（例: https://example.com）。';
+            break;
+        }
+    }
+
+    if ($errors !== []) {
+        // 保存せずにエラーを表示（入力はそのまま残す）。
+        $msg = implode("\n", $errors);
+        $msgType = 'ng';
+        goto render; // 保存処理をスキップ
+    }
+
     // 本文＋表示制御（年齢は生年月日から自動算出。生年月日は非公開）
     save_profile($memberId, [
         'name_text'     => (string) ($_POST['name_text'] ?? ''),
@@ -91,6 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     audit_log('member.profile_save', ['member' => $memberId]);
 }
 
+render:
 // 現在値
 $profile = get_profile($memberId);
 $vis = profile_visibility($profile);
@@ -220,7 +245,7 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
     <a class="btn btn--ghost" href="/member/member_view.php?id=<?= e($memberId) ?>" style="padding:8px 16px;border-radius:999px;">👁 プレビュー</a>
 </div>
 <p class="muted" style="margin:0 0 14px;"><a href="/member/dashboard.php">← マイページ</a></p>
-<?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
+<?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= nl2br(e($msg)) ?></div><?php endif; ?>
 
 <form method="post" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">

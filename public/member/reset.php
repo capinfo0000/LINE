@@ -45,10 +45,10 @@ require __DIR__ . '/_header.php';
     <div class="card"><p>パスワードを変更しました。新しいパスワードでログインしてください。</p></div>
     <p><a class="btn" href="/member/login.php" style="display:inline-block;width:auto;text-decoration:none;">ログインへ</a></p>
 <?php elseif ($valid === null): ?>
-    <div class="err">リンクが無効か、有効期限が切れています。</div>
+    <div class="flash flash--ng">リンクが無効か、有効期限が切れています。<div style="font-size:.82rem;margin-top:6px;font-weight:400;">お手数ですが、もう一度パスワード再設定をお申し込みください。</div></div>
     <p class="muted"><a href="/member/forgot.php">もう一度申し込む</a></p>
 <?php else: ?>
-    <?php if ($error !== ''): ?><div class="err"><?= e($error) ?></div><?php endif; ?>
+    <?php if ($error !== ''): ?><div class="flash flash--ng"><?= e($error) ?><div style="font-size:.82rem;margin-top:6px;font-weight:400;">パスワードは8文字以上で、確認用と一致させてください。</div></div><?php endif; ?>
     <form method="post" class="card">
         <input type="hidden" name="csrf_token" value="<?= e($tk) ?>">
         <input type="hidden" name="token" value="<?= e($token) ?>">

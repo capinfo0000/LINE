@@ -51,7 +51,15 @@ $pageTitle = '会員ログイン';
 require __DIR__ . '/_header.php';
 ?>
 <h1>会員ログイン</h1>
-<?php if ($error !== ''): ?><p class="err"><?= e($error) ?></p><?php endif; ?>
+<?php if ($error !== ''): ?>
+    <div class="flash flash--ng">
+        <?= e($error) ?>
+        <div style="font-size:.82rem;margin-top:6px;font-weight:400;">
+            ・ログインIDは入会時にお送りした <code>el〜</code> の形式です（大文字・小文字は区別しません）。<br>
+            ・分からない場合は <a href="/member/forgot.php">パスワードを忘れた場合</a> から再設定できます。
+        </div>
+    </div>
+<?php endif; ?>
 <form method="post" class="card">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
     <label>ログインID</label>
