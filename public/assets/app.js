@@ -224,10 +224,22 @@
         img.src = url;
         var ph = label.querySelector('.tp-cardedit__ph, .tp-avedit__ph');
         if (ph) { ph.style.display = 'none'; }
+        // 保存前だと分かるように枠線を付ける。丸い顔写真はバッジが見切れるため枠線のみ。
+        label.classList.add('is-unsaved');
+        var isAvatar = label.classList.contains('tp-avedit');
+        if (!isAvatar && !label.querySelector('.tp-unsaved')) {
+          var badge = document.createElement('span');
+          badge.className = 'tp-unsaved';
+          badge.textContent = '未保存';
+          label.appendChild(badge);
+        }
+        // ページ下部の注意書きを表示（保存前だと明確に伝える）。
+        var notice = document.getElementById('unsavedNotice');
+        if (notice) { notice.hidden = false; }
         // 名刺は行サマリに「選択中（保存で確定）」を出して、アップロード予定が分かるようにする。
         if (inp.name === 'card') {
           var row = document.querySelector('[data-modal-open="m-card"] .tp-field__v');
-          if (row) { row.textContent = '選択中（保存で確定）'; row.classList.remove('is-empty'); }
+          if (row) { row.textContent = '選択中（未保存）'; row.classList.remove('is-empty'); }
         }
       });
     });

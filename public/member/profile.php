@@ -355,6 +355,10 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
         </div>
     </div>
 
+    <!-- 画像を選んだときだけ表示される未保存の注意（app.js が表示を切り替える） -->
+    <div id="unsavedNotice" class="flash flash--ng" hidden>
+        画像を選択しました。<strong>まだ保存されていません。</strong>下の「保存する」を押すと確定します。
+    </div>
     <p><button type="submit" class="btn">保存する</button>
        <a class="btn btn--ghost" href="/member/dashboard.php">戻る</a></p>
 </form>

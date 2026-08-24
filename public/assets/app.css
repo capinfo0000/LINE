@@ -409,6 +409,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-cam-badge{ position:absolute; right:2px; bottom:2px; width:28px; height:28px; border-radius:50%; background:var(--coral); color:#fff;
   display:grid; place-items:center; border:2px solid var(--surface); }
 .tp-cam-badge svg{ width:14px; height:14px; }
+/* 画像を選んだ直後の「未保存」表示（保存前だと分かるように） */
+.tp-unsaved{ position:absolute; top:8px; left:8px; z-index:6; background:var(--dng); color:#fff; white-space:nowrap;
+  font-size:.7rem; font-weight:800; padding:3px 9px; border-radius:999px; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+/* 未保存の画像は枠線で強調（丸い顔写真はバッジを出さず枠線のみ） */
+.tp-cov.is-unsaved, .tp-cardedit.is-unsaved{ outline:3px solid var(--dng); outline-offset:2px; }
+.tp-avedit.is-unsaved{ border-color:var(--dng); }
 .tp-imgdel{ display:flex; gap:16px; flex-wrap:wrap; margin:2px 0 0; }
 .tp-imgdel label{ font-weight:normal; font-size:.82rem; color:var(--muted); display:inline-flex; gap:5px; align-items:center; margin:0; }
 .tp-imgdel input{ width:auto; }
