@@ -39,14 +39,16 @@ $job = implode('・', $labels['job'] ?? []);
 $purpose = implode('・', $labels['purpose'] ?? []);
 $offer = implode('・', $labels['offer'] ?? []);
 
-// ひな形の組み立て。1行1項目のわかりやすい形。空の項目は「（未設定）」で残し、編集を促す。
+// ひな形の組み立て。項目ラベルだけを用意し、値はプロフィールがあれば補完、無ければ空欄。
+// 会員は入力欄の中で各項目のあとに自由に入力できる。
 $row = static function (string $label, string $val): string {
-    return "■ {$label}：" . ($val !== '' ? $val : '（未設定）');
+    return "■ {$label}：{$val}";
 };
+$nameVal = $name === 'お名前' ? '' : $name;
 $lines = [];
-$lines[] = "enlinkから来ました、{$name}です。よろしくお願いします！";
+$lines[] = $nameVal !== '' ? "enlinkから来ました、{$nameVal}です。よろしくお願いします！" : 'enlinkから来ました。よろしくお願いします！';
 $lines[] = '';
-$lines[] = $row('名前', $name === 'お名前' ? '' : $name);
+$lines[] = $row('名前', $nameVal);
 $lines[] = $row('年齢', $age);
 $lines[] = $row('職業・業種', $job);
 $lines[] = $row('会社・肩書き', $company);
@@ -56,8 +58,8 @@ $lines[] = $row('求めていること', $purpose);
 $lines[] = $row('提供できること', $offer);
 $lines[] = '';
 $lines[] = '■ 自己紹介';
-$lines[] = $bio !== '' ? $bio : '（自己紹介を入力してください）';
-$template = implode("\n", $lines);
+$lines[] = $bio;
+$template = rtrim(implode("\n", $lines)) . "\n";
 
 // 表示する文面：保存済みがあればそれを優先（?reset=1 のときは作り直したテンプレ）。
 $display = (!$reset && $savedIntro !== '') ? $savedIntro : $template;
@@ -120,23 +122,4 @@ require __DIR__ . '/_header.php';
     </p>
 </form>
 
-<?php
-$example = "enlinkから来ました、山田 太郎です。よろしくお願いします！\n\n"
-    . "■ 名前：山田 太郎\n"
-    . "■ 年齢：38歳\n"
-    . "■ 職業・業種：IT・Web・通信\n"
-    . "■ 会社・肩書き：山田システム株式会社 / 代表\n"
-    . "■ エリア：東京\n"
-    . "■ ひとことPR：中小企業のDX・業務システム開発が得意です\n"
-    . "■ 求めていること：協業・販路開拓\n"
-    . "■ 提供できること：技術・開発・ノウハウ提供\n\n"
-    . "■ 自己紹介\n"
-    . "受託開発15年。最近は補助金を活用したシステム導入の支援に力を入れています。異業種の経営者の方とつながって、一緒に新しいサービスを作れたら嬉しいです。お気軽にメッセージください！";
-?>
-<div class="card">
-    <div class="card__title" style="color:var(--coral-d);">記入例</div>
-    <p class="muted" style="margin-top:0;font-size:.85rem;">こんな感じで書くと伝わりやすいです（コピーして参考にどうぞ）。</p>
-    <pre id="introExample" style="white-space:pre-wrap;word-break:break-word;background:#faf6f5;border:1px solid var(--border);border-radius:12px;padding:14px;font:inherit;font-size:.9rem;line-height:1.6;margin:0;"><?= e($example) ?></pre>
-    <p style="margin:10px 0 0;"><button type="button" class="btn btn--ghost" data-copy-target="introExample" data-copied-label="✓ コピーしました">記入例をコピー</button></p>
-</div>
 <?php require __DIR__ . '/_footer.php'; ?>
