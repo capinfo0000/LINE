@@ -479,12 +479,18 @@ function db_migrate(\PDO $pdo): void
     db_add_column_if_missing($pdo, 'profiles', 'intro_text', 'TEXT');
     // 公式LINEへ自己紹介を送信済みかの記録（さがすの閲覧ロック解除に使用）。
     db_add_column_if_missing($pdo, 'members', 'intro_submitted_at', 'INTEGER');
+    // 職業（occupation）と肩書き（job_title）を分離。旧 company_title は職業へ一度だけ移行。
+    db_add_column_if_missing($pdo, 'profiles', 'occupation', 'TEXT');
+    db_add_column_if_missing($pdo, 'profiles', 'job_title', 'TEXT');
+    $pdo->exec("UPDATE profiles SET occupation = company_title WHERE (occupation IS NULL OR occupation = '') AND company_title IS NOT NULL AND company_title <> ''");
 
     // タグマスタの初期投入（未投入時のみ）。
     seed_tag_master($pdo);
 
     // 職業ジャンルを新しい24分類へ移行（冪等：リネーム＋追加＋並び替え）。
     migrate_job_tags($pdo);
+    // 目的・提供できることの選択肢を拡充（冪等）。
+    migrate_value_tags($pdo);
 }
 
 /**
@@ -519,7 +525,7 @@ function seed_tag_master(\PDO $pdo): void
     ];
     $jobs = job_genre_master();
     // purpose と offer は同じ価値ボキャブラリを共有（求めること↔提供できること の重なりでマッチ）
-    $values = ['協業', '顧客紹介', '販路開拓', '仕入・調達', '資金・出資', '採用・人材', '技術・開発', 'ノウハウ提供', '情報交換', '仲間づくり'];
+    $values = value_tag_master();
 
     $insTag = $pdo->prepare('INSERT OR IGNORE INTO tags (category_key, label, sort) VALUES (?,?,?)');
     $sort = 0;
@@ -588,6 +594,49 @@ function migrate_job_tags(\PDO $pdo): void
         $ins->execute(['job', $j, $sort]);
         $updSort->execute([$sort, 'job', $j]);
         $sort++;
+    }
+}
+
+/** 目的・提供できることの共通ボキャブラリ（拡充版）。purpose と offer で共有。 */
+function value_tag_master(): array
+{
+    return [
+        '協業・業務提携', '共同開発', '顧客紹介', '販路開拓', '仕入・調達',
+        '資金・出資（受けたい）', '出資・投資（したい）', '補助金・助成金',
+        '採用・人材', '副業・複業', '外注・委託先探し', '技術・開発', 'ノウハウ提供',
+        'メンター・相談相手', 'イベント・セミナー共催', '講演・登壇', 'メディア・PR',
+        '事業承継・M&A', '情報交換', '仲間づくり', 'その他',
+    ];
+}
+
+/**
+ * 目的(purpose)・提供(offer)タグを拡充する（冪等）。
+ * 旧ラベルは新ラベルへリネームしてタグIDを保持（会員紐付けを壊さない）。
+ */
+function migrate_value_tags(\PDO $pdo): void
+{
+    $rename = [
+        '協業'       => '協業・業務提携',
+        '資金・出資' => '資金・出資（受けたい）',
+    ];
+    foreach (['purpose', 'offer'] as $cat) {
+        foreach ($rename as $old => $new) {
+            $exists = $pdo->prepare('SELECT 1 FROM tags WHERE category_key = ? AND label = ? LIMIT 1');
+            $exists->execute([$cat, $new]);
+            if ($exists->fetchColumn()) {
+                continue;
+            }
+            $upd = $pdo->prepare('UPDATE tags SET label = ? WHERE category_key = ? AND label = ?');
+            $upd->execute([$new, $cat, $old]);
+        }
+        $ins = $pdo->prepare('INSERT OR IGNORE INTO tags (category_key, label, sort, is_active) VALUES (?,?,?,1)');
+        $updSort = $pdo->prepare('UPDATE tags SET sort = ?, is_active = 1 WHERE category_key = ? AND label = ?');
+        $sort = 0;
+        foreach (value_tag_master() as $v) {
+            $ins->execute([$cat, $v, $sort]);
+            $updSort->execute([$sort, $cat, $v]);
+            $sort++;
+        }
     }
 }
 

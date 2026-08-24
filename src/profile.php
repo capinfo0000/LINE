@@ -44,6 +44,7 @@ function get_profile(string $memberId): array
             'name_text' => '', 'age_text' => '', 'company_title' => '',
             'headline' => '', 'bio' => '', 'photo_path' => null, 'photo_status' => 'none',
             'birthdate' => '', 'cover_path' => null, 'card_path' => null, 'intro_text' => '',
+            'occupation' => '', 'job_title' => '',
             'visibility_flags' => '{}', 'updated_at' => null,
         ];
     }
@@ -91,19 +92,22 @@ function save_profile(string $memberId, array $d): void
     $fields = [
         'name_text'     => mb_substr(trim((string) ($d['name_text'] ?? $existing['name_text'])), 0, 100),
         'age_text'      => mb_substr(trim($ageText), 0, 40),
+        'occupation'    => mb_substr(trim((string) ($d['occupation'] ?? $existing['occupation'] ?? '')), 0, 80),
+        'job_title'     => mb_substr(trim((string) ($d['job_title'] ?? $existing['job_title'] ?? '')), 0, 80),
         'company_title' => mb_substr(trim((string) ($d['company_title'] ?? $existing['company_title'])), 0, 120),
         'headline'      => mb_substr(trim((string) ($d['headline'] ?? $existing['headline'])), 0, 120),
         'bio'           => mb_substr(trim((string) ($d['bio'] ?? $existing['bio'])), 0, 2000),
     ];
 
     $stmt = db()->prepare(
-        'INSERT INTO profiles (member_id, name_text, age_text, company_title, headline, bio, birthdate, visibility_flags, updated_at)
-         VALUES (:m,:n,:a,:c,:h,:b,:bd,:v,:t)
+        'INSERT INTO profiles (member_id, name_text, age_text, occupation, job_title, company_title, headline, bio, birthdate, visibility_flags, updated_at)
+         VALUES (:m,:n,:a,:oc,:jt,:c,:h,:b,:bd,:v,:t)
          ON CONFLICT(member_id) DO UPDATE SET
-            name_text=:n, age_text=:a, company_title=:c, headline=:h, bio=:b, birthdate=:bd, visibility_flags=:v, updated_at=:t'
+            name_text=:n, age_text=:a, occupation=:oc, job_title=:jt, company_title=:c, headline=:h, bio=:b, birthdate=:bd, visibility_flags=:v, updated_at=:t'
     );
     $stmt->execute([
         ':m' => $memberId, ':n' => $fields['name_text'], ':a' => $fields['age_text'],
+        ':oc' => $fields['occupation'], ':jt' => $fields['job_title'],
         ':c' => $fields['company_title'], ':h' => $fields['headline'], ':b' => $fields['bio'],
         ':bd' => $birthdate, ':v' => $visJson, ':t' => time(),
     ]);

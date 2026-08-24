@@ -45,26 +45,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // 本文＋表示制御（年齢は生年月日から自動算出。生年月日は非公開）
     save_profile($memberId, [
-        'name_text'     => (string) ($_POST['name_text'] ?? ''),
-        'birthdate'     => (string) ($_POST['birthdate'] ?? ''),
-        'company_title' => (string) ($_POST['company_title'] ?? ''),
-        'headline'      => (string) ($_POST['headline'] ?? ''),
-        'bio'           => (string) ($_POST['bio'] ?? ''),
+        'name_text'  => (string) ($_POST['name_text'] ?? ''),
+        'birthdate'  => (string) ($_POST['birthdate'] ?? ''),
+        'occupation' => (string) ($_POST['occupation'] ?? ''),
+        'headline'   => (string) ($_POST['headline'] ?? ''),
+        'bio'        => (string) ($_POST['bio'] ?? ''),
         // 表示設定は常にON（ディレクトリ掲載・LINE追加URL表示）で固定。
-        'visibility'    => ['directory' => true, 'line_url' => true],
+        'visibility' => ['directory' => true, 'line_url' => true],
     ]);
 
     // タグ（全カテゴリの選択を集約）
     $tagIds = array_map('intval', (array) ($_POST['tags'] ?? []));
     set_member_tags($memberId, $tagIds);
 
-    // 求める条件
-    save_preferences(
-        $memberId,
-        array_map('intval', (array) ($_POST['seek_area'] ?? [])),
-        array_map('intval', (array) ($_POST['seek_job'] ?? [])),
-        array_map('intval', (array) ($_POST['seek_purpose'] ?? []))
-    );
+    // ※「相手の求める条件」はプロフィールから廃止（検索で探す方針）。既存設定は変更しない。
 
     // リンク（LINE追加URL＋任意リンク）
     $kinds = (array) ($_POST['link_kind'] ?? []);
@@ -134,16 +128,13 @@ $currentAge = $birthdate !== '' ? compute_age($birthdate) : null;
 // 検証エラーで保存をスキップした場合は、DB値ではなく「送信された内容」で再表示する
 // （ユーザーが打ち込んだ変更を失わせない）。
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msgType === 'ng') {
-    $profile['name_text']     = (string) ($_POST['name_text'] ?? $profile['name_text']);
-    $profile['company_title'] = (string) ($_POST['company_title'] ?? $profile['company_title']);
-    $profile['headline']      = (string) ($_POST['headline'] ?? $profile['headline']);
-    $profile['bio']           = (string) ($_POST['bio'] ?? $profile['bio']);
+    $profile['name_text']  = (string) ($_POST['name_text'] ?? $profile['name_text']);
+    $profile['occupation'] = (string) ($_POST['occupation'] ?? ($profile['occupation'] ?? ''));
+    $profile['headline']   = (string) ($_POST['headline'] ?? $profile['headline']);
+    $profile['bio']        = (string) ($_POST['bio'] ?? $profile['bio']);
     $birthdate  = (string) ($_POST['birthdate'] ?? $birthdate);
     $currentAge = normalize_birthdate($birthdate) !== '' ? compute_age($birthdate) : null;
     $myTagIds   = array_flip(array_map('intval', (array) ($_POST['tags'] ?? [])));
-    $prefArea   = array_flip(array_map('intval', (array) ($_POST['seek_area'] ?? [])));
-    $prefJob    = array_flip(array_map('intval', (array) ($_POST['seek_job'] ?? [])));
-    $prefPurpose = array_flip(array_map('intval', (array) ($_POST['seek_purpose'] ?? [])));
     $pk = (array) ($_POST['link_kind'] ?? []);
     $pl = (array) ($_POST['link_label'] ?? []);
     $pu = (array) ($_POST['link_url'] ?? []);
@@ -293,27 +284,18 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
                 <?php if ($photoAbs !== null): ?><img src="/member/photo.php?v=<?= $imgV ?>" alt="顔写真"><?php else: ?><span class="tp-avedit__ph"><?= $camSvg ?></span><?php endif; ?>
             </label>
         </div>
-        <?php if ($coverAbs !== null || $photoAbs !== null): ?>
-        <div class="tp-imgdel">
-            <?php if ($photoAbs !== null): ?><label><input type="checkbox" name="photo_delete" value="1"> 顔写真を削除</label><?php endif; ?>
-            <?php if ($coverAbs !== null): ?><label><input type="checkbox" name="cover_delete" value="1"> カバーを削除</label><?php endif; ?>
-        </div>
-        <?php endif; ?>
 
         <hr style="border:0;border-top:1px solid var(--border);margin:18px 0;">
         <div class="tp-fields">
             <?php $renderField('m-name', '名前', 'f-name', 'name_text', (string) $profile['name_text'], (string) $profile['name_text'], 'text', '例: 田中 由紀', false, ['maxlength' => '100']); ?>
             <?php $renderField('m-birth', '生年月日（年齢のみ公開）', 'f-birth', 'birthdate', $birthdate, $currentAge !== null ? $currentAge . '歳' : '', 'date', '', true, ['min' => '1900-01-01', 'max' => date('Y-m-d')]); ?>
-            <?php $renderField('m-company', '会社・肩書き', 'f-company', 'company_title', (string) $profile['company_title'], (string) $profile['company_title'], 'text', '例: 田中会計事務所 / 代表', false, ['maxlength' => '120']); ?>
+            <?php $renderField('m-occ', '職業', 'f-occ', 'occupation', (string) ($profile['occupation'] ?? ''), (string) ($profile['occupation'] ?? ''), 'text', '例: 税理士 / Webエンジニア / 飲食店オーナー', false, ['maxlength' => '80']); ?>
             <?php $renderField('m-headline', 'ひとことPR', 'f-headline', 'headline', (string) $profile['headline'], (string) $profile['headline'], 'text', '例: 補助金・資金繰りが専門です', false, ['maxlength' => '120']); ?>
             <?php $renderTextareaField('m-bio', '自己紹介', 'f-bio', 'bio', (string) $profile['bio'], '経歴・得意なこと・どんな方とつながりたいか など'); ?>
             <?php $renderPicker('m-area', '場所', $grouped['area'] ?? [], 'tags', $myTagIds, 'gt-area'); ?>
             <?php $renderPicker('m-job', '仕事ジャンル', $grouped['job'] ?? [], 'tags', $myTagIds, 'gt-job'); ?>
             <?php $renderPicker('m-purpose', '目的（求めること）', $grouped['purpose'] ?? [], 'tags', $myTagIds, 'gt-purpose'); ?>
             <?php $renderPicker('m-offer', '提供できること', $grouped['offer'] ?? [], 'tags', $myTagIds, 'gt-offer'); ?>
-            <?php $renderPicker('m-sarea', '相手の場所（求める条件）', $grouped['area'] ?? [], 'seek_area', $prefArea, 'gt-sarea'); ?>
-            <?php $renderPicker('m-sjob', '相手の仕事ジャンル（求める条件）', $grouped['job'] ?? [], 'seek_job', $prefJob, 'gt-sjob'); ?>
-            <?php $renderPicker('m-spurpose', '相手の目的（求める条件）', $grouped['purpose'] ?? [], 'seek_purpose', $prefPurpose, 'gt-spurpose'); ?>
             <?php
             // リンク：基本情報と同じ行スタイル。件数サマリを表示し、タップでポップアップ編集。
             $linkCount = 0;
@@ -369,9 +351,6 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
                 <input type="file" name="card" accept="image/jpeg,image/png,image/webp" hidden>
                 <?php if ($cardAbs !== null): ?><img src="/member/photo.php?kind=card&v=<?= $imgV ?>" alt="名刺画像"><span class="tp-cam"><?= $camSvg ?> 変更</span><?php else: ?><span class="tp-cardedit__ph"><?= $camSvg ?> 名刺画像を選ぶ</span><?php endif; ?>
             </label>
-            <?php if ($cardAbs !== null): ?>
-            <div class="tp-imgdel"><label><input type="checkbox" name="card_delete" value="1"> 名刺を削除</label></div>
-            <?php endif; ?>
             <div class="modal__actions"><button type="button" class="btn" data-modal-close>決定</button></div>
         </div>
     </div>

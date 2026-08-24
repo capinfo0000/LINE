@@ -73,6 +73,7 @@ function seed_sample_members(): int
             'name_text'     => $name,
             'age_text'      => $age,
             'company_title' => $company,
+            'occupation'    => $company,
             'headline'      => $headline,
             'bio'           => $bio,
             'visibility'    => ['directory' => true, 'line_url' => true],

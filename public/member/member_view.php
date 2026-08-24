@@ -151,11 +151,12 @@ $hasAnyTag = ($labels['area'] ?? []) || ($labels['job'] ?? []) || ($labels['purp
 </section>
 <?php endif; ?>
 
-<?php if (($profile['company_title'] ?? '') !== '' || $area !== '' || ($profile['age_text'] ?? '') !== ''): ?>
+<?php $occ = (string) ($profile['occupation'] ?? ''); ?>
+<?php if ($occ !== '' || $area !== '' || $ageDisp !== ''): ?>
 <section class="tp-sec">
     <h2 class="tp-sec__t">基本情報</h2>
     <dl class="tp-kv">
-        <?php if (($profile['company_title'] ?? '') !== ''): ?><dt>会社・肩書き</dt><dd><?= e($profile['company_title']) ?></dd><?php endif; ?>
+        <?php if ($occ !== ''): ?><dt>職業</dt><dd><?= e($occ) ?></dd><?php endif; ?>
         <?php if ($area !== ''): ?><dt>エリア</dt><dd><?= e($area) ?></dd><?php endif; ?>
         <?php if ($ageDisp !== ''): ?><dt>年齢</dt><dd><?= e($ageDisp) ?></dd><?php endif; ?>
     </dl>

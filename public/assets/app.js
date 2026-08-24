@@ -212,6 +212,26 @@
       });
     });
 
+    // 画像選択の即時プレビュー（カバー/顔写真/名刺）。選んだ瞬間に見た目で分かるようにする。
+    document.querySelectorAll('.tp-cov input[type="file"], .tp-avedit input[type="file"], .tp-cardedit input[type="file"]').forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        var f = inp.files && inp.files[0];
+        if (!f) { return; }
+        var label = inp.closest('label') || inp.parentElement;
+        var url = URL.createObjectURL(f);
+        var img = label.querySelector('img');
+        if (!img) { img = document.createElement('img'); label.appendChild(img); }
+        img.src = url;
+        var ph = label.querySelector('.tp-cardedit__ph, .tp-avedit__ph');
+        if (ph) { ph.style.display = 'none'; }
+        // 名刺は行サマリに「選択中（保存で確定）」を出して、アップロード予定が分かるようにする。
+        if (inp.name === 'card') {
+          var row = document.querySelector('[data-modal-open="m-card"] .tp-field__v');
+          if (row) { row.textContent = '選択中（保存で確定）'; row.classList.remove('is-empty'); }
+        }
+      });
+    });
+
     // リンク件数サマリ（#linkRows の入力に応じて #linkSummary を更新）。追加行にも委譲で対応。
     var linkRows = document.getElementById('linkRows');
     var linkSummary = document.getElementById('linkSummary');
