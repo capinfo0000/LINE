@@ -189,6 +189,64 @@ function admin_delete_tag(int $tagId): bool
     return $stmt->rowCount() > 0;
 }
 
+/**
+ * 会員を完全に削除する（元に戻せない）。プロフィール・タグ・ポイント・評価・足あと等の
+ * 関連データと顔写真/カバー/名刺の画像ファイルも削除し、LINE連絡先の紐付けを解除する。
+ *
+ * @return bool 削除できたら true
+ */
+function admin_delete_member(string $memberId): bool
+{
+    if ($memberId === '') {
+        return false;
+    }
+    if (find_member_by_id($memberId) === null) {
+        return false;
+    }
+
+    // 画像ファイル（公開領域外）を先に削除。
+    $profile = get_profile($memberId);
+    foreach (['photo_path', 'cover_path', 'card_path'] as $col) {
+        $abs = member_image_abs_path($profile, $col);
+        if ($abs !== null) {
+            @unlink($abs);
+        }
+    }
+
+    // member_id 列で紐づくテーブル。
+    foreach (['profiles', 'member_tags', 'match_preferences', 'member_links', 'point_ledger', 'recommendations'] as $tbl) {
+        try {
+            db()->prepare("DELETE FROM {$tbl} WHERE member_id = ?")->execute([$memberId]);
+        } catch (\Throwable $e) {
+            // テーブルが無い場合は無視。
+        }
+    }
+    // ペア列（双方向の関係データ）。
+    $pairs = [
+        'member_interests'   => ['from_id', 'to_id'],
+        'member_views'       => ['from_id', 'to_id'],
+        'member_evaluations' => ['rater_id', 'target_id'],
+        'referrals'          => ['referrer_id', 'joiner_id'],
+        'referral_payouts'   => ['referrer_id', 'joiner_id'],
+    ];
+    foreach ($pairs as $tbl => $cols) {
+        foreach ($cols as $col) {
+            try {
+                db()->prepare("DELETE FROM {$tbl} WHERE {$col} = ?")->execute([$memberId]);
+            } catch (\Throwable $e) {
+                // テーブル・列が無い場合は無視。
+            }
+        }
+    }
+    // LINE連絡先の紐付けを解除（連絡先自体は残す）。
+    db()->prepare('UPDATE line_contacts SET member_id = NULL WHERE member_id = ?')->execute([$memberId]);
+
+    $stmt = db()->prepare('DELETE FROM members WHERE id = ?');
+    $stmt->execute([$memberId]);
+    audit_log('admin.member_deleted', ['member' => $memberId]);
+    return $stmt->rowCount() > 0;
+}
+
 /* ------------------------- 一斉配信（LINE Push） ------------------------- */
 
 /** 一斉配信の宛先数（active 会員で line_user_id を持つ人数）＝推定課金通数。 */

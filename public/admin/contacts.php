@@ -34,6 +34,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msgType = 'ng';
             }
         }
+    } elseif ($action === 'delete_contact') {
+        // 申込者（LINE連絡先）を完全削除。会員が紐付く場合は紐付けのみ解除（会員は残る）。
+        $lu = (string) ($_POST['line_user_id'] ?? '');
+        if (delete_line_contact($lu)) {
+            $msg = '申込者を削除しました。';
+        } else {
+            $msg = 'LINE連絡先が見つかりませんでした。';
+            $msgType = 'ng';
+        }
     }
 }
 
@@ -113,6 +122,13 @@ require __DIR__ . '/_app_header.php';
                         </button>
                     </form>
                 <?php endif; ?>
+                <form method="post" style="display:inline;margin-left:6px;">
+                    <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
+                    <input type="hidden" name="action" value="delete_contact">
+                    <input type="hidden" name="line_user_id" value="<?= e($c['line_user_id']) ?>">
+                    <button type="submit" class="btn btn--ghost btn--sm" style="color:var(--dng);"
+                            data-confirm="この申込者を完全に削除します（元に戻せません）。会員として発行済みの場合、会員アカウントは残りLINEの紐付けだけ解除されます。よろしいですか？">削除</button>
+                </form>
             </div>
         </div>
     <?php endforeach; ?>

@@ -21,6 +21,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
     $action = (string) ($_POST['action'] ?? '');
     switch ($action) {
+        case 'delete_member':
+            // 会員を完全削除（元に戻せない）。削除後は一覧へ戻す。
+            if (admin_delete_member($id)) {
+                header('Location: members.php?msg=' . rawurlencode('会員を削除しました。'));
+                exit;
+            }
+            $msg = '会員が見つかりませんでした。';
+            break;
         case 'reissue':
             $msg = admin_reissue_credentials($id) ? 'ID/PWを再発行し配布しました。' : 'ID/PWを再発行しました（配布経路が無いため送信はスキップ）。';
             break;
@@ -145,7 +153,7 @@ $myReports = $myReports->fetchAll();
     <div class="card__title">操作</div>
     <form method="post" style="margin-bottom:12px;">
         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>">
-        <button class="btn" name="action" value="reissue" onclick="return confirm('ID/PWを再発行して配布します。よろしいですか？');">ID/PWを再発行して配布</button>
+        <button class="btn" name="action" value="reissue" data-confirm="ID/PWを再発行して配布します。よろしいですか？">ID/PWを再発行して配布</button>
     </form>
     <form method="post">
         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>">
@@ -156,6 +164,20 @@ $myReports = $myReports->fetchAll();
             <?php endforeach; ?>
         </select>
         <button class="btn btn--ghost" name="action" value="status">変更</button>
+    </form>
+</div>
+
+<div class="card" style="border-color:var(--dng-bg);">
+    <div class="card__title" style="color:var(--dng);">会員の削除</div>
+    <p class="hint" style="margin:0 0 10px;">
+        この会員を<strong>完全に削除</strong>します（元に戻せません）。プロフィール・写真・タグ・ポイント・評価・足あともすべて削除され、
+        LINE連絡先の紐付けは解除されます（連絡先自体は残ります）。<br>
+        一時的に利用を止めるだけなら、上の「ステータス変更」で<strong>停止</strong>または<strong>退会</strong>にしてください。
+    </p>
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>">
+        <button class="btn btn--danger" name="action" value="delete_member"
+                data-confirm="この会員を完全に削除します。元に戻せません。よろしいですか？">この会員を削除する</button>
     </form>
 </div>
 <?php require __DIR__ . '/_app_footer.php'; ?>

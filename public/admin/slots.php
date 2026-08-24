@@ -46,6 +46,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = db()->prepare('UPDATE slots SET is_open = ? WHERE id = ?');
         $stmt->execute([$open, $sid]);
         $msg = '枠の受付状態を変更しました。';
+    } elseif ($action === 'delete_slot') {
+        // 枠の削除。予約が入っている枠は誤操作防止のため削除させない（先に受付停止/個別対応）。
+        $sid = (string) ($_POST['slot_id'] ?? '');
+        $slot = find_slot($sid);
+        if ($slot === null) {
+            $msg = '対象の枠が見つかりませんでした。';
+            $msgType = 'ng';
+        } elseif ((int) ($slot['booked_count'] ?? 0) > 0) {
+            $msg = 'この枠には申込者がいるため削除できません。まず「停止」で受付を止め、申込者へ個別にご連絡ください。';
+            $msgType = 'ng';
+        } else {
+            db()->prepare('DELETE FROM slot_url_pending WHERE slot_id = ?')->execute([$sid]);
+            db()->prepare('DELETE FROM slots WHERE id = ?')->execute([$sid]);
+            audit_log('admin.slot_deleted', ['slot' => $sid]);
+            $msg = '枠を削除しました。';
+        }
     } elseif ($action === 'zoom_test') {
         $d = zoom_diagnose();
         $msg = $d['message'];
@@ -143,6 +159,11 @@ require __DIR__ . '/_app_header.php';
                         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="toggle">
                         <input type="hidden" name="slot_id" value="<?= e($s['id']) ?>"><input type="hidden" name="open" value="<?= (int) $s['is_open'] === 1 ? 0 : 1 ?>">
                         <button class="btn btn--ghost" style="padding:2px 8px;"><?= (int) $s['is_open'] === 1 ? '停止' : '再開' ?></button>
+                    </form>
+                    <form method="post" style="display:inline;" data-confirm="この枠を削除します。元に戻せません。よろしいですか？">
+                        <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="delete_slot">
+                        <input type="hidden" name="slot_id" value="<?= e($s['id']) ?>">
+                        <button class="btn btn--ghost" style="padding:2px 8px;color:var(--dng);">削除</button>
                     </form>
                     <?php if (empty($s['zoom_url'])):
                         $cf = (int) $s['booked_count'] > 0
