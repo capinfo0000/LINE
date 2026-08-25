@@ -330,10 +330,33 @@ function billing_free_limit(): int
     return max(1, (int) env('BILLING_FREE_LIMIT', '100'));
 }
 
-/** アクセスを持つ会員数（status=active）。 */
+/** アクセスを持つ会員数（status=active）。運用の実数を見るとき用。 */
 function active_member_count(): int
 {
     return (int) db()->query("SELECT COUNT(*) FROM members WHERE status = 'active'")->fetchColumn();
+}
+
+/**
+ * 「先着◯名」として数える会員数。
+ *
+ * アカウントを発行しただけの人は数えない。自己紹介まで入った人＝
+ * 実際に参加している人だけを数える。IDだけ配られて何も書いていない人を
+ * 含めると、無料枠が実態より早く埋まってしまうため。
+ *
+ * 「自己紹介が入った」は次のどちらかを満たすこととする。
+ *  ・公式LINEのトークに自己紹介を送信した（intro_submitted_at）
+ *  ・プロフィールの「自己紹介」欄を書いた（profiles.bio）
+ * LINE未連携で運営が発行した会員は前者を満たせないので、後者も見る。
+ */
+function counted_member_count(): int
+{
+    return (int) db()->query(
+        "SELECT COUNT(*) FROM members m
+           LEFT JOIN profiles p ON p.member_id = m.id
+          WHERE m.status = 'active'
+            AND ( (m.intro_submitted_at IS NOT NULL AND m.intro_submitted_at > 0)
+               OR (p.bio IS NOT NULL AND TRIM(p.bio) <> '') )"
+    )->fetchColumn();
 }
 
 /**
@@ -354,7 +377,7 @@ function billing_reached_at(): ?int
         app_setting_set('billing_reached_at', (string) $now);
         return $now;
     }
-    if (active_member_count() > billing_free_limit()) {
+    if (counted_member_count() > billing_free_limit()) {
         $now = time();
         app_setting_set('billing_reached_at', (string) $now);
         return $now;
@@ -397,7 +420,7 @@ function billing_grace_active(): bool
 function billing_progress(): array
 {
     $limit = billing_free_limit();
-    $count = active_member_count();
+    $count = counted_member_count();
     return [
         'count'     => $count,
         'limit'     => $limit,

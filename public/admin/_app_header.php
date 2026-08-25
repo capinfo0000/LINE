@@ -26,6 +26,7 @@ $navItems = [
     ['openchat',      '', 'オープンチャット', ['openchat']],
     ['tags',          '', 'タグ管理',       ['tags']],
     ['announcements', '', 'お知らせ',       ['announcements']],
+    ['feedback',      '', '意見箱' . (feedback_open_count() > 0 ? '（' . feedback_open_count() . '）' : ''), ['feedback']],
     ['account',       '', 'アカウント設定', ['account']],
 ];
 if ((int) ($tenant['is_admin'] ?? 0) === 1) {

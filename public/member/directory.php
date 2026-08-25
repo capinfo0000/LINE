@@ -297,8 +297,16 @@ if ($showRail) {
             <?php endforeach; ?>
         </div>
         <?php if (count($announcements) > 1): ?>
+            <?php
+            // 前後ボタン。自動送りだけに頼らず、自分で送れるようにする。
+            // 点はJSが表示中のスライドに合わせて動かす（スワイプでも追随する）。
+            $chev = static fn (string $d): string => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"'
+                . ' stroke-linecap="round" stroke-linejoin="round"><path d="' . ($d === 'prev' ? 'm15 18-6-6 6-6' : 'm9 18 6-6-6-6') . '"/></svg>';
+            ?>
             <div class="tp-dots" data-dots-for="tp-promo">
+                <button type="button" class="tp-pnav" data-carousel="prev" aria-label="前のお知らせ"><?= $chev('prev') ?></button>
                 <?php foreach ($announcements as $i => $an): ?><span<?= $i === 0 ? ' class="on"' : '' ?>></span><?php endforeach; ?>
+                <button type="button" class="tp-pnav" data-carousel="next" aria-label="次のお知らせ"><?= $chev('next') ?></button>
             </div>
         <?php endif; ?>
     <?php endif; ?>

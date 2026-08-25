@@ -334,7 +334,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-pslide--brand{ background:linear-gradient(120deg,#3a2b4d,#1f2937); }
 .tp-pslide--ref{ background:linear-gradient(120deg,#fdba74,#f97316); }
 .tp-pslide--rank{ background:linear-gradient(120deg,#f0b429,#b8860b); }
-.tp-dots{ display:flex; gap:6px; justify-content:center; margin:2px 0 4px; }
+.tp-dots{ display:flex; gap:6px; justify-content:center; align-items:center; margin:2px 0 4px; }
+/* 前後ボタン。自動送りに任せきりにせず、自分で送れるようにする。 */
+.tp-pnav{ flex:none; width:26px; height:26px; margin:0 2px; padding:0; border:0; border-radius:50%;
+  background:transparent; color:var(--faint, #9ca3af); cursor:pointer; display:grid; place-items:center; }
+.tp-pnav:hover{ background:var(--bg); color:var(--coral-d); }
+.tp-pnav svg{ width:15px; height:15px; }
 /* 表示中のスライドを .on で示す（JSが付け外しする）。自動送りに合わせて動く。 */
 .tp-dots span{ width:6px; height:6px; border-radius:50%; background:var(--border); transition:background .2s, width .2s; }
 .tp-dots span.on{ background:var(--coral); width:16px; border-radius:999px; }
@@ -583,8 +588,11 @@ div.tp-pslide{ cursor:default; }
 /* PC時にさがすページを広く使う（一覧が主役）。他ページは従来の中央狭幅のまま。 */
 .container--app{ max-width: 1120px; }
 
-/* ヒーローのスライドはPCで広がり過ぎないよう上限を設ける（複数枚見える）。 */
-.tp-pslide{ flex-basis: min(92%, 440px); }
+/* ヒーローのスライドは、画面幅にかかわらず「1枚ずつ」送る。
+   以前はPCで上限440pxにしていたため3枚が並びきってしまい、
+   スクロールする余地が無く自動送りが動かなかった。
+   横幅いっぱい（右に次の1枚が少し覗く分だけ残す）にして、送れるようにする。 */
+.tp-pslide{ flex-basis: calc(100% - 34px); }
 
 /* 画面幅ごとの列数（カード最小幅を保ちながら増やす）。 */
 @media (min-width: 560px){

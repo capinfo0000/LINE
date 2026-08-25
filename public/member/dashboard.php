@@ -64,6 +64,7 @@ require __DIR__ . '/_header.php';
     <a href="/member/points">⭐ ポイント<?= billing_started() ? '・紹介' : '' ?><span class="chev">›</span></a>
     <a href="/member/billing">💳 お支払い・解約<span class="chev">›</span></a>
     <a href="/member/account">🪪 ログインID・パスワード<span class="chev">›</span></a>
+    <a href="/member/feedback">📮 意見箱（ご意見・ご要望）<span class="chev">›</span></a>
     <a href="/member/logout">↩️ ログアウト<span class="chev">›</span></a>
 </div>
 

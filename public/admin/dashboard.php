@@ -145,7 +145,8 @@ require __DIR__ . '/_app_header.php';
 </div>
 
 <?php
-$__active = active_member_count();
+$__active = counted_member_count();   // 「先着◯名」に数える人数（自己紹介まで入った会員）
+$__activeAll = active_member_count(); // 有効会員の実数（参考）
 $__limit = billing_free_limit();
 $__billing = billing_started();
 $__subscribed = subscribed_member_count();
@@ -160,11 +161,18 @@ $__csrf = csrf_token();
     <p style="margin:.4rem 0;">
         <?php if ($__billing): ?>
             <span class="badge" style="background:var(--ok-bg);color:var(--ok-fg);">課金フェーズ</span>
-            有効会員 <strong><?= (int) $__active ?></strong> 名（全員サブスク登録が必要／未登録はアクセス制限）
+            有効会員 <strong><?= (int) $__activeAll ?></strong> 名（全員サブスク登録が必要／未登録はアクセス制限）
         <?php else: ?>
             <span class="badge badge--info">無料フェーズ</span>
-            有効会員 <strong><?= (int) $__active ?></strong> / <?= (int) $__limit ?> 名（あと <strong><?= max(0, $__limit - (int) $__active + 1) ?></strong> 名で課金開始）
+            カウント対象 <strong><?= (int) $__active ?></strong> / <?= (int) $__limit ?> 名（あと <strong><?= max(0, $__limit - (int) $__active + 1) ?></strong> 名で課金開始）
         <?php endif; ?>
+    </p>
+    <p class="hint" style="margin:0 0 .6rem;">
+        「先着<?= (int) $__limit ?>名」に数えるのは、<strong>自己紹介が入った会員</strong>だけです
+        （公式LINEに自己紹介を送信した、またはプロフィールの自己紹介欄を書いた会員）。
+        IDを発行しただけの会員は数えません。
+        いまの有効会員は <strong><?= (int) $__activeAll ?></strong> 名で、うち
+        <strong><?= (int) $__active ?></strong> 名がカウント対象です。
     </p>
 
     <?php if ($__billing): ?>

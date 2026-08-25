@@ -487,6 +487,22 @@ function db_migrate(\PDO $pdo): void
         }
     }
 
+    // 意見箱。会員から運営への意見・要望・不具合報告。
+    // 会員を削除したら意見も消えるように CASCADE にする（本人の書いたものなので残さない）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS feedbacks (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            member_id  TEXT NOT NULL,
+            kind       TEXT NOT NULL DEFAULT 'other',  -- improve/bug/feature/price/trouble/other
+            body       TEXT NOT NULL DEFAULT '',
+            handled    INTEGER NOT NULL DEFAULT 0,     -- 運営が対応済みにしたか
+            handled_at INTEGER,
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_feedbacks_open ON feedbacks(handled, id);');
+
     // アプリ全体の設定（キー・値）。料金フェーズ(billing_started)などを保持。
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS app_settings (
