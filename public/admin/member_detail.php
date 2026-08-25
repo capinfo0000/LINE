@@ -27,7 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg = '自己紹介ロックを解除しました（「さがす」が使えます）。';
             break;
         case 'relock_intro':
+            // 送信記録と免除の両方を落とさないと、免除中の会員をロックし直せない。
             db()->prepare('UPDATE members SET intro_submitted_at = NULL WHERE id = ?')->execute([$id]);
+            intro_gate_unexempt($id);
             audit_log('admin.intro_relocked', ['member' => $id]);
             $msg = '自己紹介ロックを再設定しました。';
             break;
@@ -167,6 +169,7 @@ $myReports = $myReports->fetchAll();
     </form>
     <?php
     $__introDone = member_intro_submitted($member);
+    $__exempt = member_intro_exempt($member);
     $__gated = member_needs_intro($member);
     ?>
     <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px;">
@@ -179,15 +182,17 @@ $myReports = $myReports->fetchAll();
             <?php elseif ($__gated): ?>
                 <strong style="color:var(--dng);">ロック中</strong>（公式LINEへの自己紹介が未確認）。
                 会員が送信済みなのに解除されない場合は、下のボタンで手動解除できます。
-            <?php else: ?>
+            <?php elseif ($__introDone): ?>
                 <strong style="color:#166534;">解除済み</strong>（自己紹介の送信を確認しました）。
+            <?php else: ?>
+                <strong style="color:#166534;">解除済み</strong>（ロックをOFFにした時点で在籍していたため免除。自己紹介の送信は確認していません）。
             <?php endif; ?>
         </p>
         <form method="post" style="display:inline;">
             <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>">
-            <?php if ($__introDone): ?>
+            <?php if ($__introDone || $__exempt): ?>
                 <button class="btn btn--ghost" name="action" value="relock_intro"
-                        data-confirm="この会員に自己紹介ロックを再設定します。よろしいですか？">ロックを再設定</button>
+                        data-confirm="この会員に自己紹介ロックを再設定します（公式LINEに自己紹介を送るまで「さがす」が使えなくなります）。よろしいですか？">ロックを再設定</button>
             <?php else: ?>
                 <button class="btn" name="action" value="unlock_intro"
                         data-confirm="この会員の自己紹介ロックを解除します（「さがす」が使えるようになります）。よろしいですか？">ロックを手動解除</button>

@@ -190,6 +190,37 @@ function mark_intro_submitted(string $memberId): void
     $stmt->execute([time(), $memberId]);
 }
 
+/**
+ * 自己紹介ロックを一括で免除する（ロックをOFFにしたときに呼ぶ）。
+ * 対象：LINE連携あり・自己紹介が未送信・まだ免除されていない会員。
+ * 「実際に送った人数」を汚さないため intro_submitted_at は触らず、免除フラグだけを立てる。
+ *
+ * @return int 免除した人数
+ */
+function intro_gate_exempt_all(): int
+{
+    $stmt = db()->prepare(
+        "UPDATE members SET intro_gate_exempt = 1
+          WHERE line_user_id IS NOT NULL AND line_user_id <> ''
+            AND (intro_submitted_at IS NULL OR intro_submitted_at = 0)
+            AND intro_gate_exempt = 0"
+    );
+    $stmt->execute();
+    return $stmt->rowCount();
+}
+
+/** 個別の免除を取り消す（管理画面で1名だけロックし直すとき）。 */
+function intro_gate_unexempt(string $memberId): void
+{
+    db()->prepare('UPDATE members SET intro_gate_exempt = 0 WHERE id = ?')->execute([$memberId]);
+}
+
+/** この会員は自己紹介ロックを免除されているか。 */
+function member_intro_exempt(array $member): bool
+{
+    return (int) ($member['intro_gate_exempt'] ?? 0) === 1;
+}
+
 /** 自己紹介ロック（公式LINEに送るまで さがすを見せない）が有効か。既定ON。 */
 function intro_gate_enabled(): bool
 {
@@ -198,7 +229,7 @@ function intro_gate_enabled(): bool
 
 /**
  * この会員は「さがす」閲覧前に自己紹介の送信が必要か。
- * ロックONかつ、LINE連携あり（公式LINEに送れる）かつ、未送信のとき true。
+ * ロックONかつ、LINE連携あり（公式LINEに送れる）かつ、免除でなく、未送信のとき true。
  */
 function member_needs_intro(array $member): bool
 {
@@ -207,6 +238,9 @@ function member_needs_intro(array $member): bool
     }
     if ((string) ($member['line_user_id'] ?? '') === '') {
         return false; // LINE未連携（管理発行・サンプル等）はロック対象外
+    }
+    if (member_intro_exempt($member)) {
+        return false; // ロックOFF期間中に在籍していた会員は免除（ON に戻しても再ロックしない）
     }
     return !member_intro_submitted($member);
 }

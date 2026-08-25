@@ -5,6 +5,9 @@
  *
  * - ?id=<member_id> 指定：その会員の写真（承認済みのみ）を配信。ディレクトリ表示用（Phase 5）。
  * - 指定なし：ログイン会員自身の写真を配信（編集画面プレビュー用。承認状態を問わない）。
+ *
+ * 自己紹介ロック中は他会員の画像を配信しない。画面側（さがす／プロフィール詳細）は
+ * ロックしているのに、この配信URLを直接叩けば見えてしまうため、ここでも同じ判定を行う。
  */
 
 declare(strict_types=1);
@@ -22,6 +25,12 @@ if ($targetId === '' || $targetId === $viewer['id']) {
     // 自分の画像（未承認でも本人には見せる）
     $profile = get_profile($viewer['id']);
 } else {
+    // ロック中（公式LINEへ自己紹介が未送信）の会員には他人の画像を渡さない。
+    // 他ページと同様、存在自体を伏せるため 404 を返す。
+    if (member_needs_intro($viewer)) {
+        http_response_code(404);
+        exit;
+    }
     $target = find_member_by_id($targetId);
     if ($target === null || !member_can_login($target)) {
         http_response_code(404);

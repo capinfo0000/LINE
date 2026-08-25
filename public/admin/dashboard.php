@@ -33,10 +33,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
 }
 
 // 自己紹介ロック（公式LINEに送るまで さがす非表示）の切替。
+// OFF にするときは、その時点で在籍している会員を「免除」として記録しておく。
+// こうしないと、あとで ON に戻したときに、OFF中ずっと使えていた会員まで再ロックされてしまう。
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'intro_gate') {
     csrf_verify($_POST['csrf_token'] ?? null);
-    app_setting_set('intro_gate', (string) ($_POST['on'] ?? '1') === '1' ? '1' : '0');
-    header('Location: /admin/dashboard.php?msg=' . rawurlencode('自己紹介ロックを' . ((string) ($_POST['on'] ?? '1') === '1' ? 'ON' : 'OFF') . 'にしました。') . '&type=ok');
+    $on = (string) ($_POST['on'] ?? '1') === '1';
+    app_setting_set('intro_gate', $on ? '1' : '0');
+    $exempted = $on ? 0 : intro_gate_exempt_all();
+    audit_log('admin.intro_gate', ['on' => $on ? 1 : 0, 'exempted' => $exempted]);
+    $note = $on
+        ? '自己紹介ロックをONにしました。すでに解除済み・免除済みの会員は再ロックされません。'
+        : '自己紹介ロックをOFFにしました。' . ($exempted > 0
+            ? "現在の会員{$exempted}名を解除済みとして記録したので、ONに戻しても再ロックされません。"
+            : '（新たに記録した会員はありません）');
+    header('Location: /admin/dashboard.php?msg=' . rawurlencode($note) . '&type=ok');
     exit;
 }
 
@@ -98,12 +108,16 @@ require __DIR__ . '/_app_header.php';
     <p style="margin:0 0 8px;">
         自己紹介ロック：<strong style="color:<?= $__gate ? '#166534' : 'var(--muted)' ?>;"><?= $__gate ? 'ON（公式LINEに自己紹介を送るまで「さがす」を非表示）' : 'OFF' ?></strong>
     </p>
-    <p class="hint" style="margin:0 0 10px;">ON の場合、会員は公式LINEのトークに自己紹介を送信するまで「さがす」を閲覧できません（送信を自動検知して解除）。LINE未連携の会員（管理発行・サンプル）は対象外です。</p>
+    <p class="hint" style="margin:0 0 10px;">ON の場合、会員は公式LINEのトークに自己紹介を送信するまで「さがす」を閲覧できません（送信を自動検知して解除）。LINE未連携の会員（管理発行・サンプル）は対象外です。<br>
+        ONに戻しても、すでに自己紹介を送った会員と、OFFにした時点で在籍していた会員は再ロックされません（個別に戻したい場合は会員詳細から）。</p>
     <form method="post" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
         <input type="hidden" name="action" value="intro_gate">
         <input type="hidden" name="on" value="<?= $__gate ? '0' : '1' ?>">
-        <button type="submit" class="btn btn--ghost"><?= $__gate ? '自己紹介ロックをOFFにする' : '自己紹介ロックをONにする' ?></button>
+        <button type="submit" class="btn btn--ghost"
+                data-confirm="<?= $__gate
+                    ? 'OFFにすると、いま在籍している会員は自己紹介を送っていなくても、今後ずっと「さがす」を使えるようになります。よろしいですか？'
+                    : 'ONにすると、これから登録する会員は公式LINEに自己紹介を送るまで「さがす」を使えなくなります。よろしいですか？' ?>"><?= $__gate ? '自己紹介ロックをOFFにする' : '自己紹介ロックをONにする' ?></button>
     </form>
 </div>
 

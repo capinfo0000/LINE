@@ -479,6 +479,9 @@ function db_migrate(\PDO $pdo): void
     db_add_column_if_missing($pdo, 'profiles', 'intro_text', 'TEXT');
     // 公式LINEへ自己紹介を送信済みかの記録（さがすの閲覧ロック解除に使用）。
     db_add_column_if_missing($pdo, 'members', 'intro_submitted_at', 'INTEGER');
+    // 自己紹介ロックの免除。ロックをOFFにした時点で在籍していた会員に立て、
+    // 再度ONに戻したときに巻き込んで再ロックしないようにする（未送信でも解除扱い）。
+    db_add_column_if_missing($pdo, 'members', 'intro_gate_exempt', 'INTEGER NOT NULL DEFAULT 0');
     // 職業（occupation）と肩書き（job_title）を分離。旧 company_title は職業へ一度だけ移行。
     db_add_column_if_missing($pdo, 'profiles', 'occupation', 'TEXT');
     db_add_column_if_missing($pdo, 'profiles', 'job_title', 'TEXT');
