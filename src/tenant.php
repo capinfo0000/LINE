@@ -25,6 +25,11 @@ function session_boot(): void
     if (is_dir($sessDir) && is_writable($sessDir)) {
         session_save_path($sessDir);
     }
+    // 未知のセッションIDを受け取ったときに、それを使い回さず新しく発行する。
+    // 攻撃者が用意したIDを踏ませてからログインさせる手口（セッション固定）の入口を塞ぐ。
+    // ログイン時に session_regenerate_id(true) もしているので二重に防ぐ形になる。
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
     // HTTPS 配信（プロキシ経由・APP_BASE_URL が https を含む）なら Secure 属性を常時付与
     session_set_cookie_params([
         'lifetime' => 0,

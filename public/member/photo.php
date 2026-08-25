@@ -44,12 +44,16 @@ if ($targetId === '' || $targetId === $viewer['id']) {
         http_response_code(404);
         exit;
     }
-    $target = find_member_by_id($targetId);
-    if ($target === null || !member_can_login($target)) {
+    // 画面（member_view.php）とまったく同じ判定を使う。
+    // ここで独自に判定していたため、「会員一覧に載せない」設定の会員の画像が、
+    // プロフィールは404なのに画像だけ200で配信されていた。
+    // 退会・停止・プロフィール未作成・非掲載をまとめて弾く。
+    $view = viewable_member_profile($targetId);
+    if ($view === null) {
         http_response_code(404);
         exit;
     }
-    $profile = get_profile($targetId);
+    $profile = $view['profile'];
     // 顔写真は承認済みのみ配信。カバー・名刺は全会員に公開。
     if ($col === 'photo_path' && ($profile['photo_status'] ?? '') !== 'approved') {
         http_response_code(404);

@@ -9,7 +9,10 @@ declare(strict_types=1);
 require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $tenant = require_tenant();
-$filter = in_array((string) ($_GET['f'] ?? 'all'), ['all', 'open', 'done'], true) ? (string) $_GET['f'] : 'all';
+$filter = (string) ($_GET['f'] ?? 'all');
+if (!in_array($filter, ['all', 'open', 'done'], true)) {
+    $filter = 'all';
+}
 
 // CSV書き出し。画面の絞り込みをそのまま反映する。
 if (($_GET['csv'] ?? '') === '1') {
@@ -28,6 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = (string) ($_POST['action'] ?? '');
     $id = (int) ($_POST['id'] ?? 0);
     if ($action === 'delete') {
+        // 削除は元に戻せないため、プラットフォーム管理者だけに許す。
+        // 画面のボタンも隠しているが、POSTを直接投げられても通らないようここで止める。
+        if ((int) ($tenant['is_admin'] ?? 0) !== 1) {
+            audit_log('authz.admin_deny', ['tenant' => $tenant['id'], 'path' => 'admin/feedback.delete']);
+            header('Location: feedback?f=' . $filter . '&msg=' . rawurlencode('ご意見の削除にはプラットフォーム管理者権限が必要です。') . '&type=ng');
+            exit;
+        }
         $ok = feedback_delete($id);
         $note = $ok ? 'ご意見を削除しました。' : '対象が見つかりませんでした。';
     } else {

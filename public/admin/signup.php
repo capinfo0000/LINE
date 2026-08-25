@@ -11,8 +11,14 @@ require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $error = '';
 
-// 新規登録の受付可否（単独運営に切り替える場合は .env で ALLOW_SIGNUP=0 にして閉じられる）。
-$signupOpen = env('ALLOW_SIGNUP', '1') !== '0';
+// 新規登録の受付可否。
+//
+// 既定は「閉じる」。この画面から作られたアカウントは運営画面に入れ、会員の氏名・
+// 連絡先・写真まで見られる。.env に ALLOW_SIGNUP の行が無い・消えた・書き間違えた
+// といったときに誰でも登録できてしまう状態になるのは危険なので、開けるには
+// ALLOW_SIGNUP=1 と明示的に書かせる（書いていなければ閉じる）。
+// 運営者を増やすときは招待（invites）か bin/console.php create-admin を使う。
+$signupOpen = env('ALLOW_SIGNUP', '0') === '1';
 
 if ($signupOpen && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);

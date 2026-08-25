@@ -24,12 +24,30 @@ function site_tagline(): string
 
 /**
  * 現在のリクエストのパス（クエリを除く）。canonical と og:url に使う。
- * クエリ付きのURLを別ページとして扱わせないため、? 以降は落とす。
+ *
+ * リクエストされたパスをそのまま書くと、同じページが複数のURLで索引され、
+ * 評価が分散する（重複コンテンツ）。表に出しているURLの形に正規化する。
+ *  - クエリ（? 以降）は落とす
+ *  - フラット配置で到達できてしまう /public/ 始まりを落とす
+ *  - /index.php と .php を落として拡張子なしに揃える
+ *  - 連続するスラッシュを1つにする
+ *  - 想定外の文字が混じったURLは canonical に載せず / に倒す
  */
 function current_path(): string
 {
     $path = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
-    return $path === '' ? '/' : $path;
+    $path = (string) preg_replace('#/{2,}#', '/', $path);
+    if (strncmp($path, '/public/', 8) === 0) {
+        $path = substr($path, 7);
+    } elseif ($path === '/public') {
+        $path = '/';
+    }
+    $path = (string) preg_replace('#/index\\.php$#', '/', $path);
+    $path = (string) preg_replace('#\\.php$#', '', $path);
+    if ($path === '' || !preg_match('#^/[A-Za-z0-9._~/-]*$#', $path)) {
+        return '/';
+    }
+    return $path;
 }
 
 /**

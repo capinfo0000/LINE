@@ -78,7 +78,7 @@
 |---|---|---|
 | `STRIPE_CONNECT_CLIENT_ID` | 空 | Connect の client_id（ca_...）。設定で物理分離を有効化。未設定は従来のプラットフォーム鍵運用（後方互換） |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | 空 | CAPTCHA。両方設定で有効化、未設定は素通り |
-| `ALLOW_SIGNUP` | `1` | 新規登録の受付可否（`0` で停止＝単独運営化も可能。既定はマルチテナント維持） |
+| `ALLOW_SIGNUP` | `0` | 運営アカウントのオープン登録の受付可否。既定は停止。開ける場合のみ `1` を明示する |
 | `MAIL_LOG` | `1` | メール監査ログの出力可否（`0` で無効） |
 | `MAIL_LOG_MAX_BYTES` | `5242880` | mail.log ローテーション上限 |
 | `TRUSTED_PROXY` | `0` | `1` のとき送信元IP判定に `X-Forwarded-For` を採用（信頼プロキシ背後でのみ）。直接公開時は `0` |

@@ -58,7 +58,7 @@ php -S localhost:8000 -t public
 - `LINE_CHANNEL_SECRET` / `LINE_CHANNEL_ACCESS_TOKEN` … 公式LINE Bot（Webhook: `/line_webhook.php`）
 - `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET` … Zoom S2S（未設定なら手動URLにフォールバック）
 - `APP_BASE_URL` … 公開URL（success/cancel/webhook 生成に使用）
-- `ALLOW_SIGNUP` … 運営者のオープン登録可否（単一運営は 0＝招待制）
+- `ALLOW_SIGNUP` … 運営者のオープン登録可否（既定 0＝閉。開けるときだけ 1 を明示）
 
 ## 運用CLI
 

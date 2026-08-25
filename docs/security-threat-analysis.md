@@ -176,7 +176,7 @@ README は「参加費は自分の Stripe アカウントへ直接入金／Conne
 | Cookie/セッション | `Secure` を HTTPS 配信時（`APP_BASE_URL` が https を含む場合も）常時付与＋アイドルタイムアウト30分 | `src/bootstrap.php`(`request_is_https`), `src/tenant.php` |
 | セキュリティヘッダ | CSP（`frame-ancestors 'none'` 等）／X-Frame-Options DENY／X-Content-Type-Options／Referrer-Policy／HTTPS時 HSTS を全レスポンスに付与 | `src/bootstrap.php` |
 | パスワード強度 | `assert_password_strength()`：8文字以上＋よくある弱PW・同一文字反復を拒否。登録/変更/再設定に適用 | `src/tenant.php`, `reset.php` |
-| テナンシー方針 | `ALLOW_SIGNUP=0` でオープン登録を閉じられる（単独運営向け）。既定は現状維持の受付 | `signup.php`, `.env.example` |
+| テナンシー方針 | 運営アカウントのオープン登録は**既定で停止**（`ALLOW_SIGNUP=1` を明示したときだけ開く）。運営者の追加は招待か `bin/console.php create-admin` | `signup.php`, `.env.example` |
 
 ### CAPTCHA（実装済み）
 - **Cloudflare Turnstile** を `src/captcha.php` で実装。`TURNSTILE_SITE_KEY`＋`TURNSTILE_SECRET_KEY` を `.env` に設定すると signup/forgot/申込フォームで有効化（未設定なら素通り＝既存動作を壊さない）。レート制限と併用。CAPTCHA 有効時は CSP にウィジェット配信元を自動許可。
@@ -232,7 +232,7 @@ README は「参加費は自分の Stripe アカウントへ直接入金／Conne
 - したがって**管理者であっても他主催者の参加者 PII を画面から閲覧できない**。
 
 ### 10-3. マルチテナント維持
-- オープン登録は `ALLOW_SIGNUP`（既定 `1`）で**有効のまま**。誰でも主催者になれる。
+- オープン登録は `ALLOW_SIGNUP`（既定 `0`）で**停止**。`.env` に `ALLOW_SIGNUP=1` を書いたときだけ受け付ける（設定漏れで開かないよう fail-closed）。
 - 各主催者は Stripe を自分で接続（`connect.php`）し、自分のデータを自分の責任で管理する。
 
 ### 10-4. 残る信頼境界（正直な明示）と対策
