@@ -24,6 +24,13 @@ function session_boot(): void
     }
     if (is_dir($sessDir) && is_writable($sessDir)) {
         session_save_path($sessDir);
+        // PHP の自動掃除（session.gc_probability）が 0 の環境では、期限切れの
+        // セッションファイルが消えずに溜まり続ける。保存先を自前のディレクトリに
+        // 移しているため、OS側の掃除（Debian系の cron 等）も届かない。
+        // 時々ここで自分で消す。確率で走らせるのは rate_events の掃除と同じ考え方。
+        if (random_int(1, 100) === 1) {
+            session_files_cleanup($sessDir);
+        }
     }
     // 未知のセッションIDを受け取ったときに、それを使い回さず新しく発行する。
     // 攻撃者が用意したIDを踏ませてからログインさせる手口（セッション固定）の入口を塞ぐ。
@@ -51,6 +58,44 @@ function session_boot(): void
         }
         $_SESSION['last_activity'] = $now;
     }
+}
+
+/**
+ * 期限切れのセッションファイルを消す。
+ *
+ * 消す基準は「最後に触られてから、アプリのアイドルタイムアウトを超えたもの」。
+ * 会員60分・運営30分なので、長いほうに余裕を足した時間より古いものは、
+ * もうログイン状態として使えない（current_member / current_tenant が弾く）。
+ * 使えないファイルを置いたままにする理由が無いので消す。
+ *
+ * 1回で消す数に上限を付ける。溜まったファイルが大量にあるとき、
+ * 1リクエストの中で全部消そうとすると応答が遅くなるため。
+ */
+function session_files_cleanup(string $dir, int $maxDelete = 200): int
+{
+    $keep = max(MEMBER_IDLE_TIMEOUT, SESSION_IDLE_TIMEOUT) + 3600; // 余裕1時間
+    $cut = time() - $keep;
+    $n = 0;
+    $dh = @opendir($dir);
+    if ($dh === false) {
+        return 0;
+    }
+    while (($f = readdir($dh)) !== false) {
+        if ($n >= $maxDelete) {
+            break;
+        }
+        // PHP が作るファイルだけを対象にする（他のファイルを消さない）。
+        if (strncmp($f, 'sess_', 5) !== 0) {
+            continue;
+        }
+        $path = $dir . '/' . $f;
+        $mt = @filemtime($path);
+        if ($mt !== false && $mt < $cut && @unlink($path)) {
+            $n++;
+        }
+    }
+    closedir($dh);
+    return $n;
 }
 
 /* ------------------- ログイン試行の制限（総当たり対策） ------------------- */

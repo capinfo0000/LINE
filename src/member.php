@@ -12,6 +12,13 @@ declare(strict_types=1);
 
 /** 会員セッションのアイドルタイムアウト（秒）。最終操作からこの時間で失効。 */
 const MEMBER_IDLE_TIMEOUT = 3600; // 60分
+// ログイン後に戻す先を覚えておく時間。共有URLから飛ばされた直後に使うためのもので、
+// 長く持たせると「ずっと前に開いたプロフィールに、次のログインで飛ばされる」ことになる。
+const LOGIN_RETURN_TTL = 900; // 15分
+// ログインしてから、この時間を過ぎたらもう一度ログインしてもらう。
+// アイドルタイムアウト（60分）だけだと、毎日使う人のセッションは無期限に延びる。
+// 会員の氏名・写真・連絡先を扱うので、上限そのものを設けておく。
+const MEMBER_SESSION_MAX = 30 * 86400; // 30日
 
 /* ------------------------- ID/PW 発行 ------------------------- */
 
@@ -416,6 +423,7 @@ function login_member(string $loginId, string $password): bool
     session_regenerate_id(true);
     $_SESSION['member_id'] = $member['id'];
     $_SESSION['member_last_activity'] = time();
+    $_SESSION['member_login_at'] = time();
     return true;
 }
 
@@ -436,10 +444,18 @@ function current_member(): ?array
     if ($id === '') {
         return null;
     }
-    // アイドルタイムアウト
     $now = time();
+    // アイドルタイムアウト（最後の操作から一定時間で切る）
     $last = (int) ($_SESSION['member_last_activity'] ?? $now);
     if ($now - $last > MEMBER_IDLE_TIMEOUT) {
+        logout_member();
+        return null;
+    }
+    // ログインからの上限。毎日使っていてもここで一度切る。
+    // 古いセッションが残っていた場合（member_login_at を持たない）も、
+    // この時点で切って作り直させる。
+    $since = (int) ($_SESSION['member_login_at'] ?? 0);
+    if ($since <= 0 || $now - $since > MEMBER_SESSION_MAX) {
         logout_member();
         return null;
     }
@@ -500,15 +516,35 @@ function set_login_return_path(string $path): void
     }
     session_boot();
     $_SESSION['member_return_to'] = $path;
+    // 保存した時刻も持つ。これが無いと、いつ覚えたか分からない戻り先が
+    // セッションに残り続け、ずっとあとのログインで突然そこへ飛ばされる。
+    $_SESSION['member_return_to_at'] = time();
 }
 
-/** 覚えておいた戻り先を取り出して消す。無ければ空文字。 */
+/**
+ * 覚えておいた戻り先を取り出して消す。無ければ空文字。
+ *
+ * 覚えてから LOGIN_RETURN_TTL を過ぎたものは捨てる。
+ * 戻り先が意味を持つのは「ログイン画面へ飛ばされた直後」だけで、
+ * 何時間も前に開いた共有URLへ飛ばされるのは、本人の意図と違う。
+ */
 function take_login_return_path(): string
 {
     session_boot();
     $path = (string) ($_SESSION['member_return_to'] ?? '');
-    unset($_SESSION['member_return_to']);
+    $at = (int) ($_SESSION['member_return_to_at'] ?? 0);
+    unset($_SESSION['member_return_to'], $_SESSION['member_return_to_at']);
+    if ($path === '' || $at <= 0 || time() - $at > LOGIN_RETURN_TTL) {
+        return '';
+    }
     return $path;
+}
+
+/** 覚えておいた戻り先を、使わずに捨てる。 */
+function forget_login_return_path(): void
+{
+    session_boot();
+    unset($_SESSION['member_return_to'], $_SESSION['member_return_to_at']);
 }
 
 /* ------------------------- パスワード変更／再設定 ------------------------- */

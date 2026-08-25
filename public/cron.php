@@ -39,6 +39,12 @@ if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
     exit("locked (already running)\n");
 }
 
+// どのジョブのときも、期限切れのセッションファイルを掃除する。
+// PHP の自動掃除（session.gc_probability）が 0 の環境があり、そのままだと
+// 保存先に溜まり続ける。画面側でも確率で掃除しているが、アクセスが少ないと
+// なかなか走らないので、定期実行のここで確実に走らせる。
+$sessCleaned = session_files_cleanup(dirname(current_db_path()) . '/sessions', 2000);
+
 $out = '';
 try {
     if ($job === 'remind') {
@@ -176,3 +182,6 @@ try {
 flock($lock, LOCK_UN);
 fclose($lock);
 echo '[' . date('c') . "] {$out}\n";
+if ($sessCleaned > 0) {
+    echo "期限切れのセッションファイルを {$sessCleaned} 件消しました\n";
+}

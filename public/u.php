@@ -45,9 +45,14 @@ if ($member === null) {
     exit;
 }
 
-// 未ログインの人がこの共有URLを開いたときは、ログイン後にこの画面へ戻す。
+// 未ログインの人がこの共有URLを開いたときだけ、ログイン後にこの画面へ戻す。
 // （member_view.php 側の require_member() がログイン画面へ飛ばす前に覚えておく）
-set_login_return_path('/u/' . member_public_code($member));
+//
+// ログイン済みの人には覚えない。覚えてしまうと、その戻り先がセッションに残り、
+// 次にログインしたときに「いきなり他人のプロフィールが出る」ことになる。
+if (current_member() === null) {
+    set_login_return_path('/u/' . member_public_code($member));
+}
 
 // 以降は通常のプロフィール詳細と同じ処理にする。
 $_GET['id'] = (string) $member['id'];
