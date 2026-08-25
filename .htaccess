@@ -28,7 +28,7 @@
     RewriteCond %{REQUEST_METHOD} =GET
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteCond %{THE_REQUEST} \s/+[^?\s]*\.php[\s?]
-    RewriteCond %{REQUEST_URI} !^/(webhook|line_webhook|cron|install)\.php$
+    RewriteCond %{THE_REQUEST} !\s/+(public/)?(webhook|line_webhook|cron|install)\.php[\s?]
     RewriteRule ^(.+)\.php$ /$1 [R=301,L,QSA]
 
     # 既に public/ 宛ての内部URLは二重付与しない

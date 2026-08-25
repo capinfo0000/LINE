@@ -14,7 +14,9 @@
     RewriteEngine On
 
     # --- URL から .php を消す（考え方は プロジェクト直下の .htaccess と同じ） ---
-    # 判定は THE_REQUEST（元のリクエスト行）。内部転送では変わらないので往復しない。
+    # 判定はすべて THE_REQUEST（ブラウザが送ってきた元のリクエスト行）で行う。
+    # REQUEST_URI だと、フラット配置で直下の .htaccess が public/ へ内部転送した後に
+    # /public/cron.php へ変わってしまい、下の除外に当たらなくなる（cron が301で空振りする）。
     # GET 以外は転送しない。外部サービスに登録済みのURLは .php のまま受ける。
     RewriteCond %{REQUEST_METHOD} =GET
     RewriteCond %{THE_REQUEST} \s/+index\.php[\s?]
@@ -22,7 +24,7 @@
 
     RewriteCond %{REQUEST_METHOD} =GET
     RewriteCond %{THE_REQUEST} \s/+[^?\s]*\.php[\s?]
-    RewriteCond %{REQUEST_URI} !^/(webhook|line_webhook|cron|install)\.php$
+    RewriteCond %{THE_REQUEST} !\s/+(public/)?(webhook|line_webhook|cron|install)\.php[\s?]
     RewriteRule ^(.+)\.php$ /$1 [R=301,L,QSA]
 
     # プロフィールの短い共有URL（/u/<コード>）を u.php へ渡す。
