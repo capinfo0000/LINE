@@ -29,8 +29,7 @@ $savedIntro = (string) ($profile['intro_text'] ?? '');
 $reset = isset($_GET['reset']);
 
 $name = ($profile['name_text'] ?? '') !== '' ? (string) $profile['name_text'] : 'お名前';
-$ageRaw = (string) ($profile['age_text'] ?? '');
-$age = $ageRaw === '' ? '' : (ctype_digit($ageRaw) ? $ageRaw . '歳' : $ageRaw);
+$age = profile_age_text($profile);
 $occupation = (string) ($profile['occupation'] ?? '');
 $headline = (string) ($profile['headline'] ?? '');
 $bio = (string) ($profile['bio'] ?? '');

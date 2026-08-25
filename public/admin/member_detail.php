@@ -89,7 +89,7 @@ require __DIR__ . '/_app_header.php';
     <p>LINE：<?= e($member['line_user_id'] ?? '-') ?>　入会日：<?= $member['joined_at'] ? e(date('Y-m-d', (int) $member['joined_at'])) : '-' ?></p>
     <?php $curPlan = ($member['plan'] ?? 'basic') === 'premium' ? 'premium' : 'basic'; ?>
     <p style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
-        プラン：<span class="badge" style="background:<?= $curPlan === 'premium' ? '#eef2ff;color:#3730a3' : '#f1f5f9;color:#475569' ?>;"><?= e(plan_label($curPlan)) ?></span>
+        プラン：<span class="badge badge--<?= $curPlan === 'premium' ? 'info' : 'mute' ?>"><?= e(plan_label($curPlan)) ?></span><?php if (!billing_started()): ?> <span class="muted" style="font-size:.82rem;">（無料フェーズ中は全員プレミアム相当）</span><?php endif; ?>
         <form method="post" style="display:inline;">
             <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="action" value="set_plan">
             <input type="hidden" name="plan" value="<?= $curPlan === 'premium' ? 'basic' : 'premium' ?>">

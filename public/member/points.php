@@ -89,7 +89,8 @@ require __DIR__ . '/_header.php';
     <?php if ($history === []): ?>
         <p class="muted">まだ履歴がありません。</p>
     <?php else: ?>
-        <table style="width:100%;border-collapse:collapse;font-size:.88rem;">
+        <div class="table-wrap">
+        <table style="width:100%;min-width:480px;border-collapse:collapse;font-size:.88rem;">
             <tr style="text-align:left;border-bottom:1px solid var(--border);"><th style="padding:6px;">日時</th><th>内容</th><th style="text-align:right;">増減</th></tr>
             <?php foreach ($history as $h): ?>
                 <tr style="border-bottom:1px solid var(--border);">
@@ -99,6 +100,7 @@ require __DIR__ . '/_header.php';
                 </tr>
             <?php endforeach; ?>
         </table>
+        </div>
     <?php endif; ?>
 </div>
 <?php require __DIR__ . '/_footer.php'; ?>

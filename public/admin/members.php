@@ -48,7 +48,8 @@ require __DIR__ . '/_app_header.php';
 </form>
 
 <div class="card">
-    <table style="width:100%;border-collapse:collapse;font-size:.88rem;">
+    <div class="table-wrap">
+    <table style="width:100%;min-width:620px;border-collapse:collapse;font-size:.88rem;">
         <tr style="text-align:left;border-bottom:1px solid var(--border);">
             <th style="padding:6px;">ログインID</th><th>名前</th><th>ステータス</th><th>メール</th><th>登録日</th><th></th>
         </tr>
@@ -72,6 +73,7 @@ require __DIR__ . '/_app_header.php';
             </tr>
         <?php endforeach; ?>
     </table>
+    </div>
     <?php if ($members === []): ?><p class="muted">該当する会員がいません。</p><?php endif; ?>
 </div>
 <?php require __DIR__ . '/_app_footer.php'; ?>

@@ -257,8 +257,8 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
 };
 ?>
 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 6px;">
-    <h1 style="font-size:1.5rem;margin:0;">プロフィール編集</h1>
-    <a class="btn btn--ghost" href="/member/member_view.php?id=<?= e($memberId) ?>" style="padding:8px 16px;border-radius:999px;">👁 プレビュー</a>
+    <h1 style="font-size:1.5rem;margin:0;white-space:nowrap;">プロフィール編集</h1>
+    <a class="btn btn--ghost" href="/member/member_view.php?id=<?= e($memberId) ?>" style="padding:8px 16px;border-radius:999px;flex:0 0 auto;width:auto;white-space:nowrap;">プレビュー</a>
 </div>
 <p class="muted" style="margin:0 0 14px;"><a href="/member/dashboard.php">← マイページ</a></p>
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= nl2br(e($msg)) ?></div><?php endif; ?>

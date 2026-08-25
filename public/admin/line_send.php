@@ -349,7 +349,7 @@ require __DIR__ . '/_app_header.php';
                 <?php endforeach; ?>
             </div>
             <textarea name="text" rows="6" maxlength="1000" placeholder="お知らせ内容を入力"><?= e($text) ?></textarea>
-            <label style="margin-top:10px;">説明会・面談の枠を案内に添付（任意）</label>
+            <label style="margin-top:10px;">説明会の枠を案内に添付（任意）</label>
             <select name="slot_id">
                 <option value="">添付しない</option>
                 <?php foreach ($slots as $s):
@@ -373,7 +373,7 @@ require __DIR__ . '/_app_header.php';
             <button type="submit" name="do_issue" value="1" class="btn btn--ghost" style="border-color:#b45309;color:#b45309;font-weight:700;"
                     data-confirm="選択した宛先に『会員資格（ID/パスワード）』を即時発行してLINEで送信します。決済・説明会を経ない手動発行です。よろしいですか？">🎫 会員資格を発行して送信</button>
             <p class="muted" style="font-size:.82rem;margin:8px 0 0;">
-                「📅 日程を送る」＝説明会・面談の日程を<strong>カード＋予約ボタン付き</strong>で送信（相手はタップで日程を選んで予約）。<br>
+                「📅 日程を送る」＝説明会の日程を<strong>カード＋予約ボタン付き</strong>で送信（相手はタップで日程を選んで予約）。<br>
                 「初回メッセージを送る」＝友だち追加時と同じ、あいさつ＋説明会の予約ボタン付きメッセージ。<br>
                 「🎫 会員資格を発行して送信」＝選択した相手に<strong>会員ID/パスワードを即時発行</strong>してLINEで送信（<strong>決済・説明会を経ない手動発行</strong>／既に会員の相手は再発行しません）。<br>
                 （日程・初回・発行の各ボタンは本文・添付を使いません）</p>

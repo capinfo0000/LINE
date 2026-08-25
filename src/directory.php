@@ -68,7 +68,7 @@ function search_directory(array $filters, string $viewerId, int $limit = 60, str
         ? 'COALESCE(m.joined_at, m.created_at) DESC, m.created_at DESC'
         : "(m.plan = 'premium') DESC, points_earned DESC, COALESCE(m.joined_at, 0) DESC, m.created_at DESC";
     $sql = 'SELECT m.id AS member_id, m.login_id, m.joined_at,
-                   p.name_text, p.age_text, p.company_title, p.headline, p.bio, p.photo_status, p.visibility_flags,
+                   p.name_text, p.age_text, p.birthdate, p.company_title, p.headline, p.bio, p.photo_status, p.photo_path, p.visibility_flags,
                    (SELECT COALESCE(SUM(pl.delta), 0) FROM point_ledger pl WHERE pl.member_id = m.id AND pl.delta > 0) AS points_earned
               FROM members m
               JOIN profiles p ON p.member_id = m.id

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * 説明会・面談の設定：説明会/個別面談の開催枠を作成・一覧・開閉する。
+ * 説明会：説明会/個別面談の開催枠を作成・一覧・開閉する。
  */
 
 declare(strict_types=1);
@@ -120,7 +120,7 @@ foreach ($slots as $s) {
 // アクティブは開催が近い順（昇順）で見やすく。
 usort($activeSlots, static fn ($a, $b) => (int) $a['start_at'] <=> (int) $b['start_at']);
 $token = csrf_token();
-$pageTitle = '説明会・面談の設定';
+$pageTitle = '説明会';
 require __DIR__ . '/_app_header.php';
 ?>
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
@@ -144,7 +144,8 @@ require __DIR__ . '/_app_header.php';
 
 <div class="card">
     <div class="card__title" style="margin-bottom:8px;">開催予定・開催中</div>
-    <table style="width:100%;border-collapse:collapse;font-size:.88rem;">
+    <div class="table-wrap">
+    <table style="width:100%;min-width:620px;border-collapse:collapse;font-size:.88rem;">
         <tr style="text-align:left;border-bottom:1px solid var(--border);"><th style="padding:6px;">種別</th><th>日時(JST)</th><th>申込</th><th>Zoom</th><th>受付</th><th></th></tr>
         <?php foreach ($activeSlots as $s):
             $jst = date('Y-m-d H:i', (int) $s['start_at'] + 9 * 3600); ?>
@@ -189,6 +190,7 @@ require __DIR__ . '/_app_header.php';
             </tr>
         <?php endforeach; ?>
     </table>
+    </div>
     <?php if ($activeSlots === []): ?><p class="muted">開催予定の枠がありません。</p><?php endif; ?>
 </div>
 
@@ -197,7 +199,8 @@ require __DIR__ . '/_app_header.php';
     <details>
         <summary style="cursor:pointer;font-weight:700;">過去の開催（<?= count($pastSlots) ?>件）</summary>
         <p class="muted" style="margin:8px 0;">過去分のZoomリンクは表示しません。</p>
-        <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+        <div class="table-wrap">
+        <table style="width:100%;min-width:620px;border-collapse:collapse;font-size:.85rem;">
             <tr style="text-align:left;border-bottom:1px solid var(--border);"><th style="padding:6px;">種別</th><th>日時(JST)</th><th>申込</th><th>受付</th></tr>
             <?php foreach ($pastSlots as $s):
                 $jst = date('Y-m-d H:i', (int) $s['start_at'] + 9 * 3600); ?>
@@ -209,6 +212,7 @@ require __DIR__ . '/_app_header.php';
                 </tr>
             <?php endforeach; ?>
         </table>
+        </div>
     </details>
 </div>
 <?php endif; ?>

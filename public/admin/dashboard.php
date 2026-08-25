@@ -147,7 +147,7 @@ $__csrf = csrf_token();
             <span class="badge" style="background:var(--ok-bg);color:var(--ok-fg);">課金フェーズ</span>
             有効会員 <strong><?= (int) $__active ?></strong> 名（全員サブスク登録が必要／未登録はアクセス制限）
         <?php else: ?>
-            <span class="badge" style="background:#eef2ff;color:#3730a3;">無料フェーズ</span>
+            <span class="badge badge--info">無料フェーズ</span>
             有効会員 <strong><?= (int) $__active ?></strong> / <?= (int) $__limit ?> 名（あと <strong><?= max(0, $__limit - (int) $__active + 1) ?></strong> 名で課金開始）
         <?php endif; ?>
     </p>
@@ -194,9 +194,9 @@ $__csrf = csrf_token();
     <div class="card__title">運営メニュー</div>
     <p>
         <a class="btn btn--ghost" href="members.php">会員管理</a>
-        <a class="btn btn--ghost" href="slots.php">説明会・面談</a>
+        <a class="btn btn--ghost" href="slots.php">説明会</a>
         <a class="btn btn--ghost" href="line_send.php">LINE配信</a>
-        <a class="btn btn--ghost" href="contacts.php">LINE申込者</a>
+        <a class="btn btn--ghost" href="contacts.php">申し込み者</a>
         <a class="btn btn--ghost" href="openchat.php">オープンチャット</a>
         <a class="btn btn--ghost" href="tags.php">タグ管理</a>
     </p>

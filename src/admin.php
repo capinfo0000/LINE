@@ -128,6 +128,72 @@ function site_setting_defs(): array
     ];
 }
 
+/* ---------------- 運用モードに連動する公開文面 ----------------
+ * 「初期運用／通常運用」「自己紹介ロック」「無料／課金フェーズ」を管理画面で切り替えると、
+ * 規約・プライバシーポリシー・案内文の記述も一緒に変わるようにする。
+ * 切り替えたのに文面が古いまま、という食い違いを起こさないための共通関数。
+ */
+
+/** 入会の流れの説明。登録運用モード（signup_mode）に連動する。 */
+function ops_signup_description(): string
+{
+    return signup_mode() === 'auto'
+        ? '公式LINEを友だち追加いただくと、その場で会員登録が完了し、会員サイトのログインID・仮パスワードをLINEでお送りします。'
+        : '公式LINEを友だち追加のうえ、当方所定の手続き（説明会・個別面談等）を経てお申し込みいただきます。お申し込み後、会員サイトのログインID・仮パスワードをお送りします。';
+}
+
+/** 入会前に取得する情報の説明。説明会・面談の有無が運用モードで変わる。 */
+function ops_precontract_data_description(): string
+{
+    return signup_mode() === 'auto'
+        ? '公式LINEでのやり取り（トーク内容・表示名・LINEのユーザー識別子）。'
+        : '公式LINEでのやり取り（トーク内容・表示名・LINEのユーザー識別子）、説明会・個別面談の予約情報。';
+}
+
+/** 料金の説明。無料フェーズ中か、課金開始後かで変わる。 */
+function ops_billing_description(): string
+{
+    if (billing_started()) {
+        return '会員資格の維持には、月額会費（税込500円・サブスクリプション）のお支払いが必要です。';
+    }
+    return '現在は無料でご利用いただけます。会員数が' . billing_free_limit() . '名を超えた以降は、会員資格の維持に月額会費（税込500円・サブスクリプション）が必要になります。';
+}
+
+/** 自己紹介ロックの説明。OFF のときは空文字（＝その条文自体を出さない）。 */
+function ops_intro_gate_description(): string
+{
+    return intro_gate_enabled()
+        ? '会員検索（さがす）のご利用にあたっては、公式LINEのトークに自己紹介をお送りいただく必要があります。送信を確認した時点で自動的にご利用いただけるようになります。'
+        : '';
+}
+
+/** ログインID・パスワードの受け取り方の案内。登録運用モードに連動する。 */
+function ops_credentials_description(): string
+{
+    return signup_mode() === 'auto'
+        ? 'ログインID・仮パスワードは、公式LINEを友だち追加された際にLINEでお送りしています。'
+        : 'ログインID・仮パスワードは、入会手続きの完了時に公式LINEでお送りしています。';
+}
+
+/**
+ * 規約・ポリシーで使う事業者名。未設定なら「（未設定）」を返す。
+ * $html=true でグレー表示のマークアップ付き（特商法ページと同じ見え方）。
+ */
+function legal_biz_name(bool $html = false): string
+{
+    $name = site_setting('biz_name');
+    if ($name !== '') {
+        return $html ? e($name) : $name;
+    }
+    return $html ? '<span class="muted">（未設定）</span>' : '（未設定）';
+}
+
+/** 事業者情報が未入力か（公開ページに注意書きを出すかの判定）。 */
+function legal_biz_incomplete(): bool
+{
+    return site_setting('biz_name') === '' || site_setting('biz_owner') === '';
+}
+
 /** サイト設定の値を取得（未設定なら定義の初期値）。 */
 function site_setting(string $key): string
 {

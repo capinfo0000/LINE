@@ -55,7 +55,7 @@ require __DIR__ . '/_header.php';
 <?php else: ?>
     <?php foreach ($recs as $r):
         $labels = member_tag_labels($r['member_id']);
-        $hasApprovedPhoto = ($r['photo_status'] ?? '') === 'approved';
+        $hasApprovedPhoto = profile_has_photo($r);
         $bal = member_points_earned($r['member_id']); // 累計獲得（称号の基準）
     ?>
         <div class="card">
@@ -66,8 +66,8 @@ require __DIR__ . '/_header.php';
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:600;">
                         <a href="/member/member_view.php?id=<?= e($r['member_id']) ?>"><?= e($r['name'] !== '' ? $r['name'] : '会員') ?></a>
-                        <?php if (($r['age_text'] ?? '') !== ''): ?><span class="muted" style="font-weight:normal;">（<?= e($r['age_text']) ?>）</span><?php endif; ?>
-                        <span style="float:right;font-size:.78rem;color:#3730a3;">マッチ度 <?= (int) $r['score'] ?></span>
+                        <?php $__age = profile_age_text($r); ?><?php if ($__age !== ''): ?><span class="muted" style="font-weight:normal;">（<?= e($__age) ?>）</span><?php endif; ?>
+                        <span style="float:right;font-size:.78rem;color:var(--info-fg);">マッチ度 <?= (int) $r['score'] ?></span>
                     </div>
                     <div style="margin:3px 0;"><span class="badge badge--title"><?= e(points_title($bal)) ?></span> <span class="muted" style="font-size:.82rem;"><?= number_format($bal) ?> pt</span></div>
                     <?php if (($r['company_title'] ?? '') !== ''): ?><div class="muted"><?= e($r['company_title']) ?></div><?php endif; ?>
@@ -80,7 +80,7 @@ require __DIR__ . '/_header.php';
                     <div style="margin-top:6px;">
                         <?php foreach (['area', 'job', 'purpose', 'offer'] as $cat): ?>
                             <?php foreach ($labels[$cat] ?? [] as $lb): ?>
-                                <span style="display:inline-block;background:#eef2ff;color:#3730a3;border-radius:10px;padding:1px 8px;font-size:.78rem;margin:2px 4px 2px 0;"><?= e($lb) ?></span>
+                                <span class="chipmini" style="margin:2px 4px 2px 0;"><?= e($lb) ?></span>
                             <?php endforeach; ?>
                         <?php endforeach; ?>
                     </div>

@@ -56,13 +56,13 @@ require __DIR__ . '/_header.php';
 <div class="card">
     <div class="card__title">現在のご契約</div>
     <?php $curPlan = member_plan($member); ?>
-    <p style="margin:.3rem 0;">プラン：<span class="badge" style="background:<?= $curPlan === 'premium' ? '#eef2ff;color:#3730a3' : '#f1f5f9;color:#475569' ?>;"><?= e(plan_label($curPlan)) ?></span>
-        <?php if (!billing_started()): ?><span class="muted" style="font-size:.82rem;">（現在は無料期間・全機能をご利用いただけます）</span><?php endif; ?>
+    <p style="margin:.3rem 0;">プラン：<span class="badge badge--<?= billing_started() && $curPlan !== 'premium' ? 'mute' : 'info' ?>"><?= e(member_plan_label($member)) ?></span>
+        <?php if (!billing_started()): ?><span class="muted" style="font-size:.82rem;">（全機能をご利用いただけます）</span><?php endif; ?>
     </p>
     <p style="margin:.3rem 0;">
         月額会費：<strong><?= e($statusLabel) ?></strong>
         <?php if ($waived): ?>
-            <span class="badge" style="background:#eef2ff;color:#3730a3;">紹介特典で無料</span>
+            <span class="badge badge--info">紹介特典で無料</span>
         <?php endif; ?>
     </p>
     <?php if (billing_started() && $curPlan !== 'premium'): ?>

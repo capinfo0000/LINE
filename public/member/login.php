@@ -70,7 +70,7 @@ require __DIR__ . '/_header.php';
     <p style="margin-top:16px;"><button type="submit" class="btn">ログイン</button></p>
 </form>
 <p class="muted"><a href="/member/forgot.php">パスワードを忘れた場合</a></p>
-<p class="muted">ログインID・パスワードは入会手続き完了時にお渡ししています。</p>
+<p class="muted"><?= e(ops_credentials_description()) ?></p>
 <p class="muted" style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;font-size:.82rem;">
     <a href="/tokushoho.php">特定商取引法に基づく表記</a> ／
     <a href="/policy.php">キャンセル・返金ポリシー</a> ／

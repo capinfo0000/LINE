@@ -144,9 +144,11 @@ $renderCard = function (string $mid, string $nm, string $age, bool $hasPhoto, in
     $title = points_title(member_points_earned($mid));
     $nm = $nm !== '' ? $nm : '会員';
     $ini = mb_substr($nm, 0, 1);
-    $hue = crc32($mid) % 360;
-    $hue2 = ($hue + 38) % 360;
-    $cardBg = $hasPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 66% 54%),hsl(' . $hue2 . ' 64% 45%))"';
+    // 写真が無い会員のカード背景。会員ごとに少し色味を変えつつ、
+    // 一覧がオレンジ基調なので暖色（赤〜黄）の範囲に収める（以前は全色相で青や緑が混ざっていた）。
+    $hue = 16 + (crc32($mid) % 34);   // 16〜49度＝オレンジ〜アンバー
+    $hue2 = $hue + 14;
+    $cardBg = $hasPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 72% 52%),hsl(' . $hue2 . ' 68% 42%))"';
     $area = $labels['area'][0] ?? '';
     $job = $labels['job'][0] ?? '';
     $want = $labels['purpose'][0] ?? '';
@@ -158,7 +160,7 @@ $renderCard = function (string $mid, string $nm, string $age, bool $hasPhoto, in
         <a class="tp-cardlink" href="/member/member_view.php?id=<?= e($mid) ?>" aria-label="<?= e($nm) ?> のプロフィール"></a>
         <span class="tp-crank <?= $rankClass($title) ?>"><?= e($title) ?></span>
         <div class="tp-cinfo">
-            <?php if ($age !== '' || $area !== ''): ?><div class="aa"><?= $age !== '' ? e($age) . '歳' : '' ?><?= ($age !== '' && $area !== '') ? '・' : '' ?><?= e($area) ?></div><?php endif; ?>
+            <?php if ($age !== '' || $area !== ''): ?><div class="aa"><?= e($age) ?><?= ($age !== '' && $area !== '') ? '・' : '' ?><?= e($area) ?></div><?php endif; ?>
             <div class="nm"><?= e($nm) ?></div>
             <div class="tp-ptags">
                 <?php if ($job !== ''): ?><span class="tp-ptag tp-ptag--on"><?= e($job) ?></span><?php endif; ?>
@@ -179,11 +181,11 @@ $recCards = [];
 if ($showRail) {
     if ($recs !== []) {
         foreach ($recs as $rc) {
-            $recCards[] = [(string) $rc['member_id'], (string) ($rc['name'] ?? ''), (string) ($rc['age_text'] ?? ''), ($rc['photo_status'] ?? '') === 'approved'];
+            $recCards[] = [(string) $rc['member_id'], (string) ($rc['name'] ?? ''), profile_age_text($rc), profile_has_photo($rc)];
         }
     } else {
         foreach (array_slice($results, 0, 10) as $r) {
-            $recCards[] = [(string) $r['member_id'], (string) ($r['name_text'] ?? ''), (string) ($r['age_text'] ?? ''), ($r['photo_status'] ?? '') === 'approved'];
+            $recCards[] = [(string) $r['member_id'], (string) ($r['name_text'] ?? ''), profile_age_text($r), profile_has_photo($r)];
         }
     }
 }
@@ -295,7 +297,7 @@ if ($hasQuery) {
     </p></div>
 <?php else: ?>
     <div class="tp-grid">
-        <?php foreach ($results as $i => $r): $renderCard((string) $r['member_id'], (string) ($r['name_text'] ?? ''), (string) ($r['age_text'] ?? ''), ($r['photo_status'] ?? '') === 'approved', $isRanking ? $i + 1 : 0); endforeach; ?>
+        <?php foreach ($results as $i => $r): $renderCard((string) $r['member_id'], (string) ($r['name_text'] ?? ''), profile_age_text($r), profile_has_photo($r), $isRanking ? $i + 1 : 0); endforeach; ?>
     </div>
 <?php endif; ?>
 <?php require __DIR__ . '/_footer.php'; ?>

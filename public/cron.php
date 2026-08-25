@@ -128,7 +128,7 @@ try {
     } elseif ($job === 'diag') {
         // 運用診断（秘密情報は出力しない）。自己紹介ロック・LINE受信の状況を確認する。
         $L = [];
-        $L[] = 'code_version=intro_gate_fix_3';
+        $L[] = 'code_version=ui_review_fix_1';
         $L[] = 'signup_mode=' . signup_mode();
         $L[] = 'intro_gate=' . (intro_gate_enabled() ? 'ON' : 'OFF');
         $L[] = 'line_token=' . (line_channel_token() !== null ? 'set' : 'MISSING');

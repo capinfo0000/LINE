@@ -119,7 +119,7 @@ function tag_label_map(): array
  * 指定会員への双方向おすすめを計算する（ライブ）。
  *
  * @return array<int,array{member_id:string,name:string,headline:string,company_title:string,
- *                         age_text:string,photo_status:string,score:int,reasons:array<int,string>}>
+ *                         age_text:string,birthdate:string,photo_status:string,photo_path:string,score:int,reasons:array<int,string>}>
  */
 function compute_recommendations_for(string $memberId, int $limit = 20): array
 {
@@ -133,7 +133,7 @@ function compute_recommendations_for(string $memberId, int $limit = 20): array
 
     // 候補：有効・プロフィールあり・ディレクトリ掲載・自分以外。
     $stmt = db()->prepare(
-        "SELECT m.id AS member_id, p.name_text, p.age_text, p.company_title, p.headline, p.photo_status, p.visibility_flags
+        "SELECT m.id AS member_id, p.name_text, p.age_text, p.birthdate, p.company_title, p.headline, p.photo_status, p.photo_path, p.visibility_flags
            FROM members m JOIN profiles p ON p.member_id = m.id
           WHERE m.status = 'active' AND m.id != ?"
     );
@@ -158,7 +158,9 @@ function compute_recommendations_for(string $memberId, int $limit = 20): array
             'headline'      => (string) $cand['headline'],
             'company_title' => (string) $cand['company_title'],
             'age_text'      => (string) $cand['age_text'],
+            'birthdate'     => (string) ($cand['birthdate'] ?? ''),
             'photo_status'  => (string) $cand['photo_status'],
+            'photo_path'    => (string) ($cand['photo_path'] ?? ''),
             'score'         => $eval['score'],
             'reasons'       => $eval['reasons'],
         ];

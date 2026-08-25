@@ -1,7 +1,7 @@
 <?php
 
 /**
- * LINE申込者の一覧・承認。
+ * 申し込み者（公式LINEの友だち）の一覧・承認。
  *  - 無料フェーズ：「承認して発行」で決済なしの会員資格を発行し、LINEに配布する。
  *  - 課金フェーズ：「承認して案内」で決済リンクを送信する。
  * 承認処理は payment.php の approve_line_contact() がフェーズ判定して実行する。
@@ -67,7 +67,7 @@ $contacts = db()->query(
 )->fetchAll();
 
 $token = csrf_token();
-$pageTitle = 'LINE申込者';
+$pageTitle = '申し込み者';
 $pageSub = $billing ? '課金フェーズ：承認で決済リンクを送信' : '無料フェーズ：承認で無料入会を発行';
 require __DIR__ . '/_app_header.php';
 ?>
@@ -79,7 +79,7 @@ require __DIR__ . '/_app_header.php';
             <span class="badge" style="background:var(--ok-bg);color:var(--ok-fg);">課金フェーズ</span>
             「承認して案内」を押すと、その申込者へ<strong>決済リンク</strong>を送信します。入金後に会員資格が発行されます。
         <?php else: ?>
-            <span class="badge" style="background:#eef2ff;color:#3730a3;">無料フェーズ</span>
+            <span class="badge badge--info">無料フェーズ</span>
             「承認して発行」を押すと、<strong>決済なしで会員資格（無料）</strong>を発行し、ログイン情報をLINEへ送信します。
         <?php endif; ?>
     </p>

@@ -60,6 +60,16 @@ function plan_label(string $plan): string
     return $plan === 'premium' ? 'プレミアム' : 'ベーシック';
 }
 
+/**
+ * 会員に見せるプラン表記。
+ * 無料フェーズ中は内部的に全員 premium 扱いだが、そのまま「プレミアム」と出すと
+ * 課金していないのに有料プランに見えて紛らわしいので「無料期間中」と表示する。
+ */
+function member_plan_label(array $member): string
+{
+    return billing_started() ? plan_label(member_plan($member)) : '無料期間中';
+}
+
 /** 会員のプランを設定する（運営操作／Webhook用）。basic/premium のみ受け付ける。 */
 function set_member_plan(string $memberId, string $plan): void
 {

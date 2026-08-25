@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && (string) $viewer['id'] !== $targetId
 
 $labels = member_tag_labels($targetId);
 $links = visible_member_links($targetId, $profile);
-$hasApprovedPhoto = ($profile['photo_status'] ?? '') === 'approved';
+$hasApprovedPhoto = profile_has_photo($profile);
 
 $pageTitle = ($profile['name_text'] !== '' ? $profile['name_text'] : '会員') . ' さんのプロフィール';
 $showLogout = true;
@@ -108,7 +108,7 @@ $avatarBg = $hasApprovedPhoto ? '' : ' style="background:linear-gradient(150deg,
         <div class="tp-ig-av"<?= $avatarBg ?>>
             <?php if ($hasApprovedPhoto): ?><img src="/member/photo.php?id=<?= e($targetId) ?>&v=<?= (int)($profile['updated_at'] ?? 0) ?>" alt=""><?php else: ?><span><?= e($ini) ?></span><?php endif; ?>
         </div>
-        <?php $ageDisp = (string) ($profile['age_text'] ?? ''); if ($ageDisp !== '' && ctype_digit($ageDisp)) { $ageDisp .= '歳'; } ?>
+        <?php $ageDisp = profile_age_text($profile); ?>
         <div class="tp-ig-name"><b><?= e($nm) ?></b><?php if ($ageDisp !== ''): ?><span class="age"><?= e($ageDisp) ?></span><?php endif; ?></div>
         <div class="tp-ig-pills">
             <?php if ($area !== ''): ?><span class="tp-pill">📍<?= e($area) ?></span><?php endif; ?>

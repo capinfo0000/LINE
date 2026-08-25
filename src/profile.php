@@ -146,6 +146,43 @@ function normalize_birthdate(string $raw): string
 }
 
 /** 生年月日(YYYY-MM-DD)から満年齢を算出（不正なら null）。 */
+/**
+ * この会員の顔写真を表示してよいか。
+ * photo_status だけを見ると、画像ファイルが失われていても「あり」と判定され、
+ * 頭文字のプレースホルダーに落ちずに画像切れが出る。ファイルの実体も確認する。
+ *
+ * @param array<string,mixed> $profile profiles の行
+ */
+function profile_has_photo(array $profile): bool
+{
+    if ((string) ($profile['photo_status'] ?? '') !== 'approved') {
+        return false;
+    }
+    return member_image_abs_path($profile, 'photo_path') !== null;
+}
+
+/**
+ * 表示用の年齢文字列（「36歳」）を返す。無ければ空文字。
+ *
+ * 年齢は保存時に age_text へ書き込まれるが、それだけだと誕生日を過ぎても
+ * 本人が再保存するまで増えない。そのため表示のたびに生年月日から計算し直し、
+ * 生年月日が無い会員（旧データ・サンプル）だけ age_text にフォールバックする。
+ *
+ * @param array<string,mixed> $row profiles の行（birthdate / age_text を含む）
+ */
+function profile_age_text(array $row): string
+{
+    $age = compute_age((string) ($row['birthdate'] ?? ''));
+    if ($age !== null) {
+        return $age . '歳';
+    }
+    $fallback = trim((string) ($row['age_text'] ?? ''));
+    if ($fallback === '') {
+        return '';
+    }
+    return ctype_digit($fallback) ? $fallback . '歳' : $fallback;
+}
+
 function compute_age(string $birthdate): ?int
 {
     $bd = normalize_birthdate($birthdate);
