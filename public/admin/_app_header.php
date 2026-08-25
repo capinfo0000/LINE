@@ -45,6 +45,7 @@ if ((int) ($tenant['is_admin'] ?? 0) === 1) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($pageTitle !== '' ? $pageTitle . ' - ' : '') ?>Enlink 運営</title>
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/app.css">
     <script src="/assets/app.js" defer></script>
 </head>

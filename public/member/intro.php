@@ -87,7 +87,15 @@ require __DIR__ . '/_header.php';
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
 
 <?php if ($gated): ?>
-<div class="flash flash--ng">🔒 まず<strong>公式LINEに自己紹介を送信</strong>してください。確認できると「さがす」が使えます。</div>
+<div class="flash flash--ng">
+    🔒 まず<strong>公式LINEに自己紹介を送信</strong>してください。確認できると「さがす」が使えます。
+    <?php if ($officialUrl === ''): ?>
+        <div style="font-size:.84rem;font-weight:400;margin-top:6px;">
+            下の「コピー」で文章を写したあと、<strong>LINEアプリで Enlink の公式アカウントのトーク</strong>を開いて貼り付けて送ってください
+            （入会のご案内をお送りしたトークです）。
+        </div>
+    <?php endif; ?>
+</div>
 <?php endif; ?>
 
 <form method="post" class="card">
@@ -101,6 +109,11 @@ require __DIR__ . '/_header.php';
         <?php endif; ?>
         <a class="btn btn--ghost" href="/member/intro?reset=1" data-confirm="プロフィールから作り直します（未保存の編集は消えます）。よろしいですか？">作り直す</a>
     </div>
+    <?php if ($officialUrl === ''): ?>
+        <p class="hint" style="margin:10px 0 0;">
+            「コピー」で文章を写したら、LINEアプリで Enlink の公式アカウントのトークを開いて貼り付けて送信してください。
+        </p>
+    <?php endif; ?>
 </form>
 
 <?php require __DIR__ . '/_footer.php'; ?>

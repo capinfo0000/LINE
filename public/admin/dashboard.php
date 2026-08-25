@@ -104,10 +104,25 @@ require __DIR__ . '/_app_header.php';
         <?php endif; ?>
     </form>
     <hr style="border:0;border-top:1px solid var(--border);margin:16px 0;">
-    <?php $__gate = intro_gate_enabled(); ?>
+    <?php
+    $__gate = intro_gate_enabled();
+    // 公式LINEのトークURLが未設定だと、ロックされた会員の画面に「公式LINEを開く」ボタンが出ない。
+    // 送り先に1タップで行けないので、ロックONのときだけ気づけるように出す。
+    $__lineUrl = site_setting('line_official_url');
+    if ($__lineUrl === '') {
+        $__lineUrl = (string) (env('LINE_OFFICIAL_URL', '') ?? '');
+    }
+    ?>
     <p style="margin:0 0 8px;">
         自己紹介ロック：<strong style="color:<?= $__gate ? '#166534' : 'var(--muted)' ?>;"><?= $__gate ? 'ON（公式LINEに自己紹介を送るまで「さがす」を非表示）' : 'OFF' ?></strong>
     </p>
+    <?php if ($__gate && $__lineUrl === ''): ?>
+        <div class="flash flash--ng" style="margin:0 0 10px;">
+            <strong>公式LINEのトークURLが未設定です。</strong>
+            ロック中の会員の画面に「公式LINEを開く」ボタンが出ないため、送り先に1タップで行けません。
+            <a href="settings_site">各種設定</a>から入力してください。
+        </div>
+    <?php endif; ?>
     <p class="hint" style="margin:0 0 10px;">ON の場合、会員は公式LINEのトークに自己紹介を送信するまで「さがす」を閲覧できません（送信を自動検知して解除）。LINE未連携の会員（管理発行・サンプル）は対象外です。<br>
         ONに戻しても、すでに自己紹介を送った会員と、OFFにした時点で在籍していた会員は再ロックされません（個別に戻したい場合は会員詳細から）。</p>
     <form method="post" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">

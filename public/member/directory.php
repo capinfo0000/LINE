@@ -31,6 +31,12 @@ if (member_needs_intro($member)) {
         <p style="margin:0 0 10px;"><a class="btn btn--lg" href="/member/intro?gate=1">自己紹介を送る（ひな形を開く）</a></p>
         <p style="margin:0;"><a class="btn btn--ghost" href="/member/directory">送信した／再読み込みして確認</a></p>
         <p class="muted" style="font-size:.8rem;margin:10px 0 0;">送信するとすぐに反映されます。この画面は自動で切り替わらないため、上のボタンで再読み込みしてください。</p>
+        <?php if (site_setting('line_official_url') === '' && (string) (env('LINE_OFFICIAL_URL', '') ?? '') === ''): ?>
+            <p class="muted" style="font-size:.8rem;margin:6px 0 0;">
+                送り先は、入会のご案内をお送りした<strong>Enlink の公式アカウントのトーク</strong>です。
+                ひな形の画面でコピーして、LINEアプリから貼り付けて送ってください。
+            </p>
+        <?php endif; ?>
     </div>
     <?php
     require __DIR__ . '/_footer.php';
