@@ -38,11 +38,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // 画像は本文の入力チェックより先に保存する。
+    // ファイル選択は画面を作り直すと必ず消えるため（ブラウザの仕様）、
+    // 「名前が未入力」などで保存を中断すると、選んだ画像だけが黙って捨てられていた。
+    // 画像は名前や生年月日とは独立して保存できるので、ここで先に確定させる。
+    $imgMsgs = [];
+    /** この送信で画像が1つでも添付されていたか。 */
+    $hasUpload = static function (): bool {
+        foreach (['photo', 'cover', 'card'] as $k) {
+            if (($_FILES[$k]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                return true;
+            }
+        }
+        return false;
+    };
+    $uploaded = $hasUpload();
+    // 顔写真：新しいファイルがあればアップロード優先、無ければ削除指定を処理。
+    if (($_FILES['photo']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+        $perr = '';
+        if (!save_member_photo($memberId, $_FILES['photo'], $perr)) {
+            $imgMsgs[] = '顔写真：' . $perr;
+        }
+    } elseif (!empty($_POST['photo_delete'])) {
+        delete_member_photo($memberId);
+    }
+    // カバー画像（全会員公開）
+    if (($_FILES['cover']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+        $cerr = '';
+        if (!save_member_image($memberId, 'cover_path', 'cover', $_FILES['cover'], 1200, $cerr)) {
+            $imgMsgs[] = 'カバー画像：' . $cerr;
+        }
+    } elseif (!empty($_POST['cover_delete'])) {
+        delete_member_image($memberId, 'cover_path');
+    }
+    // 名刺画像（全会員公開）
+    if (($_FILES['card']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+        $kerr = '';
+        if (!save_member_image($memberId, 'card_path', 'card', $_FILES['card'], 1000, $kerr)) {
+            $imgMsgs[] = '名刺画像：' . $kerr;
+        }
+    } elseif (!empty($_POST['card_delete'])) {
+        delete_member_image($memberId, 'card_path');
+    }
+
     if ($errors !== []) {
-        // 保存せずにエラーを表示（入力はそのまま残す）。
-        $msg = implode("\n", $errors);
+        // 本文は保存せずにエラーを表示（入力はそのまま残す）。
+        // 画像は上で保存済みなので、その旨も伝える（選び直させないため）。
+        $msg = implode("\n", array_merge($imgMsgs, $errors));
+        if ($imgMsgs === [] && $uploaded) {
+            $msg .= "\n※ 選んだ画像は保存しました。上の項目を直して、もう一度「保存」を押してください。";
+        }
         $msgType = 'ng';
-        goto render; // 保存処理をスキップ
+        goto render; // 本文の保存処理をスキップ
     }
 
     // 本文＋表示制御（年齢は生年月日から自動算出。生年月日は非公開）
@@ -72,40 +119,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     set_member_links($memberId, $links);
 
-    // 顔写真：新しいファイルがあればアップロード優先、無ければ削除指定を処理。
-    if (($_FILES['photo']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-        $perr = '';
-        if (!save_member_photo($memberId, $_FILES['photo'], $perr)) {
-            $msg = $perr;
-            $msgType = 'ng';
-        }
-    } elseif (!empty($_POST['photo_delete'])) {
-        delete_member_photo($memberId);
-    }
-
-    // カバー画像（全会員公開）：アップロード優先、無ければ削除指定を処理。
-    if (($_FILES['cover']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-        $cerr = '';
-        if (!save_member_image($memberId, 'cover_path', 'cover', $_FILES['cover'], 1200, $cerr)) {
-            $msg = $cerr;
-            $msgType = 'ng';
-        }
-    } elseif (!empty($_POST['cover_delete'])) {
-        delete_member_image($memberId, 'cover_path');
-    }
-
-    // 名刺画像（全会員公開）：アップロード優先、無ければ削除指定を処理。
-    if (($_FILES['card']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-        $kerr = '';
-        if (!save_member_image($memberId, 'card_path', 'card', $_FILES['card'], 1000, $kerr)) {
-            $msg = $kerr;
-            $msgType = 'ng';
-        }
-    } elseif (!empty($_POST['card_delete'])) {
-        delete_member_image($memberId, 'card_path');
-    }
-
-    if ($msg === '') {
+    if ($imgMsgs !== []) {
+        // 画像だけ失敗した場合。本文は保存できているので、その旨も伝える。
+        $msg = implode("\n", $imgMsgs) . "\nそれ以外の内容は保存しました。";
+        $msgType = 'ng';
+    } else {
         $msg = 'プロフィールを保存しました。';
     }
     audit_log('member.profile_save', ['member' => $memberId]);

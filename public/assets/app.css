@@ -322,12 +322,27 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
   color:var(--muted); background:#f4eeee; white-space:nowrap; }
 .tp-cattab.on{ background:var(--coral); color:#fff; box-shadow:0 4px 12px rgba(249,115,22,.35); }
 
-/* --- さがす：ヒーローカルーセル（スワイプ式） --- */
-.tp-promo{ display:flex; gap:10px; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none;
-  margin:12px -4px 6px; padding:0 4px; -webkit-overflow-scrolling:touch; }
+/* --- さがす：ヒーローカルーセル（中央フォーカス型） ---
+   左右に前後のスライドを覗かせ、中央の1枚が主役。自動送りで中央が入れ替わる。
+   スライド幅は --pw で持たせ、画面幅ごとに変える。左右の余白を
+   「(全体幅 - スライド幅) / 2」にすることで、先頭と末尾も中央に来られる。 */
+/* --pw はスライド1枚の幅。%ではなく絶対長にする。
+   %にすると「余白が広がる→内容幅が縮む→%で決まるスライドも縮む」と
+   互いに縮み合って、意図した幅にならない（実測194pxまで縮んだ）。 */
+.tp-promo{ --pw: clamp(240px, 86vw, 420px); display:flex; gap:10px; overflow-x:auto;
+  scroll-snap-type:x mandatory; scrollbar-width:none;
+  margin:12px -4px 6px; padding-inline:max(4px, calc(50% - var(--pw) / 2)); -webkit-overflow-scrolling:touch; }
 .tp-promo::-webkit-scrollbar{ display:none; }
-.tp-pslide{ scroll-snap-align:center; flex:0 0 92%; border-radius:18px; padding:22px 20px; color:#fff; text-decoration:none;
-  display:flex; flex-direction:column; justify-content:center; min-height:118px; position:relative; overflow:hidden; box-shadow:var(--shadow-sm); }
+.tp-pslide{ scroll-snap-align:center; flex:0 0 var(--pw); border-radius:18px; padding:22px 20px; color:#fff; text-decoration:none;
+  display:flex; flex-direction:column; justify-content:center; min-height:118px; position:relative; overflow:hidden; box-shadow:var(--shadow-sm);
+  /* 中央以外は少し引っ込ませて、主役がどれか分かるようにする（JSが .is-center を付ける）。 */
+  transform:scale(.94); opacity:.6; transition:transform .35s, opacity .35s; }
+.tp-pslide.is-center{ transform:scale(1); opacity:1; box-shadow:var(--shadow-md); }
+/* 動きを減らす設定の端末では拡大縮小をやめ、濃さだけで区別する。 */
+@media (prefers-reduced-motion: reduce){
+  .tp-pslide{ transform:none; transition:opacity .2s; }
+  .tp-pslide.is-center{ transform:none; }
+}
 .tp-pslide .tp-slabel{ font-size:.7rem; font-weight:800; letter-spacing:.14em; opacity:.9; }
 .tp-pslide b{ font-size:1.28rem; font-weight:800; margin:3px 0 2px; line-height:1.25; }
 .tp-pslide .tp-ssub{ font-size:.82rem; opacity:.95; }
@@ -588,11 +603,9 @@ div.tp-pslide{ cursor:default; }
 /* PC時にさがすページを広く使う（一覧が主役）。他ページは従来の中央狭幅のまま。 */
 .container--app{ max-width: 1120px; }
 
-/* ヒーローのスライドは、画面幅にかかわらず「1枚ずつ」送る。
-   以前はPCで上限440pxにしていたため3枚が並びきってしまい、
-   スクロールする余地が無く自動送りが動かなかった。
-   横幅いっぱい（右に次の1枚が少し覗く分だけ残す）にして、送れるようにする。 */
-.tp-pslide{ flex-basis: calc(100% - 34px); }
+/* 画面が広いほど左右の覗きが大きくなる（PCでは3枚が並んで中央が主役）。 */
+@media (min-width: 560px){ .tp-promo{ --pw: 420px; } }
+@media (min-width: 900px){ .tp-promo{ --pw: 460px; } }
 
 /* 画面幅ごとの列数（カード最小幅を保ちながら増やす）。 */
 @media (min-width: 560px){

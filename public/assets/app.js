@@ -261,11 +261,13 @@
       var wait = parseInt(rail.getAttribute('data-autoplay'), 10) || 6000;
       var timer = null, paused = false, resume = null;
 
+      // 中央に一番近いスライドを「今の1枚」とする。
+      // 左端合わせではなく中央合わせなので、スライドの中心と表示領域の中心を比べる。
       function current() {
-        // 表示位置から今のスライド番号を求める（スワイプされた場合にも追随する）。
+        var mid = rail.scrollLeft + rail.clientWidth / 2;
         var best = 0, min = Infinity;
         for (var i = 0; i < slides.length; i++) {
-          var d = Math.abs(slides[i].offsetLeft - rail.scrollLeft);
+          var d = Math.abs(slides[i].offsetLeft + slides[i].offsetWidth / 2 - mid);
           if (d < min) { min = d; best = i; }
         }
         return best;
@@ -273,10 +275,16 @@
       function paint() {
         var n = current();
         for (var i = 0; i < dots.length; i++) { dots[i].classList.toggle('on', i === n); }
+        // 中央の1枚だけ大きく・濃く見せる（左右は覗いている状態）。
+        for (var j = 0; j < slides.length; j++) { slides[j].classList.toggle('is-center', j === n); }
       }
+      // そのスライドが中央に来る位置までスクロールする。
       function go(i) {
         var n = (i + slides.length) % slides.length;
-        rail.scrollTo({ left: slides[n].offsetLeft, behavior: reduce ? 'auto' : 'smooth' });
+        rail.scrollTo({
+          left: slides[n].offsetLeft + slides[n].offsetWidth / 2 - rail.clientWidth / 2,
+          behavior: reduce ? 'auto' : 'smooth'
+        });
       }
       function tick() {
         if (paused || document.hidden) { return; }
@@ -314,6 +322,8 @@
           dot.addEventListener('click', function () { go(i); hold(); });
         });
       }
+      // 画面幅が変わるとスライド幅も変わるので、中央合わせを取り直す。
+      window.addEventListener('resize', function () { go(current()); });
       paint();
       start();
     });
