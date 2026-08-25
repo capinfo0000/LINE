@@ -37,6 +37,34 @@ if (member_needs_intro($member)) {
     exit;
 }
 
+// 課金フェーズに入ったあと、月額が未加入なら「さがす」関連は使えない。
+// マイページ・プロフィール編集・ポイント・支払いは引き続き使えるので、
+// ここでも黙って飛ばさず、画面のまま理由と支払いへの導線を出す。
+if (member_search_locked($member)) {
+    $pageTitle = 'さがす';
+    $showLogout = true;
+    $wide = true;
+    $appWide = true;
+    $hideBrand = true;
+    require __DIR__ . '/_header.php';
+    ?>
+    <h1 style="margin:0 0 12px;font-size:1.5rem;">さがす</h1>
+    <div class="card" style="text-align:center;">
+        <div style="font-size:2.4rem;line-height:1;margin-bottom:8px;">🔒</div>
+        <div class="card__title" style="justify-content:center;">「さがす」は月額会員のみご利用いただけます</div>
+        <p class="muted" style="margin:0 auto 16px;max-width:24em;">
+            先着<?= (int) billing_free_limit() ?>名の無料期間が終了しました。会員どうしの検索・閲覧を続けるには、
+            月額会費（税込500円）のご登録が必要です。<br>
+            プロフィールの編集やポイントの確認は、引き続きご利用いただけます。
+        </p>
+        <p style="margin:0 0 10px;"><a class="btn btn--lg" href="/member/subscribe.php">月額会費を登録する</a></p>
+        <p style="margin:0;"><a class="btn btn--ghost" href="/member/dashboard.php">マイページへ戻る</a></p>
+    </div>
+    <?php
+    require __DIR__ . '/_footer.php';
+    exit;
+}
+
 // カードの♡「気になる」トグル（POST）。処理後はPRGで元の検索条件のURLへ戻す。
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
@@ -263,11 +291,35 @@ if ($showRail) {
     <?php endif; ?>
 
     <!-- キャンペーンバー -->
-    <a class="tp-coupon" href="/member/points.php">
-        <span class="tp-cbadge">紹介</span>
-        <span class="tp-ctext"><b>5人ご紹介で翌月の月額が0円</b>／紹介はずっと有効</span>
-        <span class="tp-chelp" aria-hidden="true">?</span>
-    </a>
+    <?php if (billing_started()): ?>
+        <!-- 課金フェーズ：紹介で月額を無料にできるので、キャンペーンを出す。 -->
+        <a class="tp-coupon" href="/member/points.php">
+            <span class="tp-cbadge">紹介</span>
+            <span class="tp-ctext"><b>5人ご紹介で翌月の月額が0円</b>／紹介はずっと有効</span>
+            <span class="tp-chelp" aria-hidden="true">?</span>
+        </a>
+    <?php elseif (billing_grace_active()): ?>
+        <!-- 猶予期間：いつから有料になるかを先に伝える。 -->
+        <a class="tp-coupon tp-coupon--notice" href="/member/billing.php">
+            <span class="tp-cbadge">お知らせ</span>
+            <span class="tp-ctext"><b><?= e(billing_grace_notice()) ?></b></span>
+            <span class="tp-chelp" aria-hidden="true">?</span>
+        </a>
+    <?php else: ?>
+        <!-- 無料フェーズ：先着枠の残りを進捗バーで見せる。 -->
+        <?php $bp = billing_progress(); ?>
+        <div class="tp-progress">
+            <div class="tp-progress__top">
+                <span class="tp-cbadge">先着<?= (int) $bp['limit'] ?>名</span>
+                <b>いまなら無料でご利用いただけます</b>
+            </div>
+            <div class="tp-progress__bar"><span style="width:<?= (int) $bp['percent'] ?>%;"></span></div>
+            <div class="tp-progress__foot">
+                <span><?= (int) $bp['count'] ?> / <?= (int) $bp['limit'] ?> 名</span>
+                <span>あと<b><?= (int) $bp['remaining'] ?></b>名で締め切り</span>
+            </div>
+        </div>
+    <?php endif; ?>
 <?php endif; ?>
 
 <?php if ($showRail && $recCards !== []): ?>

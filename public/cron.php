@@ -110,7 +110,7 @@ try {
     } elseif ($job === 'diag') {
         // 運用診断（秘密情報は出力しない）。自己紹介ロック・LINE受信の状況を確認する。
         $L = [];
-        $L[] = 'code_version=age18_admin_1';
+        $L[] = 'code_version=billing_progress_1';
         $L[] = 'signup_mode=' . signup_mode();
         $L[] = 'intro_gate=' . (intro_gate_enabled() ? 'ON' : 'OFF');
         $L[] = 'line_token=' . (line_channel_token() !== null ? 'set' : 'MISSING');
@@ -124,6 +124,12 @@ try {
         $L[] = 'intro_exempt=' . $q('SELECT COUNT(*) FROM members WHERE intro_gate_exempt = 1');
         // 年齢制限を入れる前に登録された、最低年齢に満たない会員がいないかの確認用。
         $L[] = 'min_age=' . member_min_age();
+        $L[] = 'members_active=' . active_member_count() . '/' . billing_free_limit();
+        $reachedAt = billing_reached_at();
+        $startsAt = billing_starts_at();
+        $L[] = 'billing_phase=' . (billing_started() ? 'billing' : ($reachedAt !== null ? 'grace' : 'free'));
+        $L[] = 'billing_reached_at=' . ($reachedAt !== null ? date('Y-m-d H:i', $reachedAt) : '-');
+        $L[] = 'billing_starts_at=' . ($startsAt !== null ? date('Y-m-d H:i', $startsAt) : '-');
         $L[] = 'under_min_age=' . $q("SELECT COUNT(*) FROM profiles WHERE birthdate IS NOT NULL AND birthdate <> '' AND birthdate > '" . date('Y-m-d', strtotime('-' . member_min_age() . ' years')) . "'");
         $L[] = 'gated_now=' . $q("SELECT COUNT(*) FROM members WHERE line_user_id IS NOT NULL AND line_user_id <> '' AND (intro_submitted_at IS NULL OR intro_submitted_at = 0) AND intro_gate_exempt = 0");
         $L[] = 'inbound_24h=' . $q("SELECT COUNT(*) FROM line_messages WHERE direction = 'in' AND created_at > " . (time() - 86400));

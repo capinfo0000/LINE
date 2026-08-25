@@ -337,19 +337,83 @@ function active_member_count(): int
 }
 
 /**
- * 課金フェーズが始まっているか。会員数が無料上限を超えた(=101人目)時点で開始し、
- * 一度始まったら app_settings に記録して戻さない。
+ * 無料枠に達した日時（＝上限を超えた最初の瞬間）。まだなら null。
+ *
+ * 誰かがアクセスした時点で確定させたいので、読み取り時に記録する（cronに依存しない）。
+ * 一度記録したら動かさない。
  */
-function billing_started(): bool
+function billing_reached_at(): ?int
 {
+    $saved = app_setting_get('billing_reached_at');
+    if ($saved !== null && $saved !== '' && (int) $saved > 0) {
+        return (int) $saved;
+    }
+    // 旧仕様で billing_started だけが立っている場合は、その時点で到達済みとみなす。
     if (app_setting_get('billing_started') === '1') {
-        return true;
+        $now = time();
+        app_setting_set('billing_reached_at', (string) $now);
+        return $now;
     }
     if (active_member_count() > billing_free_limit()) {
-        app_setting_set('billing_started', '1');
-        return true;
+        $now = time();
+        app_setting_set('billing_reached_at', (string) $now);
+        return $now;
     }
-    return false;
+    return null;
+}
+
+/**
+ * 課金が始まる日時（到達した月の翌月1日 0:00 JST）。まだ到達していなければ null。
+ * 到達したその場で全員を締め出さないための猶予期間。
+ */
+function billing_starts_at(): ?int
+{
+    $reached = billing_reached_at();
+    if ($reached === null) {
+        return null;
+    }
+    // 翌月1日の0時。12月なら翌年1月1日になる（mktime が繰り上げてくれる）。
+    return mktime(0, 0, 0, (int) date('n', $reached) + 1, 1, (int) date('Y', $reached));
+}
+
+/** 課金フェーズが始まっているか（猶予期間が明けているか）。 */
+function billing_started(): bool
+{
+    $startsAt = billing_starts_at();
+    return $startsAt !== null && time() >= $startsAt;
+}
+
+/** 到達済みだが、まだ課金が始まっていない（猶予期間中）か。 */
+function billing_grace_active(): bool
+{
+    return billing_reached_at() !== null && !billing_started();
+}
+
+/**
+ * 先着枠の進捗（さがす上部の進捗バー用）。
+ *
+ * @return array{count:int, limit:int, remaining:int, percent:int}
+ */
+function billing_progress(): array
+{
+    $limit = billing_free_limit();
+    $count = active_member_count();
+    return [
+        'count'     => $count,
+        'limit'     => $limit,
+        'remaining' => max(0, $limit - $count),
+        'percent'   => $limit > 0 ? (int) min(100, round($count / $limit * 100)) : 100,
+    ];
+}
+
+/** 猶予期間中の案内文。猶予期間でなければ空文字。 */
+function billing_grace_notice(): string
+{
+    if (!billing_grace_active()) {
+        return '';
+    }
+    $startsAt = billing_starts_at();
+    return date('n月j日', (int) $startsAt) . 'から、会員機能のご利用に月額会費（税込500円）が必要になります。';
 }
 
 /**

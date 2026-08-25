@@ -53,6 +53,11 @@ require __DIR__ . '/_header.php';
 <h1>お支払い・解約の管理</h1>
 <?php if ($error !== ''): ?><div class="flash flash--ng"><?= e($error) ?></div><?php endif; ?>
 
+<?php $__grace = billing_grace_notice(); ?>
+<?php if ($__grace !== ''): ?>
+    <div class="flash flash--ng"><?= e($__grace) ?>それまでは今までどおりご利用いただけます。</div>
+<?php endif; ?>
+
 <div class="card">
     <div class="card__title">現在のご契約</div>
     <?php $curPlan = member_plan($member); ?>

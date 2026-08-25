@@ -25,9 +25,9 @@ if ($targetId === '' || $targetId === $viewer['id']) {
     // 自分の画像（未承認でも本人には見せる）
     $profile = get_profile($viewer['id']);
 } else {
-    // ロック中（公式LINEへ自己紹介が未送信）の会員には他人の画像を渡さない。
+    // 月額未加入・自己紹介ロック中の会員には他人の画像を渡さない。
     // 他ページと同様、存在自体を伏せるため 404 を返す。
-    if (member_needs_intro($viewer)) {
+    if (member_search_locked($viewer) || member_needs_intro($viewer)) {
         http_response_code(404);
         exit;
     }

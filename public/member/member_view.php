@@ -13,6 +13,12 @@ $targetId = (string) ($_GET['id'] ?? '');
 $evalMsg = '';
 $evalType = 'ok';
 
+// 月額未加入なら他会員のプロフィールは見せない（自分のプレビューは可）。
+if ((string) $viewer['id'] !== $targetId && member_search_locked($viewer)) {
+    header('Location: /member/directory.php');
+    exit;
+}
+
 // 自己紹介を公式LINEに送るまで、他会員のプロフィールは見せない（自分のプレビューは可）。
 if ((string) $viewer['id'] !== $targetId && member_needs_intro($viewer)) {
     header('Location: /member/directory.php');

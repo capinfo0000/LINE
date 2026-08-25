@@ -359,12 +359,20 @@ function require_member(bool $allowDuringPwChange = false, bool $allowUnsubscrib
         header('Location: /member/change_password.php');
         exit;
     }
-    // 料金フェーズ中に未サブスクなら、月額登録案内へ誘導（無料フェーズ中は無効＝素通り）。
-    if (!$allowUnsubscribed && function_exists('member_requires_subscription') && member_requires_subscription($member)) {
-        header('Location: /member/subscribe.php');
-        exit;
-    }
+    // 未サブスクでもここでは止めない。塞ぐのは「さがす」関連だけで、
+    // マイページ・プロフィール編集・ポイント・支払いは引き続き使えるようにする
+    // （自分の情報に触れないと、支払う判断もできず退会にしかつながらないため）。
+    // $allowUnsubscribed は呼び出し側の互換のために残している。
     return $member;
+}
+
+/**
+ * この会員は「さがす」関連（会員検索・おすすめ・他会員のプロフィールと画像）が
+ * 課金の都合でロックされているか。
+ */
+function member_search_locked(array $member): bool
+{
+    return function_exists('member_requires_subscription') && member_requires_subscription($member);
 }
 
 /* ------------------------- パスワード変更／再設定 ------------------------- */

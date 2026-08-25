@@ -12,6 +12,10 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 $member = require_member();
 
 // 自己紹介を公式LINEに送るまでロック（さがすのロック画面へ）。
+if (member_search_locked($member)) {
+    header('Location: /member/directory.php'); // さがす画面で理由と支払い導線を出す
+    exit;
+}
 if (member_needs_intro($member)) {
     header('Location: /member/directory.php');
     exit;
