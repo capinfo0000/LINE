@@ -447,6 +447,33 @@ function db_migrate(\PDO $pdo): void
         );
     SQL);
 
+    // 「さがす」上部のお知らせ（スライド）。運営が管理画面から出し入れする。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS announcements (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            label      TEXT NOT NULL DEFAULT '',   -- 小見出し（ENLINK 等）
+            title      TEXT NOT NULL DEFAULT '',   -- 見出し（大きく出る文言）
+            subtitle   TEXT NOT NULL DEFAULT '',   -- 補足の一行
+            url        TEXT NOT NULL DEFAULT '',   -- タップ先（空ならリンクなし）
+            theme      TEXT NOT NULL DEFAULT 'brand', -- 配色（brand/ref/rank）
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active  INTEGER NOT NULL DEFAULT 1,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+    SQL);
+    // 初回のみ、これまで直書きしていた3枚を入れて見た目を維持する。
+    if ((int) $pdo->query('SELECT COUNT(*) FROM announcements')->fetchColumn() === 0) {
+        $ins = $pdo->prepare(
+            'INSERT INTO announcements (label, title, subtitle, url, theme, sort_order, is_active, created_at, updated_at)
+             VALUES (?,?,?,?,?,?,1,?,?)'
+        );
+        $now = time();
+        foreach (announcement_seed_rows() as $i => $r) {
+            $ins->execute([$r[0], $r[1], $r[2], $r[3], $r[4], $i, $now, $now]);
+        }
+    }
+
     // アプリ全体の設定（キー・値）。料金フェーズ(billing_started)などを保持。
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS app_settings (

@@ -20,12 +20,13 @@ $bal = member_points($id);
 $earned = member_points_earned($id);
 $title = points_title($earned);
 $recv = received_interest_count($id);
-$planLabel = member_plan_label($member);
+$planLabel = ops_member_status_label($member);
 $hasPhoto = profile_has_photo($profile);
 $nm = ($profile['name_text'] ?? '') !== '' ? $profile['name_text'] : (($member['display_name'] ?? '') !== '' ? $member['display_name'] : '会員');
 $ini = mb_substr($nm, 0, 1);
-$hue = crc32($id) % 360;
-$hue2 = ($hue + 38) % 360;
+// 写真が無いときの下地。さがすのカードと同じく暖色（オレンジ〜アンバー）に収める。
+$hue = 16 + (crc32($id) % 34);
+$hue2 = $hue + 14;
 $area = $labels['area'][0] ?? '';
 $age = (string) ($profile['age_text'] ?? '');
 
@@ -50,10 +51,10 @@ require __DIR__ . '/_header.php';
 </div>
 
 <div class="tp-tiles tp-tiles--4">
-    <div class="tp-tile"><b><?= (int) $recv ?></b><span>気になる（受）</span></div>
+    <div class="tp-tile"><b><?= (int) $recv ?></b><span>気になる</span></div>
     <a class="tp-tile" href="/member/directory.php?tab=footprint"><b><?= (int) footprint_count($id) ?></b><span>足あと</span></a>
     <a class="tp-tile" href="/member/points.php"><b><?= number_format($bal) ?></b><span>ポイント</span></a>
-    <a class="tp-tile" href="/member/points.php"><b style="font-size:1rem;line-height:1.9;"><?= e($title) ?></b><span>称号</span></a>
+    <a class="tp-tile" href="/member/points.php"><b style="font-size:.9rem;line-height:1.8;"><?= e($title) ?></b><span>称号</span></a>
 </div>
 
 <div class="tp-menu">

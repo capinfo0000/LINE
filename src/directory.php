@@ -10,6 +10,43 @@
 declare(strict_types=1);
 
 /**
+ * 「有料会員か」の判定（SQL断片）。members を m として参照する。
+ *
+ * 月額を実際に払っている人だけを有料とみなす。紹介特典で無料化中（subscription_waived=1）は
+ * 支払いが発生していないので含めない。無料フェーズ中は誰も該当しないため、
+ * 実質ポイント順になる。
+ */
+function directory_paid_sql(): string
+{
+    return "(m.subscription_status = 'active' AND COALESCE(m.subscription_waived, 0) = 0)";
+}
+
+/**
+ * 累計獲得ポイント（SQL断片）。台帳の増加分だけを足すので、
+ * ポイントを使っても実績としての順位は下がらない。
+ */
+function directory_points_sql(): string
+{
+    return '(SELECT COALESCE(SUM(pl.delta), 0) FROM point_ledger pl WHERE pl.member_id = m.id AND pl.delta > 0)';
+}
+
+/**
+ * 一覧の並びに使う表示スコア（SQL断片）。今は累計獲得ポイントそのもの。
+ *
+ * 将来「一定期間だけ順位を上げるアイテム」を入れる場合は、ここに加算項を足すだけで
+ * さがす・ランキング・検索結果のすべてに効く（呼び出し側は触らなくてよい）。
+ * 想定している形：
+ *   directory_points_sql()
+ *     . ' + (SELECT COALESCE(SUM(b.points), 0) FROM member_boosts b
+ *              WHERE b.member_id = m.id AND b.expires_at > ' . time() . ')'
+ * 期限切れを自動で外せるよう、ブーストは有効期限つきの明細で持つ想定。
+ */
+function directory_score_sql(): string
+{
+    return directory_points_sql();
+}
+
+/**
  * ディレクトリを検索する。
  *
  * @param array{area?:int[],job?:int[],purpose?:int[],keyword?:string} $filters
@@ -66,14 +103,17 @@ function search_directory(array $filters, string $viewerId, int $limit = 60, str
             . " OR p.bio LIKE :kw ESCAPE '\\' OR p.company_title LIKE :kw ESCAPE '\\')";
     }
 
-    // 並び順：新着＝入会日→作成日の新しい順／既定＝累計獲得ポイント（実績）上位。
-    // 実績は消費や減点で下がらないため、ポイントを使っても上位表示の順位は保たれる。
+    // 並び順。
+    //  ・新着タブだけは「入会の新しい順」（新着の意味が消えるため優先度は掛けない）
+    //  ・それ以外（さがす・ランキング・検索結果）は 有料会員 → 表示スコア の順
     $orderBy = $order === 'new'
         ? 'COALESCE(m.joined_at, m.created_at) DESC, m.created_at DESC'
-        : "(m.plan = 'premium') DESC, points_earned DESC, COALESCE(m.joined_at, 0) DESC, m.created_at DESC";
+        : directory_paid_sql() . ' DESC, rank_score DESC, COALESCE(m.joined_at, 0) DESC, m.created_at DESC';
     $sql = 'SELECT m.id AS member_id, m.login_id, m.joined_at,
                    p.name_text, p.age_text, p.birthdate, p.company_title, p.headline, p.bio, p.photo_status, p.photo_path, p.visibility_flags,
-                   (SELECT COALESCE(SUM(pl.delta), 0) FROM point_ledger pl WHERE pl.member_id = m.id AND pl.delta > 0) AS points_earned
+                   ' . directory_points_sql() . ' AS points_earned,
+                   ' . directory_score_sql() . ' AS rank_score,
+                   ' . directory_paid_sql() . ' AS is_paid
               FROM members m
               JOIN profiles p ON p.member_id = m.id
              WHERE ' . implode(' AND ', $where) . '

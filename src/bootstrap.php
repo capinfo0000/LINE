@@ -23,6 +23,7 @@ require APP_ROOT . '/vendor/autoload.php';
 date_default_timezone_set('Asia/Tokyo');
 
 // データ層・認証・メール・CAPTCHA・暗号のヘルパー。関数定義のみで、呼び出し時に env() を使う。
+require __DIR__ . '/announce.php';
 require __DIR__ . '/db.php';
 require __DIR__ . '/tenant.php';
 require __DIR__ . '/member.php';

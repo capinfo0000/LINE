@@ -79,8 +79,9 @@ $iAmSelf = (string) $viewer['id'] === $targetId;
 $rankClass = ['プラチナ' => 'rank--plat', 'ゴールド' => 'rank--gold', 'レギュラー' => 'rank--reg', 'ルーキー' => 'rank--rookie'][$targetTitle] ?? 'rank--rookie';
 $nm = $profile['name_text'] !== '' ? $profile['name_text'] : '会員';
 $ini = mb_substr($nm, 0, 1);
-$hue = crc32($targetId) % 360;
-$hue2 = ($hue + 38) % 360;
+// 写真が無いときの下地。さがすのカードと同じく暖色（オレンジ〜アンバー）に収める。
+$hue = 16 + (crc32($targetId) % 34);
+$hue2 = $hue + 14;
 $heroStyle = $hasApprovedPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 66% 54%),hsl(' . $hue2 . ' 64% 45%))"';
 $area = $labels['area'][0] ?? '';
 $job = $labels['job'][0] ?? '';

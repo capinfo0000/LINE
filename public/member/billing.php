@@ -56,7 +56,7 @@ require __DIR__ . '/_header.php';
 <div class="card">
     <div class="card__title">現在のご契約</div>
     <?php $curPlan = member_plan($member); ?>
-    <p style="margin:.3rem 0;">プラン：<span class="badge badge--<?= billing_started() && $curPlan !== 'premium' ? 'mute' : 'info' ?>"><?= e(member_plan_label($member)) ?></span>
+    <p style="margin:.3rem 0;">プラン：<span class="badge badge--<?= billing_started() && $curPlan !== 'premium' ? 'mute' : 'info' ?>"><?= e(ops_member_status_label($member)) ?></span>
         <?php if (!billing_started()): ?><span class="muted" style="font-size:.82rem;">（全機能をご利用いただけます）</span><?php endif; ?>
     </p>
     <p style="margin:.3rem 0;">

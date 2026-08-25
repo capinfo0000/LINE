@@ -36,6 +36,93 @@ function member_attributes(string $memberId): array
     return $out;
 }
 
+/**
+ * 「あなたへのおすすめ」の候補を返す。
+ *
+ * 条件は単純で、相手の「提供できること」が自分の「求めていること」と
+ * 1つ以上重なっていること。重なりが無い相手は出さない。
+ * さらに、自分の「提供できること」が相手の「求めていること」とも重なる
+ * （＝お互いに噛み合う）相手を上位に出す。
+ *
+ * ※「求めていること」と「提供できること」は同じ語でも別のタグ行（別ID）なので、
+ *   ID ではなくラベルで突き合わせる。
+ *
+ * 並び：相互マッチ → 重なりの多さ → 実績ポイント（search_directory 側の既定）
+ *
+ * @return array<int,array<string,mixed>> search_directory と同じ形の行
+ */
+function recommend_offer_matches(string $viewerId, int $limit = 10): array
+{
+    $myPurpose = member_tag_labels_of($viewerId, 'purpose'); // 自分が求めていること
+    $myOffer   = member_tag_labels_of($viewerId, 'offer');   // 自分が提供できること
+    if ($myPurpose === []) {
+        return []; // 求めていることが未設定なら、おすすめのしようがない
+    }
+
+    // 相手の offer ラベルが自分の purpose ラベルに重なる件数を数える。
+    $hits = members_with_tag_labels('offer', $myPurpose, $viewerId);
+    if ($hits === []) {
+        return [];
+    }
+    // 相互マッチ（相手の purpose が自分の offer に重なる相手）。
+    $mutual = $myOffer === [] ? [] : members_with_tag_labels('purpose', $myOffer, $viewerId);
+
+    // 表示可否（有効会員・ディレクトリ掲載）は search_directory に任せる。
+    $rows = search_directory([], $viewerId, max(60, count($hits)), 'points', array_keys($hits));
+    usort($rows, static function (array $a, array $b) use ($hits, $mutual): int {
+        $ida = (string) $a['member_id'];
+        $idb = (string) $b['member_id'];
+        $ma = isset($mutual[$ida]) ? 1 : 0;
+        $mb = isset($mutual[$idb]) ? 1 : 0;
+        if ($ma !== $mb) {
+            return $mb <=> $ma;
+        }
+        return ($hits[$idb] ?? 0) <=> ($hits[$ida] ?? 0);
+    });
+    return array_slice($rows, 0, $limit);
+}
+
+/**
+ * 会員が持つ、指定カテゴリのタグ「ラベル」一覧。
+ *
+ * @return string[]
+ */
+function member_tag_labels_of(string $memberId, string $category): array
+{
+    $stmt = db()->prepare(
+        'SELECT t.label FROM member_tags mt JOIN tags t ON t.id = mt.tag_id
+          WHERE mt.member_id = ? AND t.category_key = ?'
+    );
+    $stmt->execute([$memberId, $category]);
+    return array_values(array_unique(array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN) ?: [])));
+}
+
+/**
+ * 指定カテゴリで、与えたラベル群のいずれかを持つ会員と、その一致数。
+ *
+ * @param string[] $labels
+ * @return array<string,int> member_id => 一致数
+ */
+function members_with_tag_labels(string $category, array $labels, string $excludeMemberId): array
+{
+    if ($labels === []) {
+        return [];
+    }
+    $ph = implode(',', array_fill(0, count($labels), '?'));
+    $stmt = db()->prepare(
+        "SELECT mt.member_id AS id, COUNT(DISTINCT t.label) AS hits
+           FROM member_tags mt JOIN tags t ON t.id = mt.tag_id
+          WHERE t.category_key = ? AND t.label IN ({$ph}) AND mt.member_id <> ?
+          GROUP BY mt.member_id"
+    );
+    $stmt->execute(array_merge([$category], $labels, [$excludeMemberId]));
+    $out = [];
+    foreach ($stmt->fetchAll() as $r) {
+        $out[(string) $r['id']] = (int) $r['hits'];
+    }
+    return $out;
+}
+
 /** seeker→target の片方向成立判定と、一致した軸数を返す。 */
 function match_direction(array $seek, array $targetAttrs): array
 {

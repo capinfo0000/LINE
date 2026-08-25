@@ -23,6 +23,7 @@ $navItems = [
     ['contacts.php',  '', '申し込み者',     ['contacts.php']],
     ['openchat.php',  '', 'オープンチャット', ['openchat.php']],
     ['tags.php',      '', 'タグ管理',       ['tags.php']],
+    ['announcements.php', '', 'お知らせ',   ['announcements.php']],
     ['account.php',   '', 'アカウント設定', ['account.php']],
 ];
 if ((int) ($tenant['is_admin'] ?? 0) === 1) {

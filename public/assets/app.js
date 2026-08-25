@@ -244,6 +244,62 @@
       });
     });
 
+    // お知らせカルーセルの自動送り。data-autoplay="ミリ秒" を持つ横スクロール領域を
+    // 一定間隔で次のスライドへ送り、末尾まで来たら先頭へ戻る。
+    // 指で操作している間・ホバー中・タブが裏にある間は止める。
+    // 「視差効果を減らす」設定の端末では自動送りしない（酔い・目の負担への配慮）。
+    document.querySelectorAll('[data-autoplay]').forEach(function (rail) {
+      var slides = rail.children;
+      if (slides.length < 2) { return; }
+      var dots = document.querySelector('[data-dots-for="' + rail.className.split(' ')[0] + '"]');
+      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var wait = parseInt(rail.getAttribute('data-autoplay'), 10) || 6000;
+      var timer = null, paused = false;
+
+      function current() {
+        // 表示位置から今のスライド番号を求める（指でスワイプされた場合にも追随する）。
+        var best = 0, min = Infinity;
+        for (var i = 0; i < slides.length; i++) {
+          var d = Math.abs(slides[i].offsetLeft - rail.scrollLeft);
+          if (d < min) { min = d; best = i; }
+        }
+        return best;
+      }
+      function paint() {
+        if (!dots) { return; }
+        var n = current();
+        for (var i = 0; i < dots.children.length; i++) {
+          dots.children[i].classList.toggle('on', i === n);
+        }
+      }
+      function go(i) {
+        rail.scrollTo({ left: slides[i].offsetLeft, behavior: reduce ? 'auto' : 'smooth' });
+      }
+      function tick() {
+        if (paused || document.hidden) { return; }
+        go((current() + 1) % slides.length);
+      }
+      function start() { if (timer === null && !reduce) { timer = setInterval(tick, wait); } }
+      function stop() { if (timer !== null) { clearInterval(timer); timer = null; } }
+
+      rail.addEventListener('scroll', paint, { passive: true });
+      ['pointerenter', 'pointerdown', 'focusin'].forEach(function (ev) {
+        rail.addEventListener(ev, function () { paused = true; });
+      });
+      ['pointerleave', 'pointerup', 'focusout'].forEach(function (ev) {
+        rail.addEventListener(ev, function () { paused = false; });
+      });
+      document.addEventListener('visibilitychange', function () { document.hidden ? stop() : start(); });
+      // 点をタップしたらそのスライドへ。
+      if (dots) {
+        Array.prototype.forEach.call(dots.children, function (dot, i) {
+          dot.addEventListener('click', function () { paused = true; go(i); setTimeout(function () { paused = false; }, wait); });
+        });
+      }
+      paint();
+      start();
+    });
+
     // リンク件数サマリ（#linkRows の入力に応じて #linkSummary を更新）。追加行にも委譲で対応。
     var linkRows = document.getElementById('linkRows');
     var linkSummary = document.getElementById('linkSummary');

@@ -332,8 +332,11 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-pslide--ref{ background:linear-gradient(120deg,#fdba74,#f97316); }
 .tp-pslide--rank{ background:linear-gradient(120deg,#f0b429,#b8860b); }
 .tp-dots{ display:flex; gap:6px; justify-content:center; margin:2px 0 4px; }
-.tp-dots span{ width:6px; height:6px; border-radius:50%; background:var(--border); }
-.tp-dots span:first-child{ background:var(--coral); }
+/* 表示中のスライドを .on で示す（JSが付け外しする）。自動送りに合わせて動く。 */
+.tp-dots span{ width:6px; height:6px; border-radius:50%; background:var(--border); transition:background .2s, width .2s; }
+.tp-dots span.on{ background:var(--coral); width:16px; border-radius:999px; }
+/* リンクの無いお知らせも同じ見た目にする（div で出力されるため）。 */
+div.tp-pslide{ cursor:default; }
 
 /* --- さがす：キャンペーンバー --- */
 .tp-coupon{ display:flex; align-items:center; gap:10px; margin:10px 0 4px; padding:11px 14px; border-radius:14px;
@@ -538,11 +541,19 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-mp-name{ font-size:1.3rem; font-weight:800; }
 .tp-mp-sub{ color:var(--muted); font-size:.9rem; }
 .tp-mp-plan{ display:inline-block; border:1px solid var(--border); border-radius:999px; padding:5px 14px; font-weight:700; font-size:.85rem; background:var(--surface); }
-.tp-tiles{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:16px 0; }
-.tp-tiles--4{ grid-template-columns:repeat(2,1fr); }
-.tp-tile{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px 6px; text-align:center; text-decoration:none; color:inherit; display:block; }
-.tp-tile b{ display:block; font-size:1.3rem; font-weight:800; color:var(--text); }
-.tp-tile span{ font-size:.72rem; color:var(--muted); }
+/* 実績タイルは、スマホでもPCでも横一列に並べる（2段組みにしない）。 */
+.tp-tiles{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:16px 0; }
+.tp-tiles--4{ grid-template-columns:repeat(4,1fr); }
+.tp-tile{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px 4px; text-align:center; text-decoration:none; color:inherit; display:block; min-width:0; }
+.tp-tile b{ display:block; font-size:1.25rem; font-weight:800; color:var(--text); line-height:1.3; }
+.tp-tile span{ display:block; font-size:.68rem; color:var(--muted); line-height:1.3; }
+/* 4列だと狭くなるぶん、小さい画面では文字を少し詰める。 */
+@media (max-width: 400px){
+  .tp-tiles{ gap:6px; }
+  .tp-tiles--4 .tp-tile{ padding:11px 2px; }
+  .tp-tiles--4 .tp-tile b{ font-size:1.05rem; }
+  .tp-tiles--4 .tp-tile span{ font-size:.62rem; letter-spacing:-.02em; }
+}
 .tp-menu{ background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin:0 0 16px; }
 .tp-menu a{ display:flex; align-items:center; gap:10px; padding:14px 16px; color:var(--text); text-decoration:none;
   border-bottom:1px solid var(--border); font-weight:600; }

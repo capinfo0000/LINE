@@ -106,12 +106,22 @@ if ($hasQuery || isset($_GET['go'])) {
         usort($results, static fn ($a, $b) => ($order[(string) $a['member_id']] ?? PHP_INT_MAX) <=> ($order[(string) $b['member_id']] ?? PHP_INT_MAX));
     }
 } elseif ($tab === 'new') {
-    $results = search_directory([], $member['id'], 60, 'new');
+    // 新着は直近の10名まで。
+    $results = search_directory([], $member['id'], 10, 'new');
 } elseif ($tab === 'ranking') {
-    $results = search_directory([], $member['id'], 60, 'points');
+    // ランキングは上位50名まで。
+    $results = search_directory([], $member['id'], 50, 'points');
     $isRanking = true;
 } else {
-    $results = search_directory([], $member['id']);
+    // 「すべての会員」は初期30名。右上の「すべて見る」で全件（?all=1）に切り替える。
+    // 続きがあるかは、1件多く取って判断する（総数を数えるために全件を引き直さない）。
+    $showAll = isset($_GET['all']);
+    $perPage = 30;
+    $results = search_directory([], $member['id'], $showAll ? 500 : $perPage + 1);
+    $hasMore = !$showAll && count($results) > $perPage;
+    if ($hasMore) {
+        $results = array_slice($results, 0, $perPage);
+    }
 }
 
 $checkedArea = array_flip($filters['area']);
@@ -176,17 +186,12 @@ $renderCard = function (string $mid, string $nm, string $age, bool $hasPhoto, in
 // 「おすすめ」タブ（検索なし）でだけ「あなたへのおすすめ」（双方向マッチ）を横スクロールで出す。
 // マッチが無ければ全会員の上位をフォールバック表示して、常にカルーセルが出るようにする。
 $showRail = !$hasQuery && $tab === 'osusume';
-$recs = $showRail ? compute_recommendations_for((string) $member['id'], 10) : [];
 $recCards = [];
 if ($showRail) {
-    if ($recs !== []) {
-        foreach ($recs as $rc) {
-            $recCards[] = [(string) $rc['member_id'], (string) ($rc['name'] ?? ''), profile_age_text($rc), profile_has_photo($rc)];
-        }
-    } else {
-        foreach (array_slice($results, 0, 10) as $r) {
-            $recCards[] = [(string) $r['member_id'], (string) ($r['name_text'] ?? ''), profile_age_text($r), profile_has_photo($r)];
-        }
+    // 相手の「提供できること」が自分の「求めていること」と噛み合う人だけを出す。
+    // 噛み合う人がいなければ、無関係な会員で埋めずに枠ごと出さない。
+    foreach (recommend_offer_matches((string) $member['id'], 10) as $rc) {
+        $recCards[] = [(string) $rc['member_id'], (string) ($rc['name_text'] ?? ''), profile_age_text($rc), profile_has_photo($rc)];
     }
 }
 ?>
@@ -233,25 +238,29 @@ if ($showRail) {
 </nav>
 
 <?php if (!$hasQuery && $tab === 'osusume'): ?>
-    <!-- ヒーローカルーセル（スワイプ式・CSPセーフ） -->
-    <div class="tp-promo" role="region" aria-label="お知らせ">
-        <a class="tp-pslide tp-pslide--brand" href="/member/recommend.php">
-            <span class="tp-slabel">ENLINK</span>
-            <b>ビジネスの縁が、ここから。</b>
-            <span class="tp-ssub">相性で出会う、次のパートナー</span>
-        </a>
-        <a class="tp-pslide tp-pslide--ref" href="/member/points.php">
-            <span class="tp-slabel">紹介キャンペーン</span>
-            <b>5人ご紹介で、翌月無料。</b>
-            <span class="tp-ssub">紹介した仲間が続くほどおトクに</span>
-        </a>
-        <a class="tp-pslide tp-pslide--rank" href="/member/directory.php?tab=ranking">
-            <span class="tp-slabel">RANKING</span>
-            <b>実績ポイント・ランキング</b>
-            <span class="tp-ssub">活躍している会員をチェック</span>
-        </a>
-    </div>
-    <div class="tp-dots"><span></span><span></span><span></span></div>
+    <!-- ヒーローカルーセル（スワイプ＋自動送り・CSPセーフ）。中身は管理画面から編集する。 -->
+    <?php $announcements = active_announcements(); ?>
+    <?php if ($announcements !== []): ?>
+        <div class="tp-promo" role="region" aria-label="お知らせ" data-autoplay="6000">
+            <?php foreach ($announcements as $an): ?>
+                <?php
+                $anUrl = (string) $an['url'];
+                $anTag = $anUrl !== '' ? 'a' : 'div';
+                $anTheme = isset(announcement_themes()[$an['theme']]) ? (string) $an['theme'] : 'brand';
+                ?>
+                <<?= $anTag ?> class="tp-pslide tp-pslide--<?= e($anTheme) ?>"<?= $anUrl !== '' ? ' href="' . e($anUrl) . '"' : '' ?>>
+                    <?php if ((string) $an['label'] !== ''): ?><span class="tp-slabel"><?= e($an['label']) ?></span><?php endif; ?>
+                    <b><?= e($an['title']) ?></b>
+                    <?php if ((string) $an['subtitle'] !== ''): ?><span class="tp-ssub"><?= e($an['subtitle']) ?></span><?php endif; ?>
+                </<?= $anTag ?>>
+            <?php endforeach; ?>
+        </div>
+        <?php if (count($announcements) > 1): ?>
+            <div class="tp-dots" data-dots-for="tp-promo">
+                <?php foreach ($announcements as $i => $an): ?><span<?= $i === 0 ? ' class="on"' : '' ?>></span><?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    <?php endif; ?>
 
     <!-- キャンペーンバー -->
     <a class="tp-coupon" href="/member/points.php">
@@ -280,7 +289,13 @@ if ($hasQuery) {
     $secTitle = ['osusume' => 'すべての会員', 'kininaru' => '気になる', 'footprint' => '足あと（あなたを見た人）', 'new' => '新着メンバー', 'ranking' => 'ポイントランキング'][$tab];
     echo '<div class="tp-secttl">';
     echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 3-5.5 6.5-5.5S15.5 16.4 15.5 20"/><circle cx="17" cy="8.5" r="3"/><path d="M17 14.5c3.2 0 5 1.9 5 5.5"/></svg>';
-    echo e($secTitle) . ' <span class="more" style="color:var(--faint);font-weight:700;">' . count($results) . '名</span>';
+    echo e($secTitle);
+    // 「すべての会員」は初期30名なので、続きがあるときだけ右上に「すべて見る」を出す。
+    if ($tab === 'osusume' && !empty($hasMore)) {
+        echo ' <a class="more" href="/member/directory.php?all=1">すべて見る →</a>';
+    } else {
+        echo ' <span class="more" style="color:var(--faint);font-weight:700;">' . count($results) . '名</span>';
+    }
     echo '</div>';
 }
 ?>
