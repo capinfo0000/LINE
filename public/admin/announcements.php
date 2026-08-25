@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $note = $r['message'];
         $type = $r['ok'] ? 'ok' : 'ng';
     }
-    header('Location: /admin/announcements?msg=' . rawurlencode($note) . '&type=' . $type);
+    header('Location: announcements?msg=' . rawurlencode($note) . '&type=' . $type);
     exit;
 }
 

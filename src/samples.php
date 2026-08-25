@@ -147,9 +147,27 @@ function delete_sample_members(): int
     }
     $ph = implode(',', array_fill(0, count($ids), '?'));
 
+    // アップロード済みの画像は行を消すと参照が消えてしまうので、先にファイルを消す。
+    // （data/uploads/ に顔写真・カバー・名刺が残り続けるのを防ぐ）
+    foreach ($ids as $mid) {
+        delete_member_photo((string) $mid);
+        delete_member_image((string) $mid, 'cover_path');
+        delete_member_image((string) $mid, 'card_path');
+    }
+
     // member_id 列で紐づくテーブル
     foreach (['profiles', 'member_tags', 'match_preferences', 'member_links', 'point_ledger'] as $tbl) {
         db()->prepare("DELETE FROM {$tbl} WHERE member_id IN ({$ph})")->execute($ids);
+    }
+    // 外部キーが無く CASCADE されないテーブル（残すと宛先のいない足あと・おすすめになる）
+    $noFk = [
+        'member_views'    => ['from_id', 'to_id'],
+        'recommendations' => ['member_id', 'recommended_member_id'],
+    ];
+    foreach ($noFk as $tbl => $cols) {
+        foreach ($cols as $col) {
+            db()->prepare("DELETE FROM {$tbl} WHERE {$col} IN ({$ph})")->execute($ids);
+        }
     }
     // from/to・rater/target・referrer/joiner のペア列
     $pairs = [

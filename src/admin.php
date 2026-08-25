@@ -210,6 +210,21 @@ function ops_credentials_description(): string
 }
 
 /**
+ * 運営画面の絶対URL（人に渡すリンク用）。
+ *
+ * 本番では運営画面のフォルダ名を admin から推測しにくい名前に変えて公開しているため、
+ * '/admin/...' と決め打ちにできない。呼び出し元の実フォルダ名から組み立てる。
+ * 画面内の移動は相対リンクで足りるので、招待URLやメールのリンクだけがこれを使う。
+ *
+ * @param string $adminDir 呼び出し元の __DIR__（運営画面のフォルダ）
+ * @param string $path     'signup?invite=xxxx' のような、フォルダ以下のパス
+ */
+function admin_abs_url(string $adminDir, string $path): string
+{
+    return rtrim(base_url(), '/') . '/' . basename($adminDir) . '/' . ltrim($path, '/');
+}
+
+/**
  * 規約・ポリシーで使う事業者名。未設定なら「（未設定）」を返す。
  * $html=true でグレー表示のマークアップ付き（特商法ページと同じ見え方）。
  */

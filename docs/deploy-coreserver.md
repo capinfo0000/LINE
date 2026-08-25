@@ -98,6 +98,22 @@ rm -rf public_html/xxxx.coreserver.jp
 ln -s ~/enlink/public public_html/xxxx.coreserver.jp
 ```
 
+## 6-2. 運営画面のフォルダ名を変える（推奨）
+
+`public/admin/` はURLを推測されやすいので、設置時に**推測しにくい名前へリネーム**して運用する。
+（例：`public/admin_599383181b73d79e83452421de67f6/`）
+
+```bash
+mv public/admin public/admin_$(openssl rand -hex 15)
+```
+
+リネームしても壊れないように、運営画面の中は**相対リンク・相対リダイレクト**で書いてある。
+人に渡すURL（招待リンク・パスワード再設定メール）は `admin_abs_url()`（`src/admin.php`）が
+実フォルダ名から組み立てるので、こちらも追従する。
+
+**注意**：更新用のZIPを作るときは、毎回このリネームを忘れないこと。
+`public/admin/` のまま上げると、リネーム前のフォルダが復活して両方が公開状態になる。
+
 ## 7. Webhook 設定
 
 - **Stripe**：ダッシュボード → 開発者 → Webhook → エンドポイント追加
@@ -118,7 +134,7 @@ ln -s ~/enlink/public public_html/xxxx.coreserver.jp
 ## 9. 動作確認
 
 - 会員入口: `https://xxxx.coreserver.jp/`
-- 運営ログイン: `https://xxxx.coreserver.jp/admin/login`（手順5の管理者で）
+- 運営ログイン: `https://xxxx.coreserver.jp/<リネームした運営フォルダ>/login`（手順5の管理者で）
 - 会員ログイン: `https://xxxx.coreserver.jp/member/login`
 - 決済テスト: 運営で予約枠・OpenChat URL を登録 →（またはテスト用 `make-member`）→ `checkout.php` でテストカード `4242 4242 4242 4242`
 - 露出確認: `/.env` と `/data/app.sqlite` が 403/404 であること
@@ -198,3 +214,5 @@ POST は転送しない（301でPOSTを転送すると中身が落ちるため�
 - [ ] 特商法・規約・プライバシーの ［ ］ を実情報に置換
 - [ ] `data/` バックアップ運用を決定
 - [ ] 独自ドメインに移す場合は「13. 独自ドメインへの切り替え」を実施
+- [ ] `public/install.php` を削除（初期設定が済んだら不要。認証なしで開ける画面を残さない）
+- [ ] 運営画面のフォルダをリネーム（「6-2」）。更新ZIPを作るたびに同じ名前にそろえる

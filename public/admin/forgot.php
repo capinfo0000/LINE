@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (rate_limit_check('forgot', 5, 3600) && captcha_verify($_POST['cf-turnstile-response'] ?? null)) {
         $token = create_password_reset($email);
         if ($token !== null) {
-            $link = base_url() . '/admin/reset?token=' . $token;
+            $link = admin_abs_url(__DIR__, 'reset?token=' . $token);
             $body = "パスワード再設定のご依頼を受け付けました。\n\n"
                 . "以下のリンクから1時間以内に新しいパスワードを設定してください。\n"
                 . $link . "\n\n"
