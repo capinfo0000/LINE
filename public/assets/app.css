@@ -141,6 +141,9 @@ h2 { font-size: 1.15rem; font-weight: 700; }
 .btn--ghost:hover { background: #f8fafc; border-color: var(--accent); }
 .btn--danger { background: var(--dng); border-color: var(--dng); }
 .btn--danger:hover { background: #b91c1c; border-color: #b91c1c; }
+/* 公式LINEへ渡すボタン。LINEのブランド色に合わせる（見た目で行き先が分かるように）。 */
+.btn--line { background: #06c755; border-color: #06c755; }
+.btn--line:hover { background: #05b34c; border-color: #05b34c; }
 .btn:disabled, .btn[disabled] { background: #9ca3af; border-color: #9ca3af; cursor: not-allowed; }
 .btn:disabled:hover { background: #9ca3af; }
 

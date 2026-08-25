@@ -105,7 +105,7 @@ require __DIR__ . '/_header.php';
         <button type="submit" class="btn">保存</button>
         <button type="button" class="btn btn--ghost" data-copy-target="introText" data-copied-label="✓ コピーしました">コピー</button>
         <?php if ($officialUrl !== ''): ?>
-            <a class="btn" href="<?= e($officialUrl) ?>" target="_blank" rel="noopener" style="background:#06c755;border-color:#06c755;">公式LINEを開く →</a>
+            <a class="btn btn--line" href="<?= e($officialUrl) ?>" target="_blank" rel="noopener">公式LINEを開く →</a>
         <?php endif; ?>
         <a class="btn btn--ghost" href="/member/intro?reset=1" data-confirm="プロフィールから作り直します（未保存の編集は消えます）。よろしいですか？">作り直す</a>
     </div>

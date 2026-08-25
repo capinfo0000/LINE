@@ -50,6 +50,12 @@ if (current_member() !== null) {
 }
 
 $token = csrf_token();
+// 公式LINEのトークURL：管理画面「各種設定」優先、無ければ .env をフォールバック。
+// ID・仮パスワードはこのトークで配っているので、分からなくなった人の戻り先になる。
+$officialUrl = site_setting('line_official_url');
+if ($officialUrl === '') {
+    $officialUrl = (string) (env('LINE_OFFICIAL_URL', '') ?? '');
+}
 $pageTitle = '会員ログイン';
 require __DIR__ . '/_header.php';
 ?>
@@ -58,22 +64,26 @@ require __DIR__ . '/_header.php';
     <div class="flash flash--ng">
         <?= e($error) ?>
         <div style="font-size:.82rem;margin-top:6px;font-weight:400;">
-            ・ログインIDは入会時にお送りした <code>el〜</code> の形式です（大文字・小文字は区別しません）。<br>
-            ・分からない場合は <a href="/member/forgot">パスワードを忘れた場合</a> から再設定できます。
+            分からない場合は <a href="/member/forgot">パスワードを忘れた場合</a> から再設定できます。
         </div>
     </div>
 <?php endif; ?>
 <form method="post" class="card">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
     <label>ログインID</label>
-    <input type="text" name="login_id" required autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="例: el8f3k9q2m">
+    <input type="text" name="login_id" required autocomplete="username" autocapitalize="none" spellcheck="false">
     <label>パスワード</label>
     <input type="password" name="password" required autocomplete="current-password">
     <?= captcha_widget_html() ?>
     <p style="margin-top:16px;"><button type="submit" class="btn">ログイン</button></p>
 </form>
 <p class="muted"><a href="/member/forgot">パスワードを忘れた場合</a></p>
-<p class="muted"><?= e(ops_credentials_description()) ?></p>
+<p class="muted" style="margin-bottom:8px;"><?= e(ops_credentials_description()) ?></p>
+<?php if ($officialUrl !== ''): ?>
+    <p style="margin:0 0 4px;">
+        <a class="btn btn--line" href="<?= e($officialUrl) ?>" target="_blank" rel="noopener">公式LINEのトークを開く →</a>
+    </p>
+<?php endif; ?>
 <p class="muted" style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;font-size:.82rem;">
     <a href="/tokushoho">特定商取引法に基づく表記</a> ／
     <a href="/policy">キャンセル・返金ポリシー</a> ／
