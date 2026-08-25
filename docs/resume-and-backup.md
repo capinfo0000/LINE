@@ -9,10 +9,10 @@
 
 | 種類 | 正本の置き場所 | GitHubにある? |
 |---|---|---|
-| **コード**（src/ public/ bin/ など） | GitHub | ✅ ある |
-| `.env`（Stripe鍵などの**秘密情報**） | 各環境にだけ | ❌ ない（.gitignoreで除外） |
-| `data/app.sqlite`（**アカウント・イベントの実データ**） | 動かしている環境にだけ | ❌ ない（.gitignoreで除外） |
-| `vendor/`（ライブラリ） | composerで復元 | ❌ ない（composerで再生成） |
+| **コード**（src/ public/ bin/ など） | GitHub | ある |
+| `.env`（Stripe鍵などの**秘密情報**） | 各環境にだけ | ない（.gitignoreで除外） |
+| `data/app.sqlite`（**アカウント・イベントの実データ**） | 動かしている環境にだけ | ない（.gitignoreで除外） |
+| `vendor/`（ライブラリ） | composerで復元 | ない（composerで再生成） |
 
 → **コードはGitHubが正本。秘密情報と実データは各環境にだけ存在する。**
 
@@ -48,7 +48,7 @@ php -S localhost:8000 -t public  # ローカル起動（要 PHP 8.1+）
 | `STRIPE_WEBHOOK_SECRET` | Webhook署名シークレット（`whsec_…`） | Webhookを使うなら |
 | `STRIPE_PRICE_P5` / `_P10` / `_UNLIMITED` | 有料プランのStripe Price ID | プラン課金を使うなら |
 
-> 💡 **本番の `.env` の控えを安全な場所に1つ持っておく**と、環境を作り直すときに楽
+> **本番の `.env` の控えを安全な場所に1つ持っておく**と、環境を作り直すときに楽
 > （ただしGitHubやチャット等、第三者が見られる場所には置かない）。
 
 ---

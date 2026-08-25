@@ -88,7 +88,7 @@ require __DIR__ . '/_header.php';
 
 <?php if ($gated): ?>
 <div class="flash flash--ng">
-    🔒 まず<strong>公式LINEに自己紹介を送信</strong>してください。確認できると「さがす」が使えます。
+    まず<strong>公式LINEに自己紹介を送信</strong>してください。確認できると「さがす」が使えます。
     <?php if ($officialUrl === ''): ?>
         <div style="font-size:.84rem;font-weight:400;margin-top:6px;">
             下の「コピー」で文章を写したあと、<strong>LINEアプリで Enlink の公式アカウントのトーク</strong>を開いて貼り付けて送ってください
@@ -103,7 +103,7 @@ require __DIR__ . '/_header.php';
     <textarea id="introText" name="intro_text" rows="15" style="width:100%;font-size:.95rem;line-height:1.6;"><?= e($display) ?></textarea>
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
         <button type="submit" class="btn">保存</button>
-        <button type="button" class="btn btn--ghost" data-copy-target="introText" data-copied-label="✓ コピーしました">コピー</button>
+        <button type="button" class="btn btn--ghost" data-copy-target="introText" data-copied-label="コピーしました">コピー</button>
         <?php if ($officialUrl !== ''): ?>
             <a class="btn btn--line" href="<?= e($officialUrl) ?>" target="_blank" rel="noopener">公式LINEを開く →</a>
         <?php endif; ?>

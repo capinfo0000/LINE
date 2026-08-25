@@ -328,7 +328,7 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
     <div class="tp-share">
         <code id="shareUrl" class="tp-share__url"><?= e(member_public_url($member)) ?></code>
         <button type="button" class="btn btn--ghost" data-copy-target="shareUrl"
-                data-copied-label="✓ コピーしました">コピー</button>
+                data-copied-label="コピーしました">コピー</button>
     </div>
 </div>
 

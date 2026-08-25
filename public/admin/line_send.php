@@ -299,7 +299,7 @@ require __DIR__ . '/_app_header.php';
             <form method="post" style="display:inline;">
                 <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
                 <button type="submit" name="do_hide_unreachable" value="1" class="btn btn--sm"
-                        data-confirm="新LINEで見つからない（旧・不達の）連絡先を一覧から隠します。よろしいですか？（あとで戻せます）">🧹 旧・不達の連絡先を隠す</button>
+                        data-confirm="新LINEで見つからない（旧・不達の）連絡先を一覧から隠します。よろしいですか？（あとで戻せます）">旧・不達の連絡先を隠す</button>
             </form>
             <?php if ($hiddenCount > 0): ?>
                 <a class="btn btn--ghost btn--sm" href="line_send<?= $showHidden ? '' : '?show_hidden=1' ?>"><?= $showHidden ? '非表示を隠す' : "非表示 {$hiddenCount} 件を表示" ?></a>
@@ -370,7 +370,7 @@ require __DIR__ . '/_app_header.php';
                 <span class="muted" style="align-self:center;font-size:.82rem;">定型文：</span>
                 <?php if ($scheduleText !== ''): ?>
                     <button type="button" class="btn btn--ghost" style="padding:3px 10px;font-size:.82rem;border-color:var(--accent);color:var(--accent);font-weight:700;"
-                            data-fill-text="text" data-text="<?= e($scheduleText) ?>">📅 全日程を提案（再送）</button>
+                            data-fill-text="text" data-text="<?= e($scheduleText) ?>">全日程を提案（再送）</button>
                 <?php endif; ?>
                 <?php foreach ($templates as $tpl): ?>
                     <button type="button" class="btn btn--ghost" style="padding:3px 10px;font-size:.82rem;"
@@ -397,17 +397,17 @@ require __DIR__ . '/_app_header.php';
             <button type="submit" class="btn">確認画面へ</button>
             <?php if ($isAdmin): ?>
                 <button type="submit" name="do_slots" value="1" class="btn btn--ghost"
-                        data-confirm="選択した宛先へ『日程（予約ボタン付きカード）』を送信します。よろしいですか？">📅 日程を送る（予約ボタン付き）</button>
+                        data-confirm="選択した宛先へ『日程（予約ボタン付きカード）』を送信します。よろしいですか？">日程を送る（予約ボタン付き）</button>
                 <button type="submit" name="do_onboarding" value="1" class="btn btn--ghost"
                         data-confirm="選択した宛先へ『初回メッセージ（あいさつ＋説明会の日程・予約ボタン付き）』を送信します。よろしいですか？">初回メッセージを送る</button>
                 <button type="submit" name="do_issue" value="1" class="btn btn--ghost" style="border-color:var(--accent-d);color:var(--accent-d);font-weight:700;"
-                        data-confirm="選択した宛先に『会員資格（ID/パスワード）』を即時発行してLINEで送信します。決済・説明会を経ない手動発行です。よろしいですか？">🎫 会員資格を発行して送信</button>
+                        data-confirm="選択した宛先に『会員資格（ID/パスワード）』を即時発行してLINEで送信します。決済・説明会を経ない手動発行です。よろしいですか？">会員資格を発行して送信</button>
             <?php endif; ?>
             <?php if ($isAdmin): ?>
                 <p class="muted" style="font-size:.82rem;margin:8px 0 0;">
-                    「📅 日程を送る」＝説明会の日程を<strong>カード＋予約ボタン付き</strong>で送信（相手はタップで日程を選んで予約）。<br>
+                    「日程を送る」＝説明会の日程を<strong>カード＋予約ボタン付き</strong>で送信（相手はタップで日程を選んで予約）。<br>
                     「初回メッセージを送る」＝友だち追加時と同じ、あいさつ＋説明会の予約ボタン付きメッセージ。<br>
-                    「🎫 会員資格を発行して送信」＝選択した相手に<strong>会員ID/パスワードを即時発行</strong>してLINEで送信（<strong>決済・説明会を経ない手動発行</strong>／既に会員の相手は再発行しません）。<br>
+                    「会員資格を発行して送信」＝選択した相手に<strong>会員ID/パスワードを即時発行</strong>してLINEで送信（<strong>決済・説明会を経ない手動発行</strong>／既に会員の相手は再発行しません）。<br>
                     （日程・初回・発行の各ボタンは本文・添付を使いません）</p>
             <?php else: ?>
                 <p class="hint" style="margin:8px 0 0;">

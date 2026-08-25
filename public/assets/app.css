@@ -281,7 +281,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 /* ネイティブのチェックボックスは視覚的に隠す（機能は従来どおり） */
 .chip input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
 .chip span { display: inline-flex; align-items: center; }
-/* 選択時：アクセント色で塗り、先頭にチェック✓を出す */
+/* 選択時：アクセント色で塗り、先頭にチェック印を出す */
 .chip:has(input:checked) { background: var(--accent); border-color: var(--accent); color: #fff; }
 .chip:has(input:checked) span::before { content: "\2713"; margin-right: 5px; font-weight: 800; }
 /* キーボード操作のフォーカス可視化 */

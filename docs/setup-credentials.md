@@ -4,7 +4,7 @@
 
 ---
 
-## 🟦 Stripe（入会金の決済）
+## Stripe（入会金の決済）
 
 入力する値は2つ：`STRIPE_SECRET_KEY` と `STRIPE_WEBHOOK_SECRET`。
 
@@ -20,7 +20,7 @@
 > 順番のコツ：Webhookはサイト公開後に登録するので、最初は**シークレットキーだけ**入れて立ち上げ→公開後にWebhookを追加でOK。
 > テストカード：`4242 4242 4242 4242`（有効期限は未来の任意日、CVCは任意3桁）。
 
-## 🟩 LINE（公式アカウント／自動案内Bot）
+## LINE（公式アカウント／自動案内Bot）
 
 入力する値は2つ：`LINE_CHANNEL_SECRET` と `LINE_CHANNEL_ACCESS_TOKEN`。
 
@@ -33,7 +33,7 @@
    - 「**Webhookの利用**」を ON
    - 「**応答メッセージ（自動応答）**」は OFF 推奨（Botの会話と競合しないように）
 
-## 🟨 Zoom（説明会URLの自動発行・任意）
+## Zoom（説明会URLの自動発行・任意）
 
 入力する値は3つ：`ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET`。
 **未設定でもOK**（その場合は予約は取れて、URLだけ手動案内になります）。

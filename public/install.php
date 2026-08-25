@@ -171,7 +171,7 @@ $token = $alreadyInstalled ? '' : csrf_token();
     </div>
 <?php elseif ($done): ?>
     <div class="card">
-        <h1>✅ セットアップ完了</h1>
+        <h1>セットアップ完了</h1>
         <p><code>.env</code> の生成・データベース初期化・運営管理者の作成が完了しました。
            このセットアップ画面は削除済みです。</p>
         <p><a class="btn" href="/admin/login">運営ログインへ</a></p>

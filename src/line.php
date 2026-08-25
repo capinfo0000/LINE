@@ -395,7 +395,7 @@ function line_auto_signup_messages(string $userId): array
     $r = provision_free_member_from_contact($userId);
     if (($r['status'] ?? '') === 'done' || ($r['status'] ?? '') === 'linked') {
         return [line_text(
-            "友だち追加ありがとうございます！Enlinkです😊\n\n"
+            "友だち追加ありがとうございます。Enlinkです。\n\n"
             . "そのままご利用いただけます。別途、会員サイトの【ログインID・仮パスワード】をお送りします。\n\n"
             . "ログイン後、プロフィールを設定してください。ご不明点はこのトークからお気軽にどうぞ。"
         )];
@@ -406,7 +406,7 @@ function line_auto_signup_messages(string $userId): array
 
 function line_onboarding_messages(): array
 {
-    $greeting = "友だち追加ありがとうございます！Enlinkです😊\n\n"
+    $greeting = "友だち追加ありがとうございます。Enlinkです。\n\n"
         . "Enlinkは、審査を経た会員だけが集まる、会員制の人脈マッチングサービスです。条件に合う相手を検索・おすすめから見つけてつながれます。\n\n"
         . "まずは無料の説明会（Zoom・約30分）で仕組みをご案内します。";
     return [
@@ -577,7 +577,7 @@ function line_handle_event(array $event): array
                     if ($linkedMemberId === '' && $contact !== null) {
                         link_line_contact_member($userId, $mid);
                     }
-                    return [line_text("自己紹介を受け付けました！ありがとうございます😊\n会員サイトの「さがす」がご利用いただけるようになりました。")];
+                    return [line_text("自己紹介を受け付けました。ありがとうございます。\n会員サイトの「さがす」がご利用いただけるようになりました。")];
                 }
             }
         }

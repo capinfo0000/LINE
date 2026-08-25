@@ -121,7 +121,7 @@ $avatarBg = $hasApprovedPhoto ? '' : ' style="background:linear-gradient(150deg,
         <?php $ageDisp = profile_age_text($profile); ?>
         <div class="tp-ig-name"><b><?= e($nm) ?></b><?php if ($ageDisp !== ''): ?><span class="age"><?= e($ageDisp) ?></span><?php endif; ?></div>
         <div class="tp-ig-pills">
-            <?php if ($area !== ''): ?><span class="tp-pill">📍<?= e($area) ?></span><?php endif; ?>
+            <?php if ($area !== ''): ?><span class="tp-pill"><?= e($area) ?></span><?php endif; ?>
             <?php if ($job !== ''): ?><span class="tp-pill"><?= e($job) ?></span><?php endif; ?>
             <span class="tp-pill<?= $targetTitle === 'ゴールド' || $targetTitle === 'プラチナ' ? ' tp-pill--gold' : '' ?>"><?= e($targetTitle) ?></span>
         </div>

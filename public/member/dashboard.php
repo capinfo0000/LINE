@@ -58,14 +58,14 @@ require __DIR__ . '/_header.php';
 </div>
 
 <div class="tp-menu">
-    <a href="<?= e(member_public_path($member)) ?>">👀 プロフィールを確認<span class="chev">›</span></a>
-    <a href="/member/profile">✏️ プロフィールを編集<span class="chev">›</span></a>
-    <a href="/member/intro">💬 自己紹介ひな形（LINE用）<span class="chev">›</span></a>
-    <a href="/member/points">⭐ ポイント<?= billing_started() ? '・紹介' : '' ?><span class="chev">›</span></a>
-    <a href="/member/billing">💳 お支払い・解約<span class="chev">›</span></a>
-    <a href="/member/account">🪪 ログインID・パスワード<span class="chev">›</span></a>
-    <a href="/member/feedback">📮 意見箱（ご意見・ご要望）<span class="chev">›</span></a>
-    <a href="/member/logout">↩️ ログアウト<span class="chev">›</span></a>
+    <a href="<?= e(member_public_path($member)) ?>">プロフィールを確認<span class="chev">›</span></a>
+    <a href="/member/profile">プロフィールを編集<span class="chev">›</span></a>
+    <a href="/member/intro">自己紹介ひな形（LINE用）<span class="chev">›</span></a>
+    <a href="/member/points">ポイント<?= billing_started() ? '・紹介' : '' ?><span class="chev">›</span></a>
+    <a href="/member/billing">お支払い・解約<span class="chev">›</span></a>
+    <a href="/member/account">ログインID・パスワード<span class="chev">›</span></a>
+    <a href="/member/feedback">意見箱（ご意見・ご要望）<span class="chev">›</span></a>
+    <a href="/member/logout">ログアウト<span class="chev">›</span></a>
 </div>
 
 <p class="muted" style="text-align:center;font-size:.8rem;">ログインID：<code><?= e($member['login_id']) ?></code></p>

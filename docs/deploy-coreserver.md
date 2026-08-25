@@ -6,7 +6,7 @@ Enlink（PHP + SQLite + Stripe + LINE + Zoom）を CORESERVER V2 に **SSH で g
 
 ```
 ~/enlink/               ← git clone 先（Web非公開）
-├── public/             ← ★ここをドキュメントルートにする（Web公開）
+├── public/             ← ここをドキュメントルートにする（Web公開）
 ├── src/ vendor/ bin/   ← Web非公開（公開ディレクトリの外）
 ├── data/app.sqlite     ← Web非公開（DB。uploads/=顔写真も。バックアップ対象）
 └── .env                ← Web非公開（Stripe/LINE/Zoom の鍵など）

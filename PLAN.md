@@ -109,7 +109,7 @@
 
 ```
 ~/enlink/            ← git clone 先（Web非公開）
-├── public/              ← ★docroot をここへ symlink
+├── public/              ← docroot をここへ symlink
 │   ├── index.php        （会員サイト入口・ID/PWログイン）
 │   ├── member/          （会員エリア：プロフィール編集・ディレクトリ・検索・おすすめ）新規
 │   ├── admin/           （運営コンソール：既存流用＋会員/予約/タグ/配信管理を追加）

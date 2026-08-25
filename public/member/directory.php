@@ -22,7 +22,6 @@ if (member_needs_intro($member)) {
     ?>
     <h1 style="margin:0 0 12px;font-size:1.5rem;">さがす</h1>
     <div class="card" style="text-align:center;">
-        <div style="font-size:2.4rem;line-height:1;margin-bottom:8px;">🔒</div>
         <div class="card__title" style="justify-content:center;">まだ「さがす」は使えません</div>
         <p class="muted" style="margin:0 auto 16px;max-width:22em;">
             会員どうしの検索・閲覧を始めるには、まず<strong>公式LINEのトークに自己紹介を送信</strong>してください。
@@ -56,7 +55,6 @@ if (member_search_locked($member)) {
     ?>
     <h1 style="margin:0 0 12px;font-size:1.5rem;">さがす</h1>
     <div class="card" style="text-align:center;">
-        <div style="font-size:2.4rem;line-height:1;margin-bottom:8px;">🔒</div>
         <div class="card__title" style="justify-content:center;">「さがす」は月額会員のみご利用いただけます</div>
         <p class="muted" style="margin:0 auto 16px;max-width:24em;">
             先着<?= (int) billing_free_limit() ?>名の無料期間が終了しました。会員どうしの検索・閲覧を続けるには、
@@ -71,7 +69,7 @@ if (member_search_locked($member)) {
     exit;
 }
 
-// カードの♡「気になる」トグル（POST）。処理後はPRGで元の検索条件のURLへ戻す。
+// カードの「気になる」ボタン（POST）。処理後はPRGで元の検索条件のURLへ戻す。
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
     $likeTo = (string) ($_POST['like_to'] ?? '');
@@ -122,7 +120,7 @@ if ($hasQuery || isset($_GET['go'])) {
     // キーワード/絞り込み検索：実績上位順。
     $results = search_directory($filters, $member['id']);
 } elseif ($tab === 'kininaru') {
-    // 自分が「気になる」した相手のみ（♡を付けた新しい順）。
+    // 自分が「気になる」した相手のみ（新しい順）。
     // 取得は対象ID全件（上限は十分大きく）→ liked の並び順で並べ直す。
     $likedIds = liked_member_ids($member['id']);
     $results = search_directory([], $member['id'], max(200, count($likedIds)), 'points', $likedIds);

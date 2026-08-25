@@ -78,7 +78,7 @@ if ((int) ($tenant['is_admin'] ?? 0) === 1) {
         <main class="page">
         <?php foreach (security_warnings() as $__w): ?>
             <div class="flash flash--ng">
-                <strong><?= $__w['level'] === 'critical' ? '🔴 重大なセキュリティ警告' : '⚠️ セキュリティ警告' ?>:</strong>
+                <strong><?= $__w['level'] === 'critical' ? '重大なセキュリティ警告' : 'セキュリティ警告' ?>:</strong>
                 <?= e($__w['msg']) ?>
             </div>
         <?php endforeach; ?>
