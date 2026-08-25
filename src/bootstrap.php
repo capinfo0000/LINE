@@ -15,6 +15,13 @@ define('APP_ROOT', dirname(__DIR__));
 
 require APP_ROOT . '/vendor/autoload.php';
 
+// 表示・比較に使う既定のタイムゾーンを固定する。
+// これまで各所で date() に手で +9時間していたが、それはサーバの date.timezone が
+// UTC のときだけ正しく、Asia/Tokyo のサーバでは9時間ずれる（同じ枠の日時が
+// LINEのカードと通知本文で食い違う原因になっていた）。ここで一度だけ決めて、
+// 以降は素直に date() を使う。Zoom API に渡す UTC は gmdate() のままにする。
+date_default_timezone_set('Asia/Tokyo');
+
 // データ層・認証・メール・CAPTCHA・暗号のヘルパー。関数定義のみで、呼び出し時に env() を使う。
 require __DIR__ . '/db.php';
 require __DIR__ . '/tenant.php';

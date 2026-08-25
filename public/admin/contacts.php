@@ -106,7 +106,7 @@ require __DIR__ . '/_app_header.php';
                 <br>
                 <span class="muted" style="font-size:.82rem;">
                     <?= ($c['email'] ?? '') !== '' ? e($c['email']) : 'メール未取得' ?>
-                    ・更新 <?= e(date('m/d H:i', (int) $c['updated_at'] + 9 * 3600)) ?>
+                    ・更新 <?= e(date('m/d H:i', (int) $c['updated_at'])) ?>
                 </span>
             </div>
             <div>

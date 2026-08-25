@@ -129,7 +129,7 @@ try {
         $L[] = 'inbound_24h=' . $q("SELECT COUNT(*) FROM line_messages WHERE direction = 'in' AND created_at > " . (time() - 86400));
         $L[] = 'inbound_7d=' . $q("SELECT COUNT(*) FROM line_messages WHERE direction = 'in' AND created_at > " . (time() - 7 * 86400));
         $last = $q("SELECT COALESCE(MAX(created_at), 0) FROM line_messages WHERE direction = 'in'");
-        $L[] = 'last_inbound=' . ((int) $last > 0 ? gmdate('Y-m-d H:i', (int) $last + 9 * 3600) . ' JST' : 'none');
+        $L[] = 'last_inbound=' . ((int) $last > 0 ? date('Y-m-d H:i', (int) $last) . ' JST' : 'none');
         $out = implode("\n", $L);
     } elseif ($job === 'samplephotos') {
         // サンプル会員の顔写真を強制的に割り当て直す（既存会員にも反映）。
@@ -146,4 +146,4 @@ try {
 
 flock($lock, LOCK_UN);
 fclose($lock);
-echo '[' . gmdate('c') . "] {$out}\n";
+echo '[' . date('c') . "] {$out}\n";

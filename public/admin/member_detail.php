@@ -16,6 +16,7 @@ if ($member === null) {
     exit('会員が見つかりません。');
 }
 $msg = '';
+$msgType = 'ok';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
@@ -38,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // ※ サンプル会員の一括操作（dashboard.php）と同じ基準に揃えている。
             if ((int) ($tenant['is_admin'] ?? 0) !== 1) {
                 $msg = 'この操作にはプラットフォーム管理者権限が必要です。会員の削除は管理者にご依頼ください。';
+                $msgType = 'ng';
                 break;
             }
             if (admin_delete_member($id)) {
@@ -45,13 +47,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
             $msg = '会員が見つかりませんでした。';
+            $msgType = 'ng';
             break;
         case 'reissue':
             $msg = admin_reissue_credentials($id) ? 'ID/PWを再発行し配布しました。' : 'ID/PWを再発行しました（配布経路が無いため送信はスキップ）。';
             break;
         case 'status':
-            admin_set_member_status($id, (string) ($_POST['status'] ?? ''));
-            $msg = 'ステータスを変更しました。';
+            if (admin_set_member_status($id, (string) ($_POST['status'] ?? ''))) {
+                $msg = 'ステータスを変更しました。';
+            } else {
+                $msg = 'ステータスを変更できませんでした。一覧から選び直してもう一度お試しください。';
+                $msgType = 'ng';
+            }
             break;
         case 'points_adjust':
             $delta = (int) ($_POST['delta'] ?? 0);
@@ -60,11 +67,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 add_points($id, $delta, 'admin_adjust', null, $note);
                 audit_log('admin.points_adjust', ['member' => $id, 'delta' => $delta]);
                 $msg = 'ポイントを調整しました（' . ($delta > 0 ? '+' : '') . $delta . 'pt）。';
+            } else {
+                // 0 のときは何も起きないのに無反応だと、押したのに変わらない理由が分からない。
+                $msg = '増減するポイント数を入力してください（0 では変更されません）。';
+                $msgType = 'ng';
             }
             break;
         case 'resolve_report':
-            resolve_report((int) ($_POST['report_id'] ?? 0), (int) ($_POST['penalty'] ?? 0));
-            $msg = '通報を処理しました。';
+            if (resolve_report((int) ($_POST['report_id'] ?? 0), (int) ($_POST['penalty'] ?? 0))) {
+                $msg = '通報を処理しました。';
+            } else {
+                $msg = '対象の通報が見つかりませんでした（すでに処理済みの可能性があります）。';
+                $msgType = 'ng';
+            }
             break;
         case 'set_plan':
             $plan = (string) ($_POST['plan'] ?? 'basic');
@@ -83,7 +98,7 @@ $pageTitle = '会員詳細';
 $pageSub = $member['login_id'];
 require __DIR__ . '/_app_header.php';
 ?>
-<?php if ($msg !== ''): ?><div class="flash flash--ok"><?= e($msg) ?></div><?php endif; ?>
+<?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
 <p><a href="members.php">← 会員一覧</a></p>
 
 <div class="card">
@@ -139,7 +154,7 @@ $myReports = $myReports->fetchAll();
     <div class="card__title">この会員への通報（未処理 <?= count($myReports) ?> 件）</div>
     <?php foreach ($myReports as $rp): ?>
         <div style="border-bottom:1px solid var(--border);padding:8px 0;">
-            <div class="muted" style="font-size:.82rem;"><?= e(date('Y-m-d H:i', (int) $rp['created_at'] + 9 * 3600)) ?>　通報者: <?= e($rp['rater_login'] ?? '-') ?></div>
+            <div class="muted" style="font-size:.82rem;"><?= e(date('Y-m-d H:i', (int) $rp['created_at'])) ?>　通報者: <?= e($rp['rater_login'] ?? '-') ?></div>
             <?php if (($rp['note'] ?? '') !== ''): ?><p style="margin:4px 0;white-space:pre-wrap;"><?= e($rp['note']) ?></p><?php endif; ?>
             <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
                 <form method="post" style="display:flex;gap:8px;align-items:end;margin:0;" data-confirm="通報を確認し、対象会員を減点して処理します。よろしいですか？">

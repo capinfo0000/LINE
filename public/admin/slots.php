@@ -53,10 +53,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($action === 'toggle') {
         $sid = (string) ($_POST['slot_id'] ?? '');
-        $open = (int) ($_POST['open'] ?? 0);
+        $open = (int) ($_POST['open'] ?? 0) === 1 ? 1 : 0;
         $stmt = db()->prepare('UPDATE slots SET is_open = ? WHERE id = ?');
         $stmt->execute([$open, $sid]);
-        $msg = '枠の受付状態を変更しました。';
+        if ($stmt->rowCount() > 0) {
+            $msg = $open === 1 ? '枠の受付を再開しました。' : '枠の受付を停止しました。';
+        } else {
+            $msg = '対象の枠が見つかりませんでした。画面を開き直してもう一度お試しください。';
+            $msgType = 'ng';
+        }
     } elseif ($action === 'delete_slot') {
         // 枠の削除。予約が入っている枠は誤操作防止のため削除させない（先に受付停止/個別対応）。
         $sid = (string) ($_POST['slot_id'] ?? '');
@@ -148,7 +153,7 @@ require __DIR__ . '/_app_header.php';
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="create">
     <div><label>種別</label>
         <select name="kind"><option value="seminar">説明会</option><option value="interview">個別面談</option></select></div>
-    <div><label>日時（JST）</label><input type="datetime-local" name="start_at" min="<?= e(gmdate('Y-m-d\\TH:i', time() + 9 * 3600)) ?>"></div>
+    <div><label>日時（JST）</label><input type="datetime-local" name="start_at" min="<?= e(date('Y-m-d\\TH:i')) ?>"></div>
     <div><label>定員</label><input type="number" name="capacity" value="1" min="1" max="100" style="max-width:90px;"></div>
     <div><button type="submit" class="btn">枠を作成</button></div>
 </form>
@@ -159,7 +164,7 @@ require __DIR__ . '/_app_header.php';
     <table style="width:100%;min-width:620px;border-collapse:collapse;font-size:.88rem;">
         <tr style="text-align:left;border-bottom:1px solid var(--border);"><th style="padding:6px;">種別</th><th>日時(JST)</th><th>申込</th><th>Zoom</th><th>受付</th><th></th></tr>
         <?php foreach ($activeSlots as $s):
-            $jst = date('Y-m-d H:i', (int) $s['start_at'] + 9 * 3600); ?>
+            $jst = date('Y-m-d H:i', (int) $s['start_at']); ?>
             <tr style="border-bottom:1px solid var(--border);">
                 <td style="padding:6px;"><?= $s['kind'] === 'seminar' ? '説明会' : '個別面談' ?></td>
                 <td><?= e($jst) ?></td>
@@ -214,7 +219,7 @@ require __DIR__ . '/_app_header.php';
         <table style="width:100%;min-width:620px;border-collapse:collapse;font-size:.85rem;">
             <tr style="text-align:left;border-bottom:1px solid var(--border);"><th style="padding:6px;">種別</th><th>日時(JST)</th><th>申込</th><th>受付</th></tr>
             <?php foreach ($pastSlots as $s):
-                $jst = date('Y-m-d H:i', (int) $s['start_at'] + 9 * 3600); ?>
+                $jst = date('Y-m-d H:i', (int) $s['start_at']); ?>
                 <tr style="border-bottom:1px solid var(--border);">
                     <td style="padding:6px;"><?= $s['kind'] === 'seminar' ? '説明会' : '個別面談' ?></td>
                     <td><?= e($jst) ?></td>

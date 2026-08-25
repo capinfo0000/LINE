@@ -296,16 +296,17 @@ function pending_report_count(): int
 /**
  * 通報を処理する。$penalty > 0 なら対象会員を減点する。
  */
-function resolve_report(int $reportId, int $penalty = 0): void
+function resolve_report(int $reportId, int $penalty = 0): bool
 {
     $stmt = db()->prepare("SELECT * FROM member_evaluations WHERE id = ? AND kind = 'report'");
     $stmt->execute([$reportId]);
     $row = $stmt->fetch();
     if (!$row || (int) $row['handled'] === 1) {
-        return;
+        return false;
     }
     if ($penalty > 0) {
         add_points((string) $row['target_id'], -abs($penalty), 'report_penalty', (string) $row['rater_id']);
     }
     db()->prepare('UPDATE member_evaluations SET handled = 1 WHERE id = ?')->execute([$reportId]);
+    return true;
 }

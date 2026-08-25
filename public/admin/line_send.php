@@ -67,7 +67,7 @@ $wd = ['日', '月', '火', '水', '木', '金', '土'];
 $fmtSlots = static function (array $rows) use ($wd): array {
     $out = [];
     foreach ($rows as $s) {
-        $ts = (int) $s['start_at'] + 9 * 3600;
+        $ts = (int) $s['start_at'];
         $out[] = '・' . date('n/j', $ts) . '（' . $wd[(int) date('w', $ts)] . '）' . date(' H:i', $ts);
     }
     return $out;
@@ -354,7 +354,7 @@ require __DIR__ . '/_app_header.php';
                 <option value="">添付しない</option>
                 <?php foreach ($slots as $s):
                     $kl = $s['kind'] === 'seminar' ? '説明会' : '個別面談';
-                    $when = date('Y-m-d H:i', (int) $s['start_at'] + 9 * 3600);
+                    $when = date('Y-m-d H:i', (int) $s['start_at']);
                     $zoom = !empty($s['zoom_url']) ? '（URL有）' : '（URL未発行）';
                     ?>
                     <option value="<?= e($s['id']) ?>"<?= $slotId === $s['id'] ? ' selected' : '' ?>><?= e("{$kl} {$when} {$zoom}") ?></option>

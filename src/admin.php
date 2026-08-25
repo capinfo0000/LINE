@@ -45,14 +45,15 @@ function member_payments(string $memberId): array
 }
 
 /** 会員ステータスを変更する（active/suspended/cancelled 等）。 */
-function admin_set_member_status(string $memberId, string $status): void
+function admin_set_member_status(string $memberId, string $status): bool
 {
     $allowed = ['lead', 'pending_payment', 'active', 'suspended', 'cancelled'];
     if (!in_array($status, $allowed, true)) {
-        return;
+        return false;
     }
     $stmt = db()->prepare('UPDATE members SET status = ? WHERE id = ?');
     $stmt->execute([$status, $memberId]);
+    return $stmt->rowCount() > 0;
 }
 
 /**
@@ -374,6 +375,6 @@ function admin_stats(): array
         'revenue'         => $one("SELECT COALESCE(SUM(amount),0) FROM payments WHERE status = 'paid'"),
         'line_contacts'   => $one('SELECT COUNT(*) FROM line_contacts'),
         'upcoming_bookings' => $one('SELECT COUNT(*) FROM bookings b JOIN slots s ON s.id=b.slot_id WHERE b.status = "booked" AND s.start_at > ' . time()),
-        'push_this_month' => $one("SELECT COUNT(*) FROM line_messages WHERE billable = 1 AND created_at >= strftime('%s', date('now','start of month'))"),
+        'push_this_month' => $one("SELECT COUNT(*) FROM line_messages WHERE billable = 1 AND created_at >= strftime('%s', date('now','+9 hours','start of month','-9 hours'))"),
     ];
 }

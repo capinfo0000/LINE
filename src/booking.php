@@ -115,6 +115,35 @@ function open_slots(string $kind, int $limit = 10): array
 }
 
 /**
+ * この人がこの枠を既に予約しているか。
+ * LINEの「はい、予約する」を続けて押したり、前に送られたカードをもう一度押すと、
+ * 同じ人の予約が何件も入って席を食い潰してしまうため、確保の前に確認する。
+ */
+function already_booked(string $slotId, ?string $lineUserId, ?string $memberId): bool
+{
+    if ($lineUserId === null && $memberId === null) {
+        return false;
+    }
+    $sql = 'SELECT 1 FROM bookings WHERE slot_id = ? AND status = \'booked\' AND (';
+    $params = [$slotId];
+    $cond = [];
+    if ($lineUserId !== null && $lineUserId !== '') {
+        $cond[] = 'line_user_id = ?';
+        $params[] = $lineUserId;
+    }
+    if ($memberId !== null && $memberId !== '') {
+        $cond[] = 'member_id = ?';
+        $params[] = $memberId;
+    }
+    if ($cond === []) {
+        return false;
+    }
+    $stmt = db()->prepare($sql . implode(' OR ', $cond) . ') LIMIT 1');
+    $stmt->execute($params);
+    return (bool) $stmt->fetchColumn();
+}
+
+/**
  * 枠を原子的に確保して予約を作成する。満席・無効なら null。
  * Zoom はここでは一切生成しない。枠作成時（create_slot）に発行済みの URL を
  * そのまま予約者へ渡すだけ（説明会の申込ごとに個人会議が作られる事故を根絶）。
@@ -124,6 +153,11 @@ function open_slots(string $kind, int $limit = 10): array
  */
 function book_slot(string $slotId, string $kind, ?string $lineUserId, ?string $memberId): ?array
 {
+    // 同じ人の重複予約を先に弾く（席を二重に消費させない）。
+    if (already_booked($slotId, $lineUserId, $memberId)) {
+        return null;
+    }
+
     // 原子的な空き確保（capacity 超過・クローズを排除）。
     $claim = db()->prepare(
         'UPDATE slots SET booked_count = booked_count + 1
@@ -145,7 +179,13 @@ function book_slot(string $slotId, string $kind, ?string $lineUserId, ?string $m
         'INSERT INTO bookings (id, kind, line_user_id, member_id, slot_id, status, zoom_url, created_at)
          VALUES (?,?,?,?,?,?,?,?)'
     );
-    $ins->execute([$bookingId, $kind, $lineUserId, $memberId, $slotId, 'booked', $zoomUrl, time()]);
+    try {
+        $ins->execute([$bookingId, $kind, $lineUserId, $memberId, $slotId, 'booked', $zoomUrl, time()]);
+    } catch (\Throwable $e) {
+        // 予約行を作れなかったら、先に確保した席を戻す（数だけ減って予約が無い状態を防ぐ）。
+        db()->prepare('UPDATE slots SET booked_count = MAX(0, booked_count - 1) WHERE id = ?')->execute([$slotId]);
+        return null;
+    }
 
     return ['booking_id' => $bookingId, 'zoom_url' => $zoomUrl];
 }
@@ -254,7 +294,7 @@ function flush_slot_url_pending(string $slotId, string $url): int
 function slot_zoom_notice_body(array $slot, ?string $url = null): string
 {
     $label = ($slot['kind'] ?? '') === 'seminar' ? '説明会' : '個別面談';
-    $when = date('Y-m-d H:i', (int) ($slot['start_at'] ?? 0) + 9 * 3600);
+    $when = date('Y-m-d H:i', (int) ($slot['start_at'] ?? 0));
     $u = $url !== null ? $url : (string) ($slot['zoom_url'] ?? '');
     $t = "【{$label}】Zoom参加URLのご案内です。\n日時：{$when}（JST）";
     if ($u !== '') {
@@ -286,9 +326,31 @@ function push_zoom_url_to_slot_bookings(string $slotId, string $url): array
     return ['total' => count($uids), 'sent' => $sent];
 }
 
-/** 予約のステータスを更新する。 */
+/**
+ * 予約のステータスを更新する。
+ * キャンセル／不参加にするときは、枠の予約数(booked_count)も戻す。
+ * これが無いと、取り消した席が埋まったままになり以後その枠が取れなくなる。
+ */
 function set_booking_status(string $bookingId, string $status): void
 {
+    $allowed = ['booked', 'done', 'cancelled', 'noshow'];
+    if (!in_array($status, $allowed, true)) {
+        return;
+    }
+    $cur = db()->prepare('SELECT slot_id, status FROM bookings WHERE id = ?');
+    $cur->execute([$bookingId]);
+    $row = $cur->fetch();
+    if ($row === false) {
+        return;
+    }
+    $was = (string) $row['status'];
+    $freed = in_array($status, ['cancelled', 'noshow'], true) && $was === 'booked';
+    $retaken = $status === 'booked' && in_array($was, ['cancelled', 'noshow'], true);
+    if ($freed) {
+        db()->prepare('UPDATE slots SET booked_count = MAX(0, booked_count - 1) WHERE id = ?')->execute([$row['slot_id']]);
+    } elseif ($retaken) {
+        db()->prepare('UPDATE slots SET booked_count = booked_count + 1 WHERE id = ?')->execute([$row['slot_id']]);
+    }
     $stmt = db()->prepare('UPDATE bookings SET status = ? WHERE id = ?');
     $stmt->execute([$status, $bookingId]);
 }

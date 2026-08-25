@@ -94,7 +94,7 @@ require __DIR__ . '/_header.php';
             <tr style="text-align:left;border-bottom:1px solid var(--border);"><th style="padding:6px;">日時</th><th>内容</th><th style="text-align:right;">増減</th></tr>
             <?php foreach ($history as $h): ?>
                 <tr style="border-bottom:1px solid var(--border);">
-                    <td style="padding:6px;"><?= e(date('Y-m-d H:i', (int) $h['created_at'] + 9 * 3600)) ?></td>
+                    <td style="padding:6px;"><?= e(date('Y-m-d H:i', (int) $h['created_at'])) ?></td>
                     <td><?= e(point_reason_label((string) $h['reason'])) ?></td>
                     <td style="text-align:right;font-weight:700;color:<?= (int) $h['delta'] >= 0 ? '#166534' : '#991b1b' ?>;"><?= (int) $h['delta'] >= 0 ? '+' : '' ?><?= (int) $h['delta'] ?></td>
                 </tr>

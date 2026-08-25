@@ -332,8 +332,7 @@ function claim_credentials_send(string $userId): bool
 function line_jst_label(int $ts): string
 {
     $w = ['日', '月', '火', '水', '木', '金', '土'];
-    $jst = $ts + 9 * 3600;
-    return gmdate('n/j', $jst) . '(' . $w[(int) gmdate('w', $jst)] . ') ' . gmdate('H:i', $jst);
+    return date('n/j', $ts) . '(' . $w[(int) date('w', $ts)] . ') ' . date('H:i', $ts);
 }
 
 /**
@@ -630,6 +629,13 @@ function line_handle_event(array $event): array
         if ($action === 'book') {
             $kind = ($parts[1] ?? '') === 'interview' ? 'interview' : 'seminar';
             $slotId = $parts[2] ?? '';
+            // 二重予約は「満席」ではないので、理由を分けて伝える。
+            if (already_booked($slotId, $userId, null)) {
+                $booked = find_slot($slotId);
+                $label = $kind === 'seminar' ? '説明会' : '個別面談';
+                $whenBooked = $booked !== null ? line_jst_label((int) $booked['start_at']) : '';
+                return [line_text("この{$label}はすでにご予約済みです。\n日時：{$whenBooked}\n変更・取消をご希望の場合は、このトークにご連絡ください。")];
+            }
             $result = book_slot($slotId, $kind, $userId, null);
             if ($result === null) {
                 return [line_text('申し訳ありません。その枠は満席または受付終了です。別の日程をお選びください。'), line_slots_message($kind, 'ほかの日程はこちらです。')];
