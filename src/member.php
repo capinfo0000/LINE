@@ -43,6 +43,111 @@ function generate_member_login_id(): string
     return $id;
 }
 
+/**
+ * プロフィール共有用の短いコード。
+ *
+ * 会員の内部ID（mem_xxxxxxxxxxxx）をURLに出したくないので、URL向けの短いコードを別に持つ。
+ * ログインIDや紹介コードとは別物で、これが漏れても入会や乗っ取りには使えない
+ * （見られるのはプロフィール詳細だけで、閲覧側のログインと公開設定は従来どおり効く）。
+ */
+function public_code_exists(string $code): bool
+{
+    $stmt = db()->prepare('SELECT 1 FROM members WHERE public_code = ? LIMIT 1');
+    $stmt->execute([$code]);
+    return (bool) $stmt->fetchColumn();
+}
+
+/** 重複しない共有コードを生成する（紛らわしい文字を避けた小文字英数字8桁）。 */
+function generate_member_public_code(): string
+{
+    do {
+        $code = random_safe_string(8);
+    } while (public_code_exists($code));
+    return $code;
+}
+
+/**
+ * 会員の共有コードを返す（未発行ならその場で発行して保存）。
+ * 渡す配列の会員IDのキーは id でも member_id でもよい（検索結果の行をそのまま渡せるように）。
+ */
+function member_public_code(array $member): string
+{
+    $code = trim((string) ($member['public_code'] ?? ''));
+    if ($code !== '') {
+        return $code;
+    }
+    $id = (string) ($member['id'] ?? $member['member_id'] ?? '');
+    if ($id === '') {
+        return '';
+    }
+    $code = generate_member_public_code();
+    db()->prepare('UPDATE members SET public_code = ? WHERE id = ?')->execute([$code, $id]);
+    return $code;
+}
+
+/** 共有コードから会員を探す。 */
+function find_member_by_public_code(string $code): ?array
+{
+    $code = trim($code);
+    if ($code === '' || !preg_match('/^[a-z0-9]{4,32}$/', $code)) {
+        return null;
+    }
+    $stmt = db()->prepare('SELECT * FROM members WHERE public_code = ? LIMIT 1');
+    $stmt->execute([$code]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+/**
+ * サイト内で使うプロフィールのパス（例 /u/k3f9qa2m）。
+ * 共有コードがどうしても引けない場合だけ、従来の内部ID付きURLに落とす。
+ */
+function member_public_path(array $member): string
+{
+    $code = member_public_code($member);
+    if ($code === '') {
+        $id = (string) ($member['id'] ?? $member['member_id'] ?? '');
+        return '/member/member_view.php?id=' . rawurlencode($id);
+    }
+    return '/u/' . $code;
+}
+
+/** 人に渡す用の絶対URL（例 https://example.com/u/k3f9qa2m）。コピー・共有はこちらを使う。 */
+function member_public_url(array $member): string
+{
+    return rtrim(base_url(), '/') . member_public_path($member);
+}
+
+/**
+ * 他会員の画像の配信URL。
+ *
+ * 内部ID（mem_...）ではなく共有コードで指す。プロフィールのURLだけ短くしても、
+ * ページの中の画像URLに内部IDが残っていては隠したことにならないため。
+ * 配信側（photo.php）の認可はどちらの指定でも同じ。
+ *
+ * @param array $row public_code か member_id/id を含む行
+ */
+function member_photo_url(array $row, string $kind = 'photo', int $version = 0): string
+{
+    $code = trim((string) ($row['public_code'] ?? ''));
+    if ($code === '') {
+        // 共有コードが未発行の行（旧データ）はその場で発行して使う。
+        $id = (string) ($row['member_id'] ?? $row['id'] ?? '');
+        if ($id === '') {
+            return '/member/photo.php';
+        }
+        $code = member_public_code(['id' => $id, 'public_code' => '']);
+    }
+    $q = 'c=' . rawurlencode($code);
+    if ($kind !== 'photo') {
+        $q .= '&kind=' . rawurlencode($kind);
+    }
+    if ($version > 0) {
+        $q .= '&v=' . $version;
+    }
+    return '/member/photo.php?' . $q;
+}
+
 /** 紹介コードが既に使われているか。 */
 function referral_code_exists(string $code): bool
 {
@@ -116,9 +221,11 @@ function issue_member_credentials(
     $referralCode = generate_referral_code();
     $email = ($email !== null && trim($email) !== '') ? strtolower(trim($email)) : null;
 
+    $publicCode = generate_member_public_code();
+
     $stmt = db()->prepare(
-        'INSERT INTO members (id, login_id, password_hash, must_change_pw, display_name, email, line_user_id, status, referral_code, joined_at, created_at)
-         VALUES (:id, :login_id, :hash, 1, :name, :email, :line, :status, :ref, :joined, :created)'
+        'INSERT INTO members (id, login_id, password_hash, must_change_pw, display_name, email, line_user_id, status, referral_code, public_code, joined_at, created_at)
+         VALUES (:id, :login_id, :hash, 1, :name, :email, :line, :status, :ref, :code, :joined, :created)'
     );
     $stmt->execute([
         ':id'       => $memberId,
@@ -129,6 +236,7 @@ function issue_member_credentials(
         ':line'     => $lineUserId,
         ':status'   => $status,
         ':ref'      => $referralCode,
+        ':code'     => $publicCode,
         ':joined'   => $status === 'active' ? time() : null,
         ':created'  => time(),
     ]);
@@ -373,6 +481,34 @@ function require_member(bool $allowDuringPwChange = false, bool $allowUnsubscrib
 function member_search_locked(array $member): bool
 {
     return function_exists('member_requires_subscription') && member_requires_subscription($member);
+}
+
+/**
+ * ログイン後に戻したい場所を覚えておく（共有URLを開いた人がログイン後に
+ * ダッシュボードへ飛ばされて、見に来たプロフィールを見失わないようにする）。
+ *
+ * 保存先はセッションで、URLのパラメータにはしない（他所へ飛ばす踏み台に使えないようにするため）。
+ * 受け付けるのは「/」1個で始まる自サイト内のパスだけ。「//」始まりは外部サイトになるので拒否する。
+ */
+function set_login_return_path(string $path): void
+{
+    if ($path === '' || strncmp($path, '/', 1) !== 0 || strncmp($path, '//', 2) === 0) {
+        return;
+    }
+    if (!preg_match('#^/[A-Za-z0-9._~/?=&%+-]{0,300}$#', $path)) {
+        return;
+    }
+    session_boot();
+    $_SESSION['member_return_to'] = $path;
+}
+
+/** 覚えておいた戻り先を取り出して消す。無ければ空文字。 */
+function take_login_return_path(): string
+{
+    session_boot();
+    $path = (string) ($_SESSION['member_return_to'] ?? '');
+    unset($_SESSION['member_return_to']);
+    return $path;
 }
 
 /* ------------------------- パスワード変更／再設定 ------------------------- */

@@ -16,7 +16,7 @@ if (PHP_SAPI !== 'cli') {
     exit("CLI からのみ実行できます。\n");
 }
 
-require dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 $cmd = $argv[1] ?? '';
 

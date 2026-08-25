@@ -6,7 +6,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $member = require_member();
 
@@ -176,8 +176,15 @@ $renderChecks = function (array $tags, string $name, array $checked) {
 $rankClass = static function (string $t): string {
     return ['プラチナ' => 'rank--plat', 'ゴールド' => 'rank--gold', 'レギュラー' => 'rank--reg', 'ルーキー' => 'rank--rookie'][$t] ?? 'rank--rookie';
 };
-/** 会員カード1枚を出力（さがすグリッド／おすすめカルーセルで共通利用）。$rank>0 で順位バッジ表示。 */
-$renderCard = function (string $mid, string $nm, string $age, bool $hasPhoto, int $rank = 0) use ($member, $rankClass): void {
+/**
+ * 会員カード1枚を出力（さがすグリッド／おすすめカルーセルで共通利用）。$rank>0 で順位バッジ表示。
+ * 引数は検索結果・おすすめの行そのもの（member_id / public_code / name_text などを含む）。
+ */
+$renderCard = function (array $row, int $rank = 0) use ($member, $rankClass): void {
+    $mid = (string) $row['member_id'];
+    $nm = (string) ($row['name_text'] ?? '');
+    $age = profile_age_text($row);
+    $hasPhoto = profile_has_photo($row);
     $labels = member_tag_labels($mid);
     $title = member_title_by_id($mid);
     $nm = $nm !== '' ? $nm : '会員';
@@ -193,9 +200,9 @@ $renderCard = function (string $mid, string $nm, string $age, bool $hasPhoto, in
     $liked = has_interest((string) $member['id'], $mid);
     ?>
     <div class="tp-card"<?= $cardBg ?>>
-        <?php if ($hasPhoto): ?><img src="/member/photo.php?id=<?= e($mid) ?>" alt=""><?php else: ?><span class="tp-ini"><?= e($ini) ?></span><?php endif; ?>
+        <?php if ($hasPhoto): ?><img src="<?= e(member_photo_url($row)) ?>" alt=""><?php else: ?><span class="tp-ini"><?= e($ini) ?></span><?php endif; ?>
         <?php if ($rank > 0): ?><span class="tp-rankno<?= $rank <= 3 ? ' top' : '' ?>"><?= $rank ?></span><?php endif; ?>
-        <a class="tp-cardlink" href="/member/member_view.php?id=<?= e($mid) ?>" aria-label="<?= e($nm) ?> のプロフィール"></a>
+        <a class="tp-cardlink" href="<?= e(member_public_path($row)) ?>" aria-label="<?= e($nm) ?> のプロフィール"></a>
         <span class="tp-crank <?= $rankClass($title) ?>"><?= e($title) ?></span>
         <div class="tp-cinfo">
             <?php if ($age !== '' || $area !== ''): ?><div class="aa"><?= e($age) ?><?= ($age !== '' && $area !== '') ? '・' : '' ?><?= e($area) ?></div><?php endif; ?>
@@ -219,7 +226,7 @@ if ($showRail) {
     // 相手の「提供できること」が自分の「求めていること」と噛み合う人だけを出す。
     // 噛み合う人がいなければ、無関係な会員で埋めずに枠ごと出さない。
     foreach (recommend_offer_matches((string) $member['id'], 10) as $rc) {
-        $recCards[] = [(string) $rc['member_id'], (string) ($rc['name_text'] ?? ''), profile_age_text($rc), profile_has_photo($rc)];
+        $recCards[] = $rc;
     }
 }
 ?>
@@ -329,7 +336,7 @@ if ($showRail) {
         <a class="more" href="/member/recommend.php">すべて見る →</a>
     </div>
     <div class="tp-rail">
-        <?php foreach ($recCards as $c): $renderCard($c[0], $c[1], $c[2], $c[3]); endforeach; ?>
+        <?php foreach ($recCards as $c): $renderCard($c); endforeach; ?>
     </div>
 <?php endif; ?>
 
@@ -363,7 +370,7 @@ if ($hasQuery) {
     </p></div>
 <?php else: ?>
     <div class="tp-grid">
-        <?php foreach ($results as $i => $r): $renderCard((string) $r['member_id'], (string) ($r['name_text'] ?? ''), profile_age_text($r), profile_has_photo($r), $isRanking ? $i + 1 : 0); endforeach; ?>
+        <?php foreach ($results as $i => $r): $renderCard($r, $isRanking ? $i + 1 : 0); endforeach; ?>
     </div>
 <?php endif; ?>
 <?php require __DIR__ . '/_footer.php'; ?>

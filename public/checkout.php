@@ -10,7 +10,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 $email = strtolower(trim((string) ($_GET['email'] ?? ($_POST['email'] ?? ''))));
 $lineUserId = trim((string) ($_GET['lu'] ?? ($_POST['lu'] ?? '')));

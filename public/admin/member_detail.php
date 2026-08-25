@@ -6,7 +6,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $tenant = require_tenant();
 $id = (string) ($_GET['id'] ?? ($_POST['id'] ?? ''));
@@ -112,6 +112,11 @@ require __DIR__ . '/_app_header.php';
        <?= (int) $member['must_change_pw'] === 1 ? '<span class="muted">(要PW変更)</span>' : '' ?></p>
     <p>名前：<?= e($profile['name_text'] ?: ($member['display_name'] ?? '-')) ?>　メール：<?= e($member['email'] ?? '-') ?></p>
     <p>LINE：<?= e($member['line_user_id'] ?? '-') ?>　入会日：<?= $member['joined_at'] ? e(date('Y-m-d', (int) $member['joined_at'])) : '-' ?></p>
+    <p style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        共有URL：<code id="shareUrl" style="word-break:break-all;"><?= e(member_public_url($member)) ?></code>
+        <button type="button" class="btn btn--ghost" data-copy-target="shareUrl"
+                style="width:auto;padding:4px 12px;font-size:.82rem;">コピー</button>
+    </p>
     <?php $curPlan = ($member['plan'] ?? 'basic') === 'premium' ? 'premium' : 'basic'; ?>
     <p style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
         プラン：<span class="badge badge--<?= $curPlan === 'premium' ? 'info' : 'mute' ?>"><?= e(plan_label($curPlan)) ?></span><?php if (!billing_started()): ?> <span class="muted" style="font-size:.82rem;">（無料フェーズ中は全員プレミアム相当）</span><?php endif; ?>

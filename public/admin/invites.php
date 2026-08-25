@@ -6,7 +6,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $admin = require_admin_tenant();
 $tenant = $admin; // シェルのサイドバー表示用

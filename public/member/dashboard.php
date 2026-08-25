@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $member = require_member(); // 未ログイン→login、初回PW未変更→change_password へ誘導
 $flash = (string) ($_GET['msg'] ?? '');
@@ -41,7 +41,7 @@ require __DIR__ . '/_header.php';
 
 <div class="tp-mp-head">
     <div class="tp-mp-av"<?= $hasPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 66% 54%),hsl(' . $hue2 . ' 64% 45%))"' ?>>
-        <?php if ($hasPhoto): ?><img src="/member/photo.php?id=<?= e($id) ?>&v=<?= (int) ($profile['updated_at'] ?? 0) ?>" alt=""><?php else: ?><?= e($ini) ?><?php endif; ?>
+        <?php if ($hasPhoto): ?><img src="/member/photo.php?v=<?= (int) ($profile['updated_at'] ?? 0) ?>" alt=""><?php else: ?><?= e($ini) ?><?php endif; ?>
     </div>
     <div class="tp-mp-name"><?= e($nm) ?></div>
     <?php if ($age !== '' || $area !== ''): ?>
@@ -58,7 +58,7 @@ require __DIR__ . '/_header.php';
 </div>
 
 <div class="tp-menu">
-    <a href="/member/member_view.php?id=<?= e($id) ?>">👀 プロフィールを確認<span class="chev">›</span></a>
+    <a href="<?= e(member_public_path($member)) ?>">👀 プロフィールを確認<span class="chev">›</span></a>
     <a href="/member/profile.php">✏️ プロフィールを編集<span class="chev">›</span></a>
     <a href="/member/intro.php">💬 自己紹介ひな形（LINE用）<span class="chev">›</span></a>
     <a href="/member/points.php">⭐ ポイント<?= billing_started() ? '・紹介' : '' ?><span class="chev">›</span></a>

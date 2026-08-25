@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 // PW変更中も入れるように allowDuringPwChange=true
 $member = require_member(true, true);
@@ -33,7 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             update_member_password($member['id'], $new);
             audit_log('member.password_change', ['member' => $member['id'], 'forced' => $forced ? 1 : 0]);
-            header('Location: /member/dashboard.php?msg=' . rawurlencode('パスワードを変更しました。') . '&type=ok');
+            // 共有URLから来ていた場合はその画面へ。覚えたままにしないよう、ここでも必ず取り出す。
+            $back = take_login_return_path();
+            header('Location: ' . ($back !== ''
+                ? $back
+                : '/member/dashboard.php?msg=' . rawurlencode('パスワードを変更しました。') . '&type=ok'));
             exit;
         } catch (\InvalidArgumentException $e) {
             $error = $e->getMessage(); // 強度不足など

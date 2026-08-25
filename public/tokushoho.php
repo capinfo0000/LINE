@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 $title = '特定商取引法に基づく表記';
 require __DIR__ . '/_legal_header.php';

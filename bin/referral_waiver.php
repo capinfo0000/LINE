@@ -20,7 +20,7 @@ if (PHP_SAPI !== 'cli') {
     exit("CLI からのみ実行できます。\n");
 }
 
-require dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 // 課金フェーズでなければ無料化対象は存在しないので即終了（無駄な Stripe 呼び出しを避ける）。
 if (!billing_started()) {

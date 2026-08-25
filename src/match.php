@@ -220,7 +220,7 @@ function compute_recommendations_for(string $memberId, int $limit = 20): array
 
     // 候補：有効・プロフィールあり・ディレクトリ掲載・自分以外。
     $stmt = db()->prepare(
-        "SELECT m.id AS member_id, p.name_text, p.age_text, p.birthdate, p.company_title, p.headline, p.photo_status, p.photo_path, p.visibility_flags
+        "SELECT m.id AS member_id, m.public_code, p.name_text, p.age_text, p.birthdate, p.company_title, p.headline, p.photo_status, p.photo_path, p.visibility_flags
            FROM members m JOIN profiles p ON p.member_id = m.id
           WHERE m.status = 'active' AND m.id != ?"
     );
@@ -241,6 +241,7 @@ function compute_recommendations_for(string $memberId, int $limit = 20): array
         }
         $scored[] = [
             'member_id'     => $bid,
+            'public_code'   => (string) ($cand['public_code'] ?? ''),
             'name'          => (string) $cand['name_text'],
             'headline'      => (string) $cand['headline'],
             'company_title' => (string) $cand['company_title'],

@@ -14,7 +14,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 $lockPath = APP_ROOT . '/data/.installed';
 $selfPath = __FILE__;

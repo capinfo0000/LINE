@@ -139,6 +139,35 @@ composer install --no-dev -o      # 依存に変更があれば
 - SQLite はホットコピーを避け、`sqlite3 data/app.sqlite ".backup ~/private/backup.sqlite"` 等で取得を推奨。
 - 顔写真 `data/uploads/` も併せて保全。
 
+## 12. 独自ドメインへの切り替え
+
+初期ドメイン（`xxxx.coreserver.jp`）から独自ドメイン（例 `enlink.tokyo`）へ移すときの手順。
+アプリ側にドメインの直書きは無いので、`.env` の1行と、外部サービス側の登録URLを直せば済む。
+
+1. コントロールパネルでドメインを追加し、無料SSL（Let's Encrypt）を発行する。
+   `https://<新ドメイン>/` が開くようになるまで待つ（DNS 反映に時間がかかる）。
+2. `.env` の `APP_BASE_URL` を新ドメインに変える（末尾の `/` は付けない）。
+
+   ```
+   APP_BASE_URL=https://enlink.tokyo
+   ```
+
+   これで決済の戻り先・メールのリンク・**プロフィールの共有URL（`/u/<コード>`）** が
+   すべて新ドメインで出るようになる。
+3. 外部サービスに登録してあるURLを差し替える。
+
+   | サービス | 直す場所 |
+   |---|---|
+   | Stripe | Webhook エンドポイント `https://<新ドメイン>/webhook.php` |
+   | LINE Developers | Webhook URL `https://<新ドメイン>/line_webhook.php` |
+   | Zoom（OAuth を使う場合） | リダイレクトURL |
+   | cron（サーバーの定期実行） | 呼び出し先URLのドメイン |
+
+4. 旧ドメインは、しばらくは生かしたまま新ドメインへ転送しておくと、
+   すでに配ってしまった共有URLや決済リンクが切れない。
+5. 切り替え後の確認：`cron.php?job=diag` が動くこと、会員ログイン、
+   プロフィールの「共有URL」が新ドメインで出ること、テスト決済の戻り先。
+
 ## 本番移行チェック
 
 - [ ] `STRIPE_SECRET_KEY` を `sk_live_` に、Webhook を本番エンドポイントで登録
@@ -147,3 +176,4 @@ composer install --no-dev -o      # 依存に変更があれば
 - [ ] Zoom 自動発行（予約→URL 生成）／失敗時は手動URL案内で運用可
 - [ ] 特商法・規約・プライバシーの ［ ］ を実情報に置換
 - [ ] `data/` バックアップ運用を決定
+- [ ] 独自ドメインに移す場合は「12. 独自ドメインへの切り替え」を実施

@@ -602,3 +602,12 @@ div.tp-pslide{ cursor:default; }
 @media (min-width: 720px){
   .tp-tabbar{ padding-left: max(16px, calc((100vw - 1120px)/2)); padding-right: max(16px, calc((100vw - 1120px)/2)); }
 }
+
+/* --- プロフィール編集：共有URL --- */
+/* URLは途中で切れると何を送っているのか分からなくなるので、入力欄ではなく
+   折り返す文字として全文を出す（コピーボタンは中身をそのままコピーする）。 */
+.tp-share{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.tp-share__url{ flex:1 1 200px; min-width:0; padding:9px 12px; border:1px solid var(--border); border-radius:10px;
+  background:var(--bg); font-size:.84rem; line-height:1.5; word-break:break-all; user-select:all; }
+/* .container--narrow .btn の width:100% を上書きするため、同じ強さの指定にする。 */
+.tp-share .btn{ width:auto; flex:0 0 auto; white-space:nowrap; padding:9px 20px; }

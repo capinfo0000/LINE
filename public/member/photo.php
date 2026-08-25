@@ -12,7 +12,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $viewer = require_member();
 
@@ -20,7 +20,20 @@ $viewer = require_member();
 $kind = (string) ($_GET['kind'] ?? 'photo');
 $col = ['photo' => 'photo_path', 'cover' => 'cover_path', 'card' => 'card_path'][$kind] ?? 'photo_path';
 
+// 対象の会員。共有コード（?c=）でも内部ID（?id=）でも指定できる。
+// 画面からは共有コードで組み立てるが、既に配ったURLやブラウザのキャッシュのために
+// 内部ID指定も受け付ける（どちらでも下の認可判定は同じ）。
 $targetId = (string) ($_GET['id'] ?? '');
+$shareCode = (string) ($_GET['c'] ?? '');
+if ($shareCode !== '') {
+    $byCode = find_member_by_public_code($shareCode);
+    if ($byCode === null) {
+        http_response_code(404);
+        exit;
+    }
+    $targetId = (string) $byCode['id'];
+}
+
 if ($targetId === '' || $targetId === $viewer['id']) {
     // 自分の画像（未承認でも本人には見せる）
     $profile = get_profile($viewer['id']);

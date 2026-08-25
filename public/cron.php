@@ -12,7 +12,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 header('Content-Type: text/plain; charset=UTF-8');
 
@@ -110,7 +110,7 @@ try {
     } elseif ($job === 'diag') {
         // 運用診断（秘密情報は出力しない）。自己紹介ロック・LINE受信の状況を確認する。
         $L = [];
-        $L[] = 'code_version=billing_progress_1';
+        $L[] = 'code_version=share_url_1';
         $L[] = 'signup_mode=' . signup_mode();
         $L[] = 'intro_gate=' . (intro_gate_enabled() ? 'ON' : 'OFF');
         $L[] = 'line_token=' . (line_channel_token() !== null ? 'set' : 'MISSING');
@@ -122,6 +122,8 @@ try {
         $L[] = 'members_with_line=' . $q("SELECT COUNT(*) FROM members WHERE line_user_id IS NOT NULL AND line_user_id <> ''");
         $L[] = 'intro_done=' . $q('SELECT COUNT(*) FROM members WHERE intro_submitted_at IS NOT NULL AND intro_submitted_at > 0');
         $L[] = 'intro_exempt=' . $q('SELECT COUNT(*) FROM members WHERE intro_gate_exempt = 1');
+        // 共有URL（/u/<コード>）。未発行が残っていないかの確認用。
+        $L[] = 'share_code_missing=' . $q("SELECT COUNT(*) FROM members WHERE public_code IS NULL OR public_code = ''");
         // 年齢制限を入れる前に登録された、最低年齢に満たない会員がいないかの確認用。
         $L[] = 'min_age=' . member_min_age();
         $L[] = 'members_active=' . active_member_count() . '/' . billing_free_limit();

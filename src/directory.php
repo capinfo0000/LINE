@@ -109,7 +109,7 @@ function search_directory(array $filters, string $viewerId, int $limit = 60, str
     $orderBy = $order === 'new'
         ? 'COALESCE(m.joined_at, m.created_at) DESC, m.created_at DESC'
         : directory_paid_sql() . ' DESC, rank_score DESC, COALESCE(m.joined_at, 0) DESC, m.created_at DESC';
-    $sql = 'SELECT m.id AS member_id, m.login_id, m.joined_at,
+    $sql = 'SELECT m.id AS member_id, m.login_id, m.joined_at, m.public_code,
                    p.name_text, p.age_text, p.birthdate, p.company_title, p.headline, p.bio, p.photo_status, p.photo_path, p.visibility_flags,
                    ' . directory_points_sql() . ' AS points_earned,
                    ' . directory_score_sql() . ' AS rank_score,

@@ -14,6 +14,9 @@
     RewriteCond %{REQUEST_URI} !^/public/
     # 実ファイル/ディレクトリでも public/ 側を優先（src/ 等は public/ 配下に無いので404=隠蔽）
     RewriteRule ^$ public/index.php [L]
+    # プロフィールの短い共有URL（/u/<コード>）。catch-all より前に置くこと。
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^u/([A-Za-z0-9]{4,32})/?$ public/u.php?c=$1 [L,QSA]
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>

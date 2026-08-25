@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $error = '';
 
@@ -30,7 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($m !== null && (int) ($m['must_change_pw'] ?? 0) === 1) {
             header('Location: /member/change_password.php');
         } else {
-            header('Location: /member/dashboard.php');
+            // 共有URLから来た場合はその画面へ戻す。無ければ会員トップ。
+            $back = take_login_return_path();
+            header('Location: ' . ($back !== '' ? $back : '/member/dashboard.php'));
         }
         exit;
     } else {
@@ -40,9 +42,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// すでにログイン済みなら会員トップへ
+// すでにログイン済みなら会員トップ（共有URLから来ていればその画面）へ
 if (current_member() !== null) {
-    header('Location: /member/dashboard.php');
+    $back = take_login_return_path();
+    header('Location: ' . ($back !== '' ? $back : '/member/dashboard.php'));
     exit;
 }
 

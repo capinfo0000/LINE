@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $member = require_member();
 $memberId = $member['id'];
@@ -260,10 +260,22 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
 ?>
 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 6px;">
     <h1 style="font-size:1.5rem;margin:0;white-space:nowrap;">プロフィール編集</h1>
-    <a class="btn btn--ghost" href="/member/member_view.php?id=<?= e($memberId) ?>" style="padding:8px 16px;border-radius:999px;flex:0 0 auto;width:auto;white-space:nowrap;">プレビュー</a>
+    <a class="btn btn--ghost" href="<?= e(member_public_path($member)) ?>" style="padding:8px 16px;border-radius:999px;flex:0 0 auto;width:auto;white-space:nowrap;">プレビュー</a>
 </div>
 <p class="muted" style="margin:0 0 14px;"><a href="/member/dashboard.php">← マイページ</a></p>
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= nl2br(e($msg)) ?></div><?php endif; ?>
+
+<div class="card">
+    <div class="card__title">プロフィールの共有URL</div>
+    <p class="hint" style="margin:0 0 8px;">
+        このURLを送ると、あなたのプロフィールを見てもらえます（相手も会員としてログインしている必要があります）。
+    </p>
+    <div class="tp-share">
+        <code id="shareUrl" class="tp-share__url"><?= e(member_public_url($member)) ?></code>
+        <button type="button" class="btn btn--ghost" data-copy-target="shareUrl"
+                data-copied-label="✓ コピーしました">コピー</button>
+    </div>
+</div>
 
 <form method="post" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">

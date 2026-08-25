@@ -9,3 +9,9 @@
         Deny from all
     </IfModule>
 </FilesMatch>
+
+# プロフィールの短い共有URL（/u/<コード>）を u.php へ渡す。
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^u/([A-Za-z0-9]{4,32})/?$ u.php?c=$1 [L,QSA]
+</IfModule>

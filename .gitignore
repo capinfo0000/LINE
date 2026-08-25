@@ -12,3 +12,7 @@
 
 # 本番確認用の一時成果物（スクショ・撮影スクリプト）
 /.shots/
+
+# 画面確認用のブラウザ（Playwright）。コミットしない
+/node_modules/
+/package-lock.json

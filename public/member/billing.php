@@ -8,7 +8,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $member = require_member(false, true); // 無料フェーズ/未サブスクでも状態確認のため開ける
 $customerId = (string) ($member['stripe_customer_id'] ?? '');

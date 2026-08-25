@@ -15,7 +15,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 $secret = env('STRIPE_WEBHOOK_SECRET');
 if ($secret === null) {

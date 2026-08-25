@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $member = require_member();
 
@@ -65,11 +65,11 @@ require __DIR__ . '/_header.php';
         <div class="card">
             <div style="display:flex;gap:12px;align-items:flex-start;">
                 <?php if ($hasApprovedPhoto): ?>
-                    <img src="/member/photo.php?id=<?= e($r['member_id']) ?>" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none;">
+                    <img src="<?= e(member_photo_url($r)) ?>" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none;">
                 <?php endif; ?>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:600;">
-                        <a href="/member/member_view.php?id=<?= e($r['member_id']) ?>"><?= e($r['name'] !== '' ? $r['name'] : '会員') ?></a>
+                        <a href="<?= e(member_public_path($r)) ?>"><?= e($r['name'] !== '' ? $r['name'] : '会員') ?></a>
                         <?php $__age = profile_age_text($r); ?><?php if ($__age !== ''): ?><span class="muted" style="font-weight:normal;">（<?= e($__age) ?>）</span><?php endif; ?>
                         <span style="float:right;font-size:.78rem;color:var(--info-fg);">マッチ度 <?= (int) $r['score'] ?></span>
                     </div>

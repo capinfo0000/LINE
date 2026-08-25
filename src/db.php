@@ -506,6 +506,23 @@ function db_migrate(\PDO $pdo): void
     db_add_column_if_missing($pdo, 'profiles', 'intro_text', 'TEXT');
     // 公式LINEへ自己紹介を送信済みかの記録（さがすの閲覧ロック解除に使用）。
     db_add_column_if_missing($pdo, 'members', 'intro_submitted_at', 'INTEGER');
+    // プロフィールの共有用の短いコード（/u/xxxxxxxx）。内部IDを見せずに共有するため。
+    db_add_column_if_missing($pdo, 'members', 'public_code', 'TEXT');
+    // 未発行の会員にはここで一度だけ配る（画面の描画中に書き込みが走らないように）。
+    $need = $pdo->query("SELECT id FROM members WHERE public_code IS NULL OR public_code = ''")->fetchAll(\PDO::FETCH_COLUMN);
+    if ($need !== []) {
+        $upd = $pdo->prepare('UPDATE members SET public_code = ? WHERE id = ?');
+        foreach ($need as $mid) {
+            do {
+                $code = random_safe_string(8);
+                $chk = $pdo->prepare('SELECT 1 FROM members WHERE public_code = ? LIMIT 1');
+                $chk->execute([$code]);
+            } while ($chk->fetchColumn());
+            $upd->execute([$code, $mid]);
+        }
+    }
+    // 列の追加と配布が済んでから一意制約を張る（既存DBでも順番が狂わないようにここに置く）。
+    $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_members_public_code ON members(public_code) WHERE public_code IS NOT NULL;');
     // 称号の手動設定。空ならポイントから自動で決まる。
     // 「システム管理者」「運用責任者」のようにポイントでは到達できない称号もここで持つ。
     db_add_column_if_missing($pdo, 'members', 'title_override', 'TEXT');

@@ -17,7 +17,7 @@ if (PHP_SAPI !== 'cli') {
     exit("CLI からのみ実行できます。\n");
 }
 
-require dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 // 多重起動ロック（前回が長引いても二重処理を避ける。処理自体は冪等だが無駄を減らす）。
 $lockPath = dirname(current_db_path()) . '/reconcile.lock';
