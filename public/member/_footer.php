@@ -9,9 +9,24 @@ $__showTabs = in_array($__cur, $__tabPages, true);
 $__onSearch = in_array($__cur, ['directory', 'recommend'], true);
 $__onProfile = in_array($__cur, ['profile', 'dashboard', 'points', 'billing'], true);
 ?>
-<?php if ($__showTabs): ?><div class="tp-tabspacer"></div><?php endif; ?>
+<?php
+// 一番下の広告帯。タブバーが出る画面だけに置く（タブバーが無い画面で
+// 下に張り付いていても、何の上に乗っているのか分からなくなるため）。
+$__adBar = $__showTabs ? ads_render_each('bar', 6) : [];
+?>
+<?php if ($__showTabs): ?><div class="tp-tabspacer<?= $__adBar !== [] ? ' tp-tabspacer--ad' : '' ?>"></div><?php endif; ?>
 </div>
 <?php if ($__showTabs): ?>
+<?php // 広告帯とタブバーを1つの固定コンテナに入れる。こうすると広告の高さが
+      // 変わってもタブバーとの位置関係がずれない（高さを数値で決め打ちしなくて済む）。 ?>
+<div class="tp-bottom">
+<?php if ($__adBar !== []): ?>
+    <div class="ad-bar">
+        <div class="ad-bar__rail"<?= count($__adBar) > 1 ? ' data-autoplay="4500"' : '' ?>>
+            <?= implode('', $__adBar) ?>
+        </div>
+    </div>
+<?php endif; ?>
 <nav class="tp-tabbar" aria-label="メニュー">
     <div class="tp-tabbar__inner">
         <a href="/member/directory" class="<?= $__onSearch ? 'on' : '' ?>">
@@ -24,6 +39,7 @@ $__onProfile = in_array($__cur, ['profile', 'dashboard', 'points', 'billing'], t
         </a>
     </div>
 </nav>
+</div>
 <?php endif; ?>
 </body>
 </html>

@@ -525,9 +525,16 @@ div.tp-pslide{ cursor:default; }
 .tp-fab--like{ width:68px; height:68px; background:linear-gradient(145deg,var(--brand),var(--accent)); color:#fff; box-shadow:0 8px 22px rgba(180,83,9,.35); }
 .tp-fab--like.on{ background:linear-gradient(145deg,var(--accent),#92400e); }
 
-/* --- 会員サイトの下部2タブバー（さがす／プロフィール） --- */
-.tp-tabbar{ position:fixed; bottom:0; left:0; right:0; z-index:40; display:flex; justify-content:center;
-  background:color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter:blur(10px);
+/* --- 会員サイトの下部2タブバー（さがす／プロフィール） ---
+   広告帯（.ad-bar）と一緒に、1つの固定コンテナ（.tp-bottom）の中に入れている。
+   こうすると広告の高さが変わってもタブバーとの位置関係がずれない
+   （タブバー側の bottom を数値で決め打ちしなくて済む）。 */
+.tp-bottom{ position:fixed; bottom:0; left:0; right:0; z-index:40; }
+/* 背景は不透明にする。以前は半透明＋backdrop-filter で下の内容をぼかしていたが、
+   広告帯を上に置いたことで、その色がタブバーに透けて出るようになった
+   （backdrop-filter は同じ固定コンテナの中で先に描かれたものも拾う）。
+   タブバーの上は広告帯か本文の切れ目なので、すりガラスにする必要もない。 */
+.tp-tabbar{ display:flex; justify-content:center; background:var(--surface);
   border-top:1px solid var(--border); padding:8px 0 calc(8px + env(safe-area-inset-bottom)); }
 .tp-tabbar__inner{ display:flex; width:100%; max-width:460px; }
 .tp-tabbar a{ flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:.68rem;
@@ -536,6 +543,9 @@ div.tp-pslide{ cursor:default; }
 .tp-tabbar a.on{ color:var(--coral); }
 .tp-tabbar svg{ width:24px; height:24px; }
 .tp-tabspacer{ height:72px; }
+/* 広告帯があるぶん、本文の下に空ける高さを増やす（最後のカードが隠れないように）。 */
+.tp-tabspacer--ad{ height:136px; }
+
 
 /* --- さがす：横スクロールのカルーセル（本日のおすすめ等） --- */
 .tp-secttl{ display:flex; align-items:center; gap:7px; font-weight:800; margin:18px 2px 8px; font-size:1.02rem; }
@@ -647,3 +657,20 @@ div.tp-pslide{ cursor:default; }
   background:rgba(17,24,39,.62); color:#fff; font-size:.66rem; font-weight:700; line-height:1.5;
   letter-spacing:.04em; pointer-events:none; }
 .ad--side{ width:160px; }
+
+/* --- 一番下の広告帯（タブバーの上） ---
+   高さを固定した細長い帯。2件以上あると横に流れる（お知らせと同じ自動送りの仕組み）。
+
+   ※ この塊は、上の汎用ルール（.ad / .ad img）より後ろに置くこと。
+     .ad--bar img と .ad img は詳細度が同じなので、先に書くと
+     .ad img{ height:auto } に負けて高さの指定が効かない（実際に効かず、
+     帯が105pxになって最後のカードが隠れた）。 */
+.ad-bar{ background:var(--surface); border-top:1px solid var(--border); }
+.ad-bar__rail{ display:flex; gap:0; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none;
+  max-width:720px; margin:0 auto; -webkit-overflow-scrolling:touch; }
+.ad-bar__rail::-webkit-scrollbar{ display:none; }
+.ad--bar{ scroll-snap-align:center; flex:0 0 100%; border:0; border-radius:0; box-shadow:none; background:transparent; }
+/* 高さを揃える。推奨比（横7：縦1）どおりの画像なら切れない。
+   ずれた比の画像を入れても崩れないよう cover にしている（中央が残る）。 */
+.ad--bar img{ height:56px; width:100%; object-fit:cover; }
+.ad--bar .ad__tag{ top:4px; right:8px; font-size:.6rem; padding:1px 6px; }
