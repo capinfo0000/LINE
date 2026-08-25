@@ -12,8 +12,14 @@
     RewriteEngine On
 
     # /public/… で直接来たリクエストは、表に出しているURLへ1回だけ転送する。
-    # フラット配置では public/ が実体として存在するため、/public/about.php でも
+    # フラット配置では public/ が実体として存在するため、/public/about でも
     # 同じページが出てしまい、検索側で別ページ（重複）として扱われる。入口を1つに揃える。
+    #
+    # ※ フラット配置では、この規則は実際には使われない。mod_rewrite の規則は
+    #   子ディレクトリの .htaccess が RewriteEngine On を宣言すると継承されないため、
+    #   /public/ 配下のリクエストは public/.htaccess の規則だけが効く（同じ規則をそちらにも置いた）。
+    #   ここに残しているのは、public/ に .htaccess が無い配置のための保険。
+    #
     # 判定は THE_REQUEST（ブラウザが送ってきた元のリクエスト行）で行う。下の内部転送は
     # REQUEST_URI を /public/… に書き換えるため、REQUEST_URI で見ると往復し続ける。
     RewriteCond %{REQUEST_METHOD} =GET

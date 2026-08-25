@@ -27,6 +27,23 @@
     RewriteCond %{THE_REQUEST} !\s/+(public/)?(webhook|line_webhook|cron|install)\.php[\s?]
     RewriteRule ^(.+)\.php$ /$1 [R=301,L,QSA]
 
+    # --- /public/… で来たリクエストを、表に出しているURLへ寄せる ---
+    # フラット配置では public/ が実体として存在するため、/public/about でも同じページが
+    # 出てしまい、検索側で別ページ（重複）として扱われる。
+    #
+    # ※ この規則は直下の .htaccess にも書いてあるが、mod_rewrite の規則は
+    #   子ディレクトリの .htaccess が RewriteEngine On を宣言すると継承されない。
+    #   そのため /public/ 配下のリクエストには直下の規則が効かず、ここにも同じものが必要。
+    #   （.php 付きは上の規則が先に拾って1回で /about に着くので、この規則はその後に置く）
+    #
+    # 判定は THE_REQUEST（ブラウザが送ってきた元のリクエスト行）で行う。直下の .htaccess は
+    # 内部転送で REQUEST_URI を /public/… に書き換えるので、REQUEST_URI で見ると
+    # 通常のアクセスまで転送してしまう。
+    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteCond %{THE_REQUEST} \s/+public/
+    RewriteCond %{THE_REQUEST} !\s/+public/(webhook|line_webhook|cron|install)\.php[\s?]
+    RewriteRule ^(.*)$ /$1 [R=301,L,QSA]
+
     # プロフィールの短い共有URL（/u/<コード>）を u.php へ渡す。
     RewriteRule ^u/([A-Za-z0-9]{4,32})/?$ u.php?c=$1 [L,QSA]
 
