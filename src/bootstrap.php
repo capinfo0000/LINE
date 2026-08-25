@@ -315,6 +315,17 @@ function audit_log(string $event, array $ctx = []): void
     }
     $parts = [];
     foreach ($ctx as $k => $v) {
+        // 配列・真偽値・null をそのまま (string) すると警告が出て、
+        // その警告が呼び出し元の応答に混ざる（cron の出力が汚れる）。ここで潰しておく。
+        if (is_array($v)) {
+            $v = implode(',', array_map(static fn ($x) => is_scalar($x) ? (string) $x : gettype($x), $v));
+        } elseif (is_bool($v)) {
+            $v = $v ? '1' : '0';
+        } elseif ($v === null) {
+            $v = '-';
+        } elseif (!is_scalar($v)) {
+            $v = gettype($v);
+        }
         // 改行・空白を除去してログ1行を壊さない
         $parts[] = $k . '=' . preg_replace('/\s+/', '_', (string) $v);
     }

@@ -7,7 +7,8 @@
  *   job = remind（予約リマインド）/ reconcile（Stripe照合）/ recommend（おすすめ再構築）
  *       / waiver（紹介特典の月額無料化判定）
  *       / legacy_scan・legacy_import（旧サイトに登録された会員を持ってくる。
- *         data/legacy/members.json を置いてから scan → import の順で叩く）
+ *         data/legacy/members.json を置いてから scan → import の順で叩く。
+ *         既に居る会員のプロフィールが空のときは legacy_fill で空欄だけ埋める）
  *
  * ※ CLI 版（bin/reconcile.php 等）と同じ処理を Web から実行する。多重起動ロックあり・冪等。
  */
@@ -27,7 +28,7 @@ if ($expected === '' || !hash_equals($expected, $given)) {
 }
 
 $job = (string) ($_GET['job'] ?? '');
-if (!in_array($job, ['remind', 'reconcile', 'recommend', 'waiver', 'seed', 'unseed', 'samplephotos', 'diag', 'legacy_scan', 'legacy_import'], true)) {
+if (!in_array($job, ['remind', 'reconcile', 'recommend', 'waiver', 'seed', 'unseed', 'samplephotos', 'diag', 'legacy_scan', 'legacy_import', 'legacy_fill'], true)) {
     http_response_code(400);
     exit("unknown job\n");
 }
@@ -156,6 +157,9 @@ try {
     } elseif ($job === 'legacy_import') {
         // 旧サイトの会員を取り込む。既に居る会員は飛ばすので、何度叩いても同じ結果になる。
         $out .= legacy_import();
+    } elseif ($job === 'legacy_fill') {
+        // 既に新サイトに居る会員の、空いているところだけを埋める。上書きはしない。
+        $out .= legacy_fill();
     } elseif ($job === 'samplephotos') {
         // サンプル会員の顔写真を強制的に割り当て直す（既存会員にも反映）。
         $n = attach_sample_photos(true);

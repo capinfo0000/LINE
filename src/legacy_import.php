@@ -122,6 +122,83 @@ function legacy_safe_public_code(?string $code): array
 }
 
 /**
+ * 既に新サイトに居る会員について、受け渡しファイルの側にあって新サイトの側に
+ * 無いものを洗い出す。
+ *
+ * 「会員は居るがプロフィールが空」という状態が起こりうる。旧サイトで
+ * プロフィールを書いた人が、新サイトでは会員の行だけ作られている場合など。
+ * 上書きは危険なので、埋めるのは「新サイト側が空のもの」だけに限る。
+ *
+ * @return array{fields:array<string,string>, images:array<string,array>, tags:array<int,array>, prefs:bool, links:bool}
+ */
+function legacy_diff_existing(string $memberId, array $m): array
+{
+    $payloadProf = is_array($m['profile'] ?? null) ? $m['profile'] : [];
+    $now = get_profile($memberId);
+
+    // 文章の項目。新サイト側が空で、受け渡しファイル側に中身があるものだけ拾う。
+    $fields = [];
+    $labels = [
+        'name_text' => '名前', 'headline' => 'ひとこと', 'bio' => '自己紹介',
+        'intro_text' => 'LINE用の自己紹介', 'occupation' => '職種', 'job_title' => '役職',
+        'company_title' => '会社・肩書', 'age_text' => '年齢', 'birthdate' => '生年月日',
+    ];
+    foreach ($labels as $col => $label) {
+        $incoming = trim((string) ($payloadProf[$col] ?? ''));
+        $current = trim((string) ($now[$col] ?? ''));
+        if ($incoming !== '' && $current === '') {
+            $fields[$col] = $label;
+        }
+    }
+
+    // 画像。新サイト側に実ファイルが無いものだけ拾う。
+    $images = [];
+    $imgCols = ['photo' => 'photo_path', 'cover' => 'cover_path', 'card' => 'card_path'];
+    foreach ($imgCols as $kind => $col) {
+        $incoming = is_array($m['images'][$kind] ?? null) ? $m['images'][$kind] : null;
+        if ($incoming === null) {
+            continue;
+        }
+        if (member_image_abs_path($now, $col) === null) {
+            $images[$kind] = $incoming;
+        }
+    }
+
+    // タグ。新サイト側に1つも付いていないときだけ足す（部分的に混ぜると
+    // 本人が外したタグを復活させてしまう）。
+    $tags = [];
+    $cnt = db()->prepare('SELECT COUNT(*) FROM member_tags WHERE member_id = ?');
+    $cnt->execute([$memberId]);
+    if ((int) $cnt->fetchColumn() === 0) {
+        foreach ((array) ($m['tags'] ?? []) as $t) {
+            $tags[] = $t;
+        }
+    }
+
+    // 求める条件・リンクも「新サイト側が空のときだけ」。
+    $pc = db()->prepare('SELECT COUNT(*) FROM match_preferences WHERE member_id = ?');
+    $pc->execute([$memberId]);
+    $prefsEmpty = (int) $pc->fetchColumn() === 0;
+    $hasPrefs = false;
+    foreach (['seek_area', 'seek_job', 'seek_purpose'] as $col) {
+        if ((array) (($m['prefs'][$col]) ?? []) !== []) {
+            $hasPrefs = true;
+        }
+    }
+    $lc = db()->prepare('SELECT COUNT(*) FROM member_links WHERE member_id = ?');
+    $lc->execute([$memberId]);
+    $linksEmpty = (int) $lc->fetchColumn() === 0;
+
+    return [
+        'fields' => $fields,
+        'images' => $images,
+        'tags'   => $tags,
+        'prefs'  => $prefsEmpty && $hasPrefs,
+        'links'  => $linksEmpty && (array) ($m['links'] ?? []) !== [],
+    ];
+}
+
+/**
  * 取り込み前の下見。何が入っていて、取り込めるか・既に居るかを文章で返す。
  * 書き込みは一切しない。
  */
@@ -151,7 +228,37 @@ function legacy_scan(): string
         $byLogin = db()->prepare('SELECT 1 FROM members WHERE login_id = ?');
         $byLogin->execute([$loginId]);
         if ($byId->fetchColumn() || $byLogin->fetchColumn()) {
-            $out[] = '    → 既にこの会員は新サイトに居ます（飛ばします）';
+            $out[] = '    → 既にこの会員は新サイトに居ます（job=legacy_import では触りません）';
+            $d = legacy_diff_existing($id, $m);
+            $any = false;
+            if ($d['fields'] !== []) {
+                $out[] = '       新サイト側が空の項目: ' . implode('、', $d['fields']);
+                $any = true;
+            }
+            if ($d['images'] !== []) {
+                $names = [];
+                foreach ($d['images'] as $k => $img) {
+                    $names[] = ['photo' => '顔写真', 'cover' => 'カバー', 'card' => '名刺'][$k]
+                        . '(' . round(strlen((string) base64_decode((string) ($img['b64'] ?? ''), true)) / 1024) . 'KB)';
+                }
+                $out[] = '       新サイト側に無い画像: ' . implode(' / ', $names);
+                $any = true;
+            }
+            if ($d['tags'] !== []) {
+                $out[] = '       新サイト側はタグ0件。付けられるタグ: ' . count($d['tags']) . ' 件';
+                $any = true;
+            }
+            if ($d['prefs']) {
+                $out[] = '       新サイト側は「求める条件」が未設定';
+                $any = true;
+            }
+            if ($d['links']) {
+                $out[] = '       新サイト側はリンク0件';
+                $any = true;
+            }
+            $out[] = $any
+                ? '       → 足せるものがあります。job=legacy_fill で「空のところだけ」埋められます（上書きしません）'
+                : '       → 欠けているものはありません。何もする必要はありません';
             continue;
         }
 
@@ -469,6 +576,161 @@ function legacy_import(): string
     $out[] = "取り込み {$done} 名 / 飛ばした・失敗 {$skipped} 名";
     if ($done > 0) {
         $out[] = '取り込みが済んだら data/legacy/members.json は消してください（個人情報を置いたままにしないため）。';
+    }
+    return implode("\n", $out) . "\n";
+}
+
+/**
+ * 既に新サイトに居る会員の「空いているところだけ」を埋める。
+ *
+ * legacy_import() は既存の会員に一切触らない（取り違えたときの被害が大きいため）。
+ * ただし「会員の行はあるがプロフィールが空」という状態は実際に起きるので、
+ * 埋めるだけの操作を別のジョブとして分けている。
+ *
+ * 上書きはしない。新サイト側に値が入っている項目・すでにある画像はそのまま残す。
+ * 何を埋めて何を残したかは全部書き出す（後から確認できるように）。
+ */
+function legacy_fill(): string
+{
+    $p = legacy_read_payload();
+    if (!$p['ok']) {
+        return $p['message'] . "\n";
+    }
+    $out = [];
+    $touched = 0;
+
+    foreach ($p['members'] as $m) {
+        $mem = is_array($m['member'] ?? null) ? $m['member'] : [];
+        $id = (string) ($mem['id'] ?? '');
+        $loginId = (string) ($mem['login_id'] ?? '');
+        if ($id === '') {
+            continue;
+        }
+        $exists = db()->prepare('SELECT 1 FROM members WHERE id = ?');
+        $exists->execute([$id]);
+        if (!$exists->fetchColumn()) {
+            $out[] = '対象外（この会員は新サイトに居ません。先に job=legacy_import を実行してください）: ' . $loginId;
+            continue;
+        }
+
+        $d = legacy_diff_existing($id, $m);
+        if ($d['fields'] === [] && $d['images'] === [] && $d['tags'] === [] && !$d['prefs'] && !$d['links']) {
+            $out[] = '何も足すものがありません（すべて埋まっています）: ' . $loginId;
+            continue;
+        }
+
+        db()->beginTransaction();
+        $written = [];
+        try {
+            // profiles の行が無いこともあるので、先に存在を保証する。
+            save_profile($id, []);
+
+            // --- 文章の項目（空のところだけ） ---
+            if ($d['fields'] !== []) {
+                $payloadProf = is_array($m['profile'] ?? null) ? $m['profile'] : [];
+                $sets = [];
+                $args = [];
+                foreach (array_keys($d['fields']) as $col) {
+                    $sets[] = "{$col} = ?";
+                    $args[] = (string) ($payloadProf[$col] ?? '');
+                }
+                $sets[] = 'updated_at = ?';
+                $args[] = time();
+                $args[] = $id;
+                db()->prepare('UPDATE profiles SET ' . implode(', ', $sets) . ' WHERE member_id = ?')->execute($args);
+                $written[] = '項目（' . implode('、', $d['fields']) . '）';
+            }
+
+            // --- 画像（新サイト側に無いものだけ） ---
+            foreach ($d['images'] as $kind => $img) {
+                $rel = legacy_write_image($id, $kind, $img);
+                if ($rel === null) {
+                    $out[] = '  ※ ' . $kind . ' は画像として読めなかったので書きませんでした';
+                    continue;
+                }
+                $col = ['photo' => 'photo_path', 'cover' => 'cover_path', 'card' => 'card_path'][$kind];
+                if ($kind === 'photo') {
+                    db()->prepare("UPDATE profiles SET photo_path = ?, photo_status = 'approved', updated_at = ? WHERE member_id = ?")
+                        ->execute([$rel, time(), $id]);
+                } else {
+                    db()->prepare("UPDATE profiles SET {$col} = ?, updated_at = ? WHERE member_id = ?")
+                        ->execute([$rel, time(), $id]);
+                }
+                $written[] = ['photo' => '顔写真', 'cover' => 'カバー', 'card' => '名刺'][$kind];
+            }
+
+            // --- タグ（新サイト側が0件のときだけ。名前で照合する） ---
+            if ($d['tags'] !== []) {
+                $ok = 0;
+                $miss = [];
+                $ins = db()->prepare('INSERT OR IGNORE INTO member_tags (member_id, tag_id) VALUES (?,?)');
+                foreach ($d['tags'] as $t) {
+                    $tid = legacy_resolve_tag((string) ($t['category_key'] ?? ''), (string) ($t['label'] ?? ''));
+                    if ($tid === null) {
+                        $miss[] = (string) ($t['category_key'] ?? '') . '/' . (string) ($t['label'] ?? '');
+                        continue;
+                    }
+                    $ins->execute([$id, $tid]);
+                    $ok++;
+                }
+                if ($ok > 0) {
+                    $written[] = 'タグ' . $ok . '件';
+                }
+                if ($miss !== []) {
+                    $out[] = '  ※ 新サイトに無いタグは付けていません: ' . implode(', ', $miss);
+                }
+            }
+
+            // --- 求める条件（新サイト側が未設定のときだけ） ---
+            if ($d['prefs']) {
+                $ids = [];
+                foreach (['seek_area', 'seek_job', 'seek_purpose'] as $col) {
+                    $list = [];
+                    foreach ((array) (($m['prefs'][$col]) ?? []) as $t) {
+                        $tid = legacy_resolve_tag((string) ($t['category_key'] ?? ''), (string) ($t['label'] ?? ''));
+                        if ($tid !== null) {
+                            $list[] = $tid;
+                        }
+                    }
+                    $ids[$col] = $list;
+                }
+                db()->prepare(
+                    'INSERT INTO match_preferences (member_id, seek_area, seek_job, seek_purpose, updated_at) VALUES (?,?,?,?,?)'
+                )->execute([$id, json_encode($ids['seek_area']), json_encode($ids['seek_job']), json_encode($ids['seek_purpose']), time()]);
+                $written[] = '求める条件';
+            }
+
+            // --- リンク（新サイト側が0件のときだけ） ---
+            if ($d['links']) {
+                $ins = db()->prepare('INSERT INTO member_links (member_id, kind, label, url, sort_order) VALUES (?,?,?,?,?)');
+                foreach ((array) ($m['links'] ?? []) as $k => $l) {
+                    $ins->execute([
+                        $id,
+                        (string) ($l['kind'] ?? 'other'),
+                        (string) ($l['label'] ?? ''),
+                        (string) ($l['url'] ?? ''),
+                        (int) ($l['sort_order'] ?? $k),
+                    ]);
+                }
+                $written[] = 'リンク' . count((array) ($m['links'] ?? [])) . '件';
+            }
+
+            db()->commit();
+            $touched++;
+            $out[] = '埋めました: ' . $loginId . ' → ' . ($written === [] ? 'なし' : implode('、', $written));
+            audit_log('admin.legacy_fill', ['member' => $id, 'filled' => implode(',', $written)]);
+        } catch (\Throwable $e) {
+            if (db()->inTransaction()) {
+                db()->rollBack();
+            }
+            $out[] = '失敗しました: ' . $loginId . ' → ' . $e->getMessage();
+        }
+    }
+
+    $out[] = '';
+    $out[] = "埋めた会員 {$touched} 名";
+    if ($touched > 0) {
+        $out[] = '終わったら data/legacy/members.json は消してください（個人情報を置いたままにしないため）。';
     }
     return implode("\n", $out) . "\n";
 }
