@@ -34,7 +34,8 @@ require __DIR__ . '/_app_header.php';
         <a href="/tokushoho.php" target="_blank" rel="noopener">特定商取引法に基づく表記</a> ／
         <a href="/policy.php" target="_blank" rel="noopener">キャンセル・返金ポリシー</a> ／
         <a href="/privacy.php" target="_blank" rel="noopener">プライバシーポリシー</a> ／
-        <a href="/terms.php" target="_blank" rel="noopener">利用規約</a>
+        <a href="/terms.php" target="_blank" rel="noopener">利用規約</a><br>
+        規約・ポリシーの<strong>本文そのもの</strong>を書き換えたい場合は<a href="/admin/settings_legal.php">規約・ポリシー</a>から編集できます。
     </p>
 </div>
 

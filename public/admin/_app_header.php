@@ -24,6 +24,7 @@ $navItems = [
     ['openchat.php',  '', 'オープンチャット', ['openchat.php']],
     ['tags.php',      '', 'タグ管理',       ['tags.php']],
     ['settings_site.php', '', '各種設定',   ['settings_site.php']],
+    ['settings_legal.php', '', '規約・ポリシー', ['settings_legal.php']],
     ['account.php',   '', 'アカウント設定', ['account.php']],
 ];
 if ((int) ($tenant['is_admin'] ?? 0) === 1) {
