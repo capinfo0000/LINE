@@ -29,6 +29,12 @@
 
 html, body { margin: 0; padding: 0; }
 
+/* 会員が入力した文章に長いURLなど区切りの無い文字列が入ると、それ1語で
+   ページ全体が横に伸びてレイアウトが崩れる（自己紹介にURLを貼った場合など）。
+   入りきらない語だけを折り返す安全網を全体にかけておく。
+   white-space:nowrap を指定した表やピッカーの行には影響しない。 */
+body { overflow-wrap: break-word; }
+
 body {
   font-family: var(--font);
   line-height: 1.6;

@@ -125,7 +125,8 @@ function attach_sample_photos(bool $force = false): int
             continue;
         }
         $err = '';
-        if (save_member_photo($mid, ['error' => UPLOAD_ERR_OK, 'size' => filesize($src), 'tmp_name' => $src], $err)) {
+        // リポジトリ内のサンプル画像を直接渡すため、アップロード由来チェックは外す。
+        if (save_member_photo($mid, ['error' => UPLOAD_ERR_OK, 'size' => filesize($src), 'tmp_name' => $src], $err, false)) {
             $n++;
         }
     }

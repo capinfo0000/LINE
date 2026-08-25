@@ -10,17 +10,19 @@ require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $tenant = require_tenant();
 $msg = '';
+$msgType = 'ok';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
     $action = (string) ($_POST['action'] ?? '');
     if ($action === 'add') {
-        admin_add_tag((string) ($_POST['category_key'] ?? ''), (string) ($_POST['label'] ?? ''));
-        $msg = 'タグを作成しました。';
+        $r = admin_add_tag((string) ($_POST['category_key'] ?? ''), (string) ($_POST['label'] ?? ''));
+        $msg = $r['message'];
+        $msgType = $r['ok'] ? 'ok' : 'ng';
     } elseif ($action === 'delete') {
-        $msg = admin_delete_tag((int) ($_POST['tag_id'] ?? 0))
-            ? 'タグを削除しました。'
-            : 'タグが見つかりませんでした。';
+        $ok = admin_delete_tag((int) ($_POST['tag_id'] ?? 0));
+        $msg = $ok ? 'タグを削除しました。' : 'タグが見つかりませんでした。';
+        $msgType = $ok ? 'ok' : 'ng';
     }
 }
 
@@ -34,7 +36,7 @@ $token = csrf_token();
 $pageTitle = 'タグ管理';
 require __DIR__ . '/_app_header.php';
 ?>
-<?php if ($msg !== ''): ?><div class="flash flash--ok"><?= e($msg) ?></div><?php endif; ?>
+<?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
 
 <form method="post" class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="add">

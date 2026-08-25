@@ -84,19 +84,36 @@ function admin_reissue_credentials(string $memberId): bool
 /* ------------------------- タグマスタ管理 ------------------------- */
 
 /** タグを追加する（既存は無視）。 */
-function admin_add_tag(string $categoryKey, string $label): void
+/**
+ * タグを追加する。
+ * 追加できなかった理由（未入力・不正な分類・重複）を呼び出し側に返し、
+ * 画面で「作成しました」と誤って表示しないようにする。
+ *
+ * @return array{ok:bool, message:string}
+ */
+function admin_add_tag(string $categoryKey, string $label): array
 {
     $categoryKey = trim($categoryKey);
-    $label = trim($label);
-    if ($categoryKey === '' || $label === '') {
-        return;
+    $label = clean_line_text($label);
+    if ($label === '') {
+        return ['ok' => false, 'message' => 'タグ名が未入力です。追加する名前を入力してください。'];
+    }
+    if (mb_strlen($label) > 40) {
+        return ['ok' => false, 'message' => 'タグ名が長すぎます。40文字以内にしてください。'];
     }
     $cats = array_column(get_tag_categories(), 'key');
-    if (!in_array($categoryKey, $cats, true)) {
-        return;
+    if ($categoryKey === '' || !in_array($categoryKey, $cats, true)) {
+        return ['ok' => false, 'message' => '分類が正しくありません。一覧から選び直してください。'];
     }
-    $stmt = db()->prepare('INSERT OR IGNORE INTO tags (category_key, label, sort) VALUES (?,?,?)');
+    $dup = db()->prepare('SELECT 1 FROM tags WHERE category_key = ? AND label = ? LIMIT 1');
+    $dup->execute([$categoryKey, $label]);
+    if ($dup->fetchColumn()) {
+        return ['ok' => false, 'message' => '「' . $label . '」は既に登録されています。'];
+    }
+    $stmt = db()->prepare('INSERT INTO tags (category_key, label, sort) VALUES (?,?,?)');
     $stmt->execute([$categoryKey, $label, 999]);
+    audit_log('admin.tag_added', ['category' => $categoryKey, 'label' => $label]);
+    return ['ok' => true, 'message' => 'タグ「' . $label . '」を作成しました。'];
 }
 
 /** タグの有効/無効を切り替える。 */

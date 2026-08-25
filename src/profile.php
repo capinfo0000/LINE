@@ -477,7 +477,7 @@ function gd_apply_exif_orientation($img, string $tmp, string $mime)
  *
  * @param array{tmp_name?:string,size?:int,error?:int} $file $_FILES のエントリ
  */
-function save_member_photo(string $memberId, array $file, string &$error = ''): bool
+function save_member_photo(string $memberId, array $file, string &$error = '', bool $fromUpload = true): bool
 {
     $errCode = $file['error'] ?? UPLOAD_ERR_NO_FILE;
     if ($errCode !== UPLOAD_ERR_OK) {
@@ -496,7 +496,8 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
     }
     $tmp = (string) ($file['tmp_name'] ?? '');
     // is_uploaded_file: 実際にHTTPでアップロードされた一時ファイル以外を掴まされないための多層防御。
-    if ($tmp === '' || !is_uploaded_file($tmp) || !is_readable($tmp)) {
+    // サンプル会員の写真投入のようにサーバ内のファイルを直接渡す場合は $fromUpload=false で明示する。
+    if ($tmp === '' || ($fromUpload && !is_uploaded_file($tmp)) || !is_readable($tmp)) {
         $error = '画像を読み取れませんでした。';
         return false;
     }
@@ -625,7 +626,7 @@ function member_image_abs_path(array $profile, string $column): ?string
  *
  * @param array{tmp_name?:string,size?:int,error?:int} $file
  */
-function save_member_image(string $memberId, string $column, string $kind, array $file, int $maxW, string &$error = ''): bool
+function save_member_image(string $memberId, string $column, string $kind, array $file, int $maxW, string &$error = '', bool $fromUpload = true): bool
 {
     $errCode = $file['error'] ?? UPLOAD_ERR_NO_FILE;
     if ($errCode !== UPLOAD_ERR_OK) {
@@ -638,7 +639,8 @@ function save_member_image(string $memberId, string $column, string $kind, array
     }
     $tmp = (string) ($file['tmp_name'] ?? '');
     // is_uploaded_file: 実際にHTTPでアップロードされた一時ファイル以外を掴まされないための多層防御。
-    if ($tmp === '' || !is_uploaded_file($tmp) || !is_readable($tmp)) {
+    // サンプル会員の写真投入のようにサーバ内のファイルを直接渡す場合は $fromUpload=false で明示する。
+    if ($tmp === '' || ($fromUpload && !is_uploaded_file($tmp)) || !is_readable($tmp)) {
         $error = '画像を読み取れませんでした。';
         return false;
     }

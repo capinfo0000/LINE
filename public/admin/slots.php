@@ -25,19 +25,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 $ts = (new DateTime($when, new DateTimeZone('Asia/Tokyo')))->getTimestamp();
-                $sid = create_slot($kind, $ts, $cap > 0 ? $cap : 1);
+            } catch (\Throwable $e) {
+                $ts = null;
+            }
+            if ($ts === null) {
+                $msg = '日時の形式が不正です。カレンダーから日時を選び直してください。';
+                $msgType = 'ng';
+            } elseif ($ts <= time()) {
+                // 過去の枠を作っても open_slots() の対象外で会員には一切表示されない。
+                // 「作成しました」と出ると気づけないので、ここで弾いて理由を伝える。
+                $msg = '過去の日時では枠を作成できません。これから開催する日時を選んでください。';
+                $msgType = 'ng';
+            } else {
+                $capUsed = max(1, min(100, $cap));
+                $sid = create_slot($kind, $ts, $capUsed);
                 $created = find_slot($sid);
+                $capNote = $capUsed !== $cap ? "（定員は{$capUsed}名として作成しました）" : '';
                 if (!empty($created['zoom_url'])) {
-                    $msg = '枠を作成し、Zoom会議URLを発行しました。予約者にはこのURLが自動で届きます。';
+                    $msg = '枠を作成し、Zoom会議URLを発行しました。予約者にはこのURLが自動で届きます。' . $capNote;
                 } elseif (zoom_enabled()) {
-                    $msg = '枠を作成しました。ただしZoom会議の発行に失敗したため、最初の予約時に再発行を試みます。';
+                    $msg = '枠を作成しました' . $capNote . '。ただしZoom会議の発行に失敗したため、最初の予約時に再発行を試みます。';
                     $msgType = 'ng';
                 } else {
-                    $msg = '枠を作成しました（Zoom未設定のため会議URLは手動運用です）。';
+                    $msg = '枠を作成しました' . $capNote . '（Zoom未設定のため会議URLは手動運用です）。';
                 }
-            } catch (\Throwable $e) {
-                $msg = '日時の形式が不正です。';
-                $msgType = 'ng';
             }
         }
     } elseif ($action === 'toggle') {
@@ -137,8 +148,8 @@ require __DIR__ . '/_app_header.php';
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="action" value="create">
     <div><label>種別</label>
         <select name="kind"><option value="seminar">説明会</option><option value="interview">個別面談</option></select></div>
-    <div><label>日時（JST）</label><input type="datetime-local" name="start_at"></div>
-    <div><label>定員</label><input type="number" name="capacity" value="1" min="1" style="max-width:90px;"></div>
+    <div><label>日時（JST）</label><input type="datetime-local" name="start_at" min="<?= e(gmdate('Y-m-d\\TH:i', time() + 9 * 3600)) ?>"></div>
+    <div><label>定員</label><input type="number" name="capacity" value="1" min="1" max="100" style="max-width:90px;"></div>
     <div><button type="submit" class="btn">枠を作成</button></div>
 </form>
 
