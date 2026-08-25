@@ -213,6 +213,13 @@ function legacy_scan(): string
     $out[] = '入っている会員: ' . count($p['members']) . ' 名';
     $out[] = '';
 
+    // 最後の案内を実態に合わせるための集計。
+    // 「既に居るので import では何も起きない」のに import を案内すると、
+    // 叩いた人が「0名で終わった」で行き止まりになる。
+    $needImport = 0;
+    $needFill = 0;
+    $needNothing = 0;
+
     foreach ($p['members'] as $i => $m) {
         $mem = $m['member'] ?? [];
         $id = (string) ($mem['id'] ?? '');
@@ -259,6 +266,11 @@ function legacy_scan(): string
             $out[] = $any
                 ? '       → 足せるものがあります。job=legacy_fill で「空のところだけ」埋められます（上書きしません）'
                 : '       → 欠けているものはありません。何もする必要はありません';
+            if ($any) {
+                $needFill++;
+            } else {
+                $needNothing++;
+            }
             continue;
         }
 
@@ -294,9 +306,24 @@ function legacy_scan(): string
         $out[] = '    リンク: ' . count((array) ($m['links'] ?? [])) . ' 件'
                . ' / ポイント履歴: ' . count((array) ($m['points'] ?? [])) . ' 件';
         $out[] = '    → 取り込めます';
+        $needImport++;
     }
+
     $out[] = '';
-    $out[] = '実行するには job=legacy_import を叩いてください。';
+    $next = [];
+    if ($needImport > 0) {
+        $next[] = 'job=legacy_import（新しく取り込む: ' . $needImport . ' 名）';
+    }
+    if ($needFill > 0) {
+        $next[] = 'job=legacy_fill（既に居る会員の空欄だけ埋める: ' . $needFill . ' 名）';
+    }
+    if ($next === []) {
+        $out[] = 'やることはありません'
+            . ($needNothing > 0 ? '（' . $needNothing . ' 名はすべて埋まっています）' : '')
+            . '。data/legacy/members.json は消して構いません。';
+    } else {
+        $out[] = '次に叩くもの: ' . implode(' / ', $next);
+    }
     return implode("\n", $out) . "\n";
 }
 
