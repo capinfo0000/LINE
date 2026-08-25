@@ -39,6 +39,7 @@ require __DIR__ . '/samples.php';
 require __DIR__ . '/line.php';
 require __DIR__ . '/admin.php';
 require __DIR__ . '/legal.php';
+require __DIR__ . '/meta.php';
 require __DIR__ . '/mail.php';
 require __DIR__ . '/captcha.php';
 require __DIR__ . '/crypto.php';

@@ -71,6 +71,7 @@ $token = csrf_token();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>月額会費のお申し込み - Enlink</title>
+    <?php echo page_meta_tags(['title' => '月額会費のお申し込み', 'noindex' => true]); ?>
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/app.css">
 </head>

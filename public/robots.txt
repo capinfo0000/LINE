@@ -1,0 +1,23 @@
+# Enlink — クローラ向けの指示
+#
+# 【方針】会員限定ページを検索結果から外すのは Disallow ではなく、
+# 各ページの <meta name="robots" content="noindex, nofollow"> で行う。
+#
+# 理由が2つある。
+#  1. Disallow は「読むな」なので、SNSにURLを貼ったときの
+#     リンクプレビュー（OGP）取得まで止まってしまう。
+#     X や Facebook のクローラは robots.txt に従うため、
+#     /member/ を Disallow すると共有リンクのカードが出なくなる。
+#  2. Disallow したページは中身を読まれないだけで、外部リンク経由で
+#     URLだけ索引に載ることがある。noindex のほうが確実に外れる。
+#
+# ※ 運営画面のパスはここに書かない。robots.txt は誰でも読めるので、
+#    書いた時点で「隠しているフォルダ名」を教えることになる。
+
+User-agent: *
+# 機械向けのエンドポイント（HTMLを返さない）だけ止める
+Disallow: /cron.php
+Disallow: /webhook.php
+Disallow: /line_webhook.php
+Disallow: /install.php
+Allow: /

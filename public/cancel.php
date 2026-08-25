@@ -14,6 +14,7 @@ require_once dirname(__DIR__) . '/src/bootstrap.php';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>お支払いの中断 - Enlink</title>
+    <?php echo page_meta_tags(['title' => 'お支払いの中断', 'noindex' => true]); ?>
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/app.css">
 </head>

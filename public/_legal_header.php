@@ -10,6 +10,7 @@ $title = $title ?? '';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($title) ?></title>
+    <?php echo page_meta_tags(['title' => $title, 'type' => 'article']); ?>
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/app.css">
     <script src="/assets/app.js" defer></script>
