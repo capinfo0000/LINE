@@ -164,7 +164,10 @@ $__csrf = csrf_token();
             有効会員 <strong><?= (int) $__activeAll ?></strong> 名（全員サブスク登録が必要／未登録はアクセス制限）
         <?php else: ?>
             <span class="badge badge--info">無料フェーズ</span>
-            カウント対象 <strong><?= (int) $__active ?></strong> / <?= (int) $__limit ?> 名（あと <strong><?= max(0, $__limit - (int) $__active + 1) ?></strong> 名で課金開始）
+            <?php /* 残り人数は「さがす」の進捗バーと同じ数え方にする（無料枠が埋まるまで）。
+                     ここだけ課金開始（＝枠を超えた1名）を足して出していたため、
+                     会員側の画面と1名ずれて表示され、どちらかが誤りに見えていた。 */ ?>
+            カウント対象 <strong><?= (int) $__active ?></strong> / <?= (int) $__limit ?> 名（無料枠まであと <strong><?= max(0, $__limit - (int) $__active) ?></strong> 名）
         <?php endif; ?>
     </p>
     <p class="hint" style="margin:0 0 .6rem;">
@@ -172,7 +175,10 @@ $__csrf = csrf_token();
         （公式LINEに自己紹介を送信した、またはプロフィールの自己紹介欄を書いた会員）。
         IDを発行しただけの会員は数えません。
         いまの有効会員は <strong><?= (int) $__activeAll ?></strong> 名で、うち
-        <strong><?= (int) $__active ?></strong> 名がカウント対象です。
+        <strong><?= (int) $__active ?></strong> 名がカウント対象です。<br>
+        課金フェーズに入るのは、カウント対象が <strong><?= (int) $__limit ?> 名を超えた</strong>
+        （<?= (int) $__limit + 1 ?> 名目が入った）時点です。その月は猶予期間として無料のままで、
+        <strong>翌月1日から</strong>課金が始まります。
     </p>
 
     <?php if ($__billing): ?>
