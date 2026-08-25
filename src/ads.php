@@ -39,6 +39,81 @@ function ads_set_enabled(bool $on): void
     audit_log('admin.ads_enabled', ['on' => $on ? 1 : 0]);
 }
 
+/**
+ * この会員に広告を出さないか。
+ *
+ * 出さない条件は2つ。
+ *  1. 広告非表示の期限（ads_free_until）が先の時刻になっている
+ *     … 追加料金の期間券を買った、または運営が付与した
+ *  2. 運営設定で「プレミアム会員には出さない」をONにしていて、その会員がプレミアム
+ *
+ * 無料フェーズ中は plan.php が全員を premium 扱いにするため、2をONにすると
+ * 実質「全員に出ない」になる。設定画面にもその旨を書いてある。
+ */
+function member_ads_free(?array $member): bool
+{
+    if ($member === null) {
+        return false;
+    }
+    $until = (int) ($member['ads_free_until'] ?? 0);
+    if ($until > time()) {
+        return true;
+    }
+    if (app_setting_get('ads_free_premium', '0') === '1' && member_plan($member) === 'premium') {
+        return true;
+    }
+    return false;
+}
+
+/** 広告非表示の期限を延ばす（いまが期限内なら、そこから足す）。 */
+function extend_ads_free(string $memberId, int $days, string $reason = ''): int
+{
+    $m = find_member_by_id($memberId);
+    if ($m === null || $days <= 0) {
+        return 0;
+    }
+    $now = time();
+    $base = max($now, (int) ($m['ads_free_until'] ?? 0));
+    $until = $base + $days * 86400;
+    db()->prepare('UPDATE members SET ads_free_until = ? WHERE id = ?')->execute([$until, $memberId]);
+    audit_log('member.ads_free_extend', ['member' => $memberId, 'days' => $days, 'until' => date('Y-m-d', $until), 'reason' => $reason]);
+    return $until;
+}
+
+/**
+ * 期間券1回ぶんの日数。運用設定で変えられる（既定30日）。
+ * Stripe の価格と食い違わないよう、値を変えたら価格側の説明も直すこと。
+ */
+function adfree_purchase_days(): int
+{
+    $v = (int) app_setting_get('adfree_days', '30');
+    return $v > 0 && $v <= 3650 ? $v : 30;
+}
+
+/**
+ * 決済が終わったときに広告非表示を反映する（Webhookから呼ぶ）。
+ *
+ * 会費のサブスクとは別会計なので、会員の状態（status / subscription_status）には
+ * 一切触らない。触ると「広告オプションを買ったら会員状態が変わった」ことになる。
+ *
+ * @return bool 反映したら true
+ */
+function apply_adfree_purchase(string $memberId, int $days): bool
+{
+    if ($memberId === '' || find_member_by_id($memberId) === null) {
+        return false;
+    }
+    $days = $days > 0 && $days <= 3650 ? $days : adfree_purchase_days();
+    return extend_ads_free($memberId, $days, 'stripe_purchase') > 0;
+}
+
+/** 広告非表示をやめる（期限を消す）。 */
+function clear_ads_free(string $memberId): void
+{
+    db()->prepare('UPDATE members SET ads_free_until = NULL WHERE id = ?')->execute([$memberId]);
+    audit_log('member.ads_free_clear', ['member' => $memberId]);
+}
+
 /** 枠の種類と、運営画面に出す説明。 */
 function ad_slots(): array
 {
@@ -75,6 +150,11 @@ function ads_for_slot(string $slot, int $limit = 1): array
     // 全体のスイッチがOFFなら、ここで打ち切る。表示する側の分岐を増やさずに
     // 1箇所で効かせるため、抽出の入口に置いている。
     if (!ads_enabled() || !isset(ad_slots()[$slot])) {
+        return [];
+    }
+    // 広告非表示の会員には、どの枠にも出さない。
+    // 広告が出るのは会員画面だけなので、ここで見ている人を見に行ってよい。
+    if (member_ads_free(current_member())) {
         return [];
     }
     $now = time();

@@ -43,7 +43,22 @@ try {
             $session = $event->data->object;
             // 買い切り(join_fee) / サブスク(subscription) の初回決済 → 会員化＋ID/PW発行。
             $purpose = (string) ($session->metadata->purpose ?? 'join_fee');
-            if ($purpose === 'join_fee' || $purpose === 'subscription') {
+            if ($purpose === 'adfree') {
+                // 広告非表示の期間券（買い切り）。会費とは別会計なので、
+                // 会員の状態（status / subscription_status）には触らない。
+                // 買い切りにしているのは、月額サブスクにすると invoice.paid や
+                // customer.subscription.deleted が会費のサブスクと区別できず、
+                // 「広告オプションを解約したら会員が停止される」事故になるため。
+                if (record_stripe_event_once((string) $event->id, (string) $event->type)) {
+                    $mid = (string) ($session->metadata->member_id ?? '');
+                    $days = (int) ($session->metadata->days ?? 0);
+                    if (apply_adfree_purchase($mid, $days)) {
+                        audit_log('stripe.adfree_paid', ['member' => $mid, 'days' => $days]);
+                    } else {
+                        error_log('adfree webhook: member not found id=' . $mid);
+                    }
+                }
+            } elseif ($purpose === 'join_fee' || $purpose === 'subscription') {
                 // event.id で冪等化（重複配信は無視）。実処理側も claim-first で二重発行を防ぐ。
                 if (record_stripe_event_once((string) $event->id, (string) $event->type)) {
                     provision_member_from_checkout_session(normalize_checkout_session($session));

@@ -22,6 +22,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
     $action = (string) ($_POST['action'] ?? '');
     switch ($action) {
+        case 'adfree_grant':
+            // 広告非表示を付与する（提携・お礼・購入の手入力など）。
+            // 期限に足す形なので、押すたびに延びる。
+            $d = max(1, min(3650, (int) ($_POST['days'] ?? 30)));
+            $until = extend_ads_free($id, $d, 'admin');
+            $msg = $until > 0
+                ? '広告非表示を ' . $d . '日 付与しました（' . date('Y/n/j', $until) . ' まで）。'
+                : '対象の会員が見つかりませんでした。';
+            $msgType = $until > 0 ? 'ok' : 'ng';
+            break;
+        case 'adfree_clear':
+            clear_ads_free($id);
+            $msg = '広告非表示を解除しました。';
+            break;
         case 'unlock_intro':
             mark_intro_submitted($id);
             audit_log('admin.intro_unlocked', ['member' => $id]);
@@ -126,6 +140,26 @@ require __DIR__ . '/_app_header.php';
             <button class="btn btn--sm btn--ghost" data-confirm="プランを<?= $curPlan === 'premium' ? 'ベーシック' : 'プレミアム' ?>に変更しますか？"><?= $curPlan === 'premium' ? 'ベーシックに戻す' : 'プレミアムにする' ?></button>
         </form>
         <span class="muted" style="font-size:.8rem;">※無料フェーズ中は全員プレミアム相当（制限なし）</span>
+    </p>
+
+    <?php $__af = (int) ($member['ads_free_until'] ?? 0); ?>
+    <p style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+        広告：<span class="badge badge--<?= member_ads_free($member) ? 'info' : 'mute' ?>"><?= member_ads_free($member) ? '非表示' : '表示' ?></span>
+        <?php if ($__af > time()): ?>
+            <span class="muted" style="font-size:.82rem;"><?= e(date('Y/n/j', $__af)) ?> まで</span>
+        <?php endif; ?>
+        <form method="post" style="display:inline-flex;gap:6px;align-items:center;">
+            <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="action" value="adfree_grant">
+            <input type="number" name="days" value="30" min="1" max="3650" style="width:5.5em;margin:0;">
+            <button class="btn btn--sm btn--ghost">日ぶん付与</button>
+        </form>
+        <?php if ($__af > 0): ?>
+            <form method="post" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="action" value="adfree_clear">
+                <button class="btn btn--sm btn--ghost" data-confirm="広告非表示を解除しますか？">解除</button>
+            </form>
+        <?php endif; ?>
+        <span class="muted" style="font-size:.8rem;">※付与は今の期限に足されます</span>
     </p>
 </div>
 

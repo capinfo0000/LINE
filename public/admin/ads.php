@@ -33,6 +33,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ok = ad_delete($id);
         $note = $ok ? '広告を削除しました。' : '対象の広告が見つかりませんでした。';
         $type = $ok ? 'ok' : 'ng';
+    } elseif ($action === 'toggle_premium') {
+        $to = app_setting_get('ads_free_premium', '0') === '1' ? '0' : '1';
+        app_setting_set('ads_free_premium', $to);
+        audit_log('admin.ads_free_premium', ['on' => $to]);
+        $note = $to === '1' ? 'プレミアム会員には広告を出さない設定にしました。' : 'プレミアム会員にも広告を出す設定にしました。';
+        $type = 'ok';
     } elseif ($action === 'toggle_all') {
         ads_set_enabled(!ads_enabled());
         $note = ads_enabled() ? '広告の表示をONにしました。' : '広告の表示をOFFにしました（登録内容はそのまま残っています）。';
@@ -201,6 +207,44 @@ $renderForm = static function (array $a, array $slots, string $token, bool $isNe
             <?= ads_enabled() ? '広告をすべてOFFにする' : '広告をONにする' ?>
         </button>
     </form>
+</div>
+
+<div class="card">
+    <?php $__prem = app_setting_get('ads_free_premium', '0') === '1'; ?>
+    <div class="card__title" style="margin:0;">
+        追加料金で広告を非表示にする
+        <span class="badge badge--<?= (string) (env('STRIPE_PRICE_ID_ADFREE', '') ?? '') !== '' ? 'info' : 'mute' ?>">
+            <?= (string) (env('STRIPE_PRICE_ID_ADFREE', '') ?? '') !== '' ? '販売中' : '未設定' ?>
+        </span>
+    </div>
+    <p class="hint" style="margin:.6rem 0 0;">
+        会員は「マイページ → 広告の非表示」から<strong><?= (int) adfree_purchase_days() ?>日間</strong>の期間券を買えます。
+        買い切り（自動更新なし）で、期限は購入するたびに足されます。<br>
+        <?php if ((string) (env('STRIPE_PRICE_ID_ADFREE', '') ?? '') === ''): ?>
+            <strong>いまは販売していません。</strong>Stripeで一回払いの価格を作り、
+            「初期設定」の <code>STRIPE_PRICE_ID_ADFREE</code> に入れると購入できるようになります。
+            設定するまで、会員側に購入の導線は出ません。
+        <?php else: ?>
+            価格は Stripe 側の設定に従います。金額を変えるときは Stripe の価格を差し替えてください。
+        <?php endif; ?><br>
+        個別の会員に無料で付けたい場合は、<strong>会員詳細</strong>から日数を指定して付与できます。
+    </p>
+    <form method="post" style="margin:.8rem 0 0;">
+        <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
+        <input type="hidden" name="action" value="toggle_premium">
+        <button type="submit" class="btn btn--ghost btn--sm">
+            <?= $__prem ? 'プレミアム会員にも広告を出す' : 'プレミアム会員には広告を出さない' ?>
+        </button>
+        <span class="muted" style="font-size:.82rem;margin-left:8px;">
+            いま：<?= $__prem ? 'プレミアムには出さない' : '全員に出す' ?>
+        </span>
+    </form>
+    <?php if ($__prem && !billing_started()): ?>
+        <p class="flash flash--ng" style="margin:.8rem 0 0;">
+            いまは無料フェーズで<strong>全員がプレミアム相当</strong>のため、この設定がONだと
+            <strong>誰にも広告が出ません</strong>。課金フェーズに入るまではOFFを推奨します。
+        </p>
+    <?php endif; ?>
 </div>
 
 <div class="card">

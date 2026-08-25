@@ -526,6 +526,9 @@ function db_migrate(\PDO $pdo): void
     // 表示のたびに引く条件（枠・有効・期間）で引けるようにする。
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_ads_live ON ads(slot, is_active, starts_at, ends_at);');
 
+    // 広告非表示（追加料金の期間券／運営からの付与）。この時刻まで広告を出さない。
+    db_add_column_if_missing($pdo, 'members', 'ads_free_until', 'INTEGER');
+
     // アプリ全体の設定（キー・値）。料金フェーズ(billing_started)などを保持。
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS app_settings (

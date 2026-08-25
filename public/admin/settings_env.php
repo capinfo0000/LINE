@@ -51,6 +51,7 @@ function envset_apply(string $envPath, array $updates): bool
 $fields = [
     ['STRIPE_SECRET_KEY',        'Stripe シークレットキー',            true,  'sk_live_… / テストは sk_test_…'],
     ['STRIPE_PRICE_ID',          'Stripe 月額Price ID',                false, 'price_…（継続Price）'],
+    ['STRIPE_PRICE_ID_ADFREE',   'Stripe 広告非表示Price ID（任意）',   false, 'price_…（一回払い。未設定なら購入導線を出さない）'],
     ['STRIPE_WEBHOOK_SECRET',    'Stripe Webhook 署名シークレット',    true,  'whsec_…'],
     ['MONTHLY_FEE_AMOUNT',       '月額の表示金額（円・任意）',          false, '例: 1000（0で非表示）'],
     ['LINE_CHANNEL_SECRET',      'LINE チャネルシークレット',          true,  'Messaging API'],
