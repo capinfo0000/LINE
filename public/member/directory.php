@@ -290,11 +290,10 @@ if ($hasQuery) {
     echo '<div class="tp-secttl">';
     echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 3-5.5 6.5-5.5S15.5 16.4 15.5 20"/><circle cx="17" cy="8.5" r="3"/><path d="M17 14.5c3.2 0 5 1.9 5 5.5"/></svg>';
     echo e($secTitle);
-    // 「すべての会員」は初期30名なので、続きがあるときだけ右上に「すべて見る」を出す。
+    // 右上に出すのは「すべて見る」だけ。件数は出さない。
+    // 「すべての会員」は初期30名なので、続きがあるときだけ出す。
     if ($tab === 'osusume' && !empty($hasMore)) {
         echo ' <a class="more" href="/member/directory.php?all=1">すべて見る →</a>';
-    } else {
-        echo ' <span class="more" style="color:var(--faint);font-weight:700;">' . count($results) . '名</span>';
     }
     echo '</div>';
 }

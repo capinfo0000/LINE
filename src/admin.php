@@ -187,15 +187,18 @@ function ops_intro_gate_description(): string
 
 /**
  * 会員に見せる「会員ステータス」の表記。
- * 課金開始前は、いまの登録運用モード（初期運用／通常運用）に合わせて出す。
- * プラン名（プレミアム等）は課金が始まってから意味を持つので、それまでは出さない。
+ *
+ * 課金が始まるまでは全員が同じ条件なので、プラン名（プレミアム等）は出さない。
+ * 初期運用の間は「先行メンバー」と呼ぶ。「初期運用」は運営側の言葉で会員には
+ * 伝わらないうえ、「無料会員」だと下の扱いに見えてしまうため。課金開始後は
+ * 「先行メンバー → プレミアム」と自然につながる。
  */
 function ops_member_status_label(array $member): string
 {
     if (billing_started()) {
         return plan_label(member_plan($member));
     }
-    return signup_mode() === 'auto' ? '無料会員（初期運用中）' : '無料期間中';
+    return signup_mode() === 'auto' ? '先行メンバー' : '無料期間中';
 }
 
 /** ログインID・パスワードの受け取り方の案内。登録運用モードに連動する。 */
