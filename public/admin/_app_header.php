@@ -23,11 +23,12 @@ $navItems = [
     ['contacts.php',  '', '申し込み者',     ['contacts.php']],
     ['openchat.php',  '', 'オープンチャット', ['openchat.php']],
     ['tags.php',      '', 'タグ管理',       ['tags.php']],
-    ['settings_site.php', '', '各種設定',   ['settings_site.php']],
-    ['settings_legal.php', '', '規約・ポリシー', ['settings_legal.php']],
     ['account.php',   '', 'アカウント設定', ['account.php']],
 ];
 if ((int) ($tenant['is_admin'] ?? 0) === 1) {
+    // 公開される法的文書（規約・ポリシー・特商法の表記）に関わる設定は管理者のみ。
+    $navItems[] = ['settings_site.php', '', '各種設定', ['settings_site.php']];
+    $navItems[] = ['settings_legal.php', '', '規約・ポリシー', ['settings_legal.php']];
     $navItems[] = ['invites.php', '', '運営者を招待', ['invites.php']];
     // 初期設定ページは存在する間だけ表示（自己削除後は自動的に消える）。
     if (is_file(__DIR__ . '/settings_env.php')) {

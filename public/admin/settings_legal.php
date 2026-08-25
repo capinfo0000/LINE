@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__, 2) . '/src/bootstrap.php';
 
-$tenant = require_tenant();
+$tenant = require_admin_tenant(); // 公開される法的文書を書き換えるため管理者限定
 $defs = legal_doc_defs();
 $msg = (string) ($_GET['msg'] ?? '');
 $msgType = ((string) ($_GET['type'] ?? 'ok')) === 'ng' ? 'ng' : 'ok';

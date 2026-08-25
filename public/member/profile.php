@@ -24,6 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $inBirth = trim((string) ($_POST['birthdate'] ?? ''));
     if ($inBirth !== '' && normalize_birthdate($inBirth) === '') {
         $errors[] = '生年月日が正しくありません。カレンダーから実在する日付を選び直してください（例: 1990-05-20）。';
+    } elseif ($inBirth !== '' && !is_eligible_birthdate(normalize_birthdate($inBirth))) {
+        $errors[] = '本サービスは満' . member_min_age() . '歳以上の方のみご利用いただけます。生年月日をご確認ください。';
     }
     if (trim((string) ($_POST['name_text'] ?? '')) === '') {
         $errors[] = '名前が未入力です。他の会員に表示される名前を入力してください。';
@@ -288,7 +290,7 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
         <hr style="border:0;border-top:1px solid var(--border);margin:18px 0;">
         <div class="tp-fields">
             <?php $renderField('m-name', '名前', 'f-name', 'name_text', (string) $profile['name_text'], (string) $profile['name_text'], 'text', '例: 田中 由紀', false, ['maxlength' => '100']); ?>
-            <?php $renderField('m-birth', '生年月日（年齢のみ公開）', 'f-birth', 'birthdate', $birthdate, $currentAge !== null ? $currentAge . '歳' : '', 'date', '', true, ['min' => '1900-01-01', 'max' => date('Y-m-d')]); ?>
+            <?php $renderField('m-birth', '生年月日（年齢のみ公開）', 'f-birth', 'birthdate', $birthdate, $currentAge !== null ? $currentAge . '歳' : '', 'date', '', true, ['min' => '1900-01-01', 'max' => date('Y-m-d', strtotime('-' . member_min_age() . ' years'))]); ?>
             <?php $renderField('m-occ', '職業', 'f-occ', 'occupation', (string) ($profile['occupation'] ?? ''), (string) ($profile['occupation'] ?? ''), 'text', '例: 税理士 / Webエンジニア / 飲食店オーナー', false, ['maxlength' => '80']); ?>
             <?php $renderField('m-headline', 'ひとことPR', 'f-headline', 'headline', (string) $profile['headline'], (string) $profile['headline'], 'text', '例: 補助金・資金繰りが専門です', false, ['maxlength' => '120']); ?>
             <?php $renderTextareaField('m-bio', '自己紹介', 'f-bio', 'bio', (string) $profile['bio'], '経歴・得意なこと・どんな方とつながりたいか など'); ?>

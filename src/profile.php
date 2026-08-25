@@ -81,6 +81,11 @@ function save_profile(string $memberId, array $d): void
     $birthdate = array_key_exists('birthdate', $d)
         ? normalize_birthdate((string) $d['birthdate'])
         : (string) ($existing['birthdate'] ?? '');
+    // 最低年齢に満たない生年月日は保存しない。画面側でも弾いているが、POSTを直接
+    // 組み立てれば入力チェックは迂回できるため、保存の直前でも必ず確認する。
+    if ($birthdate !== '' && array_key_exists('birthdate', $d) && !is_eligible_birthdate($birthdate)) {
+        $birthdate = (string) ($existing['birthdate'] ?? '');
+    }
     $ageText = (string) ($d['age_text'] ?? $existing['age_text']);
     if ($birthdate !== '') {
         $age = compute_age($birthdate);
@@ -143,6 +148,28 @@ function normalize_birthdate(string $raw): string
         return '';
     }
     return $norm;
+}
+
+/** 入会できる最低年齢（満年齢）。規約の文面もこの値を差し込んでいる。 */
+const MEMBER_MIN_AGE = 18;
+
+/** 入会できる最低年齢。 */
+function member_min_age(): int
+{
+    return MEMBER_MIN_AGE;
+}
+
+/**
+ * この生年月日で入会できるか（形式が正しく、かつ最低年齢以上）。
+ *
+ * 形式の判定は normalize_birthdate() に任せて、ここは年齢だけを見る。
+ * 混ぜてしまうと画面のエラーが「実在する日付を選び直してください」になり、
+ * 何が理由で弾かれたのか会員に伝わらなくなるため。
+ */
+function is_eligible_birthdate(string $birthdate): bool
+{
+    $age = compute_age($birthdate);
+    return $age !== null && $age >= member_min_age();
 }
 
 /** 生年月日(YYYY-MM-DD)から満年齢を算出（不正なら null）。 */
