@@ -15,7 +15,7 @@ $memberId = (string) $member['id'];
 
 // すでにサブスク有効、または無料フェーズなら会員トップへ。
 if (!member_requires_subscription($member)) {
-    header('Location: /member/dashboard.php');
+    header('Location: /member/dashboard');
     exit;
 }
 
@@ -42,8 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'line_items' => [['quantity' => 1, 'price' => $priceId]],
                 'metadata' => $metadata,
                 'subscription_data' => ['metadata' => $metadata],
-                'success_url' => base_url() . '/member/dashboard.php?msg=' . rawurlencode('月額登録が完了しました。') . '&type=ok',
-                'cancel_url' => base_url() . '/member/subscribe.php',
+                'success_url' => base_url() . '/member/dashboard?msg=' . rawurlencode('月額登録が完了しました。') . '&type=ok',
+                'cancel_url' => base_url() . '/member/subscribe',
             ];
             if ($email !== '') {
                 $params['customer_email'] = $email;
@@ -82,8 +82,8 @@ require __DIR__ . '/_header.php';
 
 <div class="card">
     <p class="muted" style="margin:0;">ご紹介で<strong>アクティブな有料会員を5名</strong>ご紹介いただくと、月額会費が無料になります。詳しくは
-        <a href="/member/points.php">ポイント・紹介</a> をご覧ください。</p>
+        <a href="/member/points">ポイント・紹介</a> をご覧ください。</p>
 </div>
 
-<p class="muted" style="margin-top:10px;"><a href="/member/logout.php">ログアウト</a></p>
+<p class="muted" style="margin-top:10px;"><a href="/member/logout">ログアウト</a></p>
 <?php require __DIR__ . '/_footer.php'; ?>

@@ -261,7 +261,7 @@ require __DIR__ . '/_app_header.php';
             <?php foreach ($targetUids as $u): ?><input type="hidden" name="uids[]" value="<?= e($u) ?>"><?php endforeach; ?>
             <button class="btn">この内容で配信する</button>
         </form>
-        <a class="btn btn--ghost" href="line_send.php">やめる</a>
+        <a class="btn btn--ghost" href="line_send">やめる</a>
     </div>
 <?php else: ?>
     <!-- 連絡先の管理（旧連絡先を隠す）。メインフォームと入れ子にならないよう独立フォームで置く。 -->
@@ -275,7 +275,7 @@ require __DIR__ . '/_app_header.php';
                         data-confirm="新LINEで見つからない（旧・不達の）連絡先を一覧から隠します。よろしいですか？（あとで戻せます）">🧹 旧・不達の連絡先を隠す</button>
             </form>
             <?php if ($hiddenCount > 0): ?>
-                <a class="btn btn--ghost btn--sm" href="line_send.php<?= $showHidden ? '' : '?show_hidden=1' ?>"><?= $showHidden ? '非表示を隠す' : "非表示 {$hiddenCount} 件を表示" ?></a>
+                <a class="btn btn--ghost btn--sm" href="line_send<?= $showHidden ? '' : '?show_hidden=1' ?>"><?= $showHidden ? '非表示を隠す' : "非表示 {$hiddenCount} 件を表示" ?></a>
                 <form method="post" style="display:inline;">
                     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
                     <button type="submit" name="do_unhide_all" value="1" class="btn btn--ghost btn--sm"

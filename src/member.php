@@ -107,7 +107,7 @@ function member_public_path(array $member): string
     $code = member_public_code($member);
     if ($code === '') {
         $id = (string) ($member['id'] ?? $member['member_id'] ?? '');
-        return '/member/member_view.php?id=' . rawurlencode($id);
+        return '/member/member_view?id=' . rawurlencode($id);
     }
     return '/u/' . $code;
 }
@@ -134,7 +134,7 @@ function member_photo_url(array $row, string $kind = 'photo', int $version = 0):
         // 共有コードが未発行の行（旧データ）はその場で発行して使う。
         $id = (string) ($row['member_id'] ?? $row['id'] ?? '');
         if ($id === '') {
-            return '/member/photo.php';
+            return '/member/photo';
         }
         $code = member_public_code(['id' => $id, 'public_code' => '']);
     }
@@ -145,7 +145,7 @@ function member_photo_url(array $row, string $kind = 'photo', int $version = 0):
     if ($version > 0) {
         $q .= '&v=' . $version;
     }
-    return '/member/photo.php?' . $q;
+    return '/member/photo?' . $q;
 }
 
 /** 紹介コードが既に使われているか。 */
@@ -460,11 +460,11 @@ function require_member(bool $allowDuringPwChange = false, bool $allowUnsubscrib
 {
     $member = current_member();
     if ($member === null) {
-        header('Location: /member/login.php');
+        header('Location: /member/login');
         exit;
     }
     if (!$allowDuringPwChange && (int) ($member['must_change_pw'] ?? 0) === 1) {
-        header('Location: /member/change_password.php');
+        header('Location: /member/change_password');
         exit;
     }
     // 未サブスクでもここでは止めない。塞ぐのは「さがす」関連だけで、

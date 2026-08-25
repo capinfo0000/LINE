@@ -22,7 +22,7 @@ if ($member === null) {
     require __DIR__ . '/member/_header.php';
     echo '<div class="card"><p style="margin:0;">このURLのプロフィールは見つかりませんでした。'
         . 'リンクが古いか、間違っている可能性があります。</p></div>';
-    echo '<p><a class="btn btn--ghost" href="/member/login.php">会員サイトへ</a></p>';
+    echo '<p><a class="btn btn--ghost" href="/member/login">会員サイトへ</a></p>';
     require __DIR__ . '/member/_footer.php';
     exit;
 }

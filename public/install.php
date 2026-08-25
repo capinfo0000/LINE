@@ -164,14 +164,14 @@ $token = $alreadyInstalled ? '' : csrf_token();
     <div class="card">
         <h1>セットアップは完了しています</h1>
         <p>既に初期設定が済んでいるため、このページは無効です。安全のため、サーバー上に <code>public/install.php</code> が残っている場合は削除してください。</p>
-        <p><a class="btn" href="/admin/login.php">運営ログインへ</a></p>
+        <p><a class="btn" href="/admin/login">運営ログインへ</a></p>
     </div>
 <?php elseif ($done): ?>
     <div class="card">
         <h1>✅ セットアップ完了</h1>
         <p><code>.env</code> の生成・データベース初期化・運営管理者の作成が完了しました。
            このセットアップ画面は削除済みです。</p>
-        <p><a class="btn" href="/admin/login.php">運営ログインへ</a></p>
+        <p><a class="btn" href="/admin/login">運営ログインへ</a></p>
     </div>
     <div class="card">
         <div class="card__title">次にやること（任意・後からでOK）</div>

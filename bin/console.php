@@ -49,7 +49,7 @@ switch ($cmd) {
         $code = create_invite($admin['id']);
         $base = rtrim(env('APP_BASE_URL', 'http://localhost:8000'), '/');
         echo "招待コード: {$code}\n";
-        echo "サインアップURL: {$base}/admin/signup.php?invite={$code}\n";
+        echo "サインアップURL: {$base}/admin/signup?invite={$code}\n";
         break;
 
     case 'list-operators':

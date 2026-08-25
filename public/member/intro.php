@@ -79,7 +79,7 @@ require __DIR__ . '/_header.php';
 ?>
 <h1 style="font-size:1.4rem;margin:0 0 4px;">自己紹介を公式LINEに送る</h1>
 <p class="muted" style="margin:0 0 12px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
-    <a href="/member/dashboard.php">← マイページ</a>
+    <a href="/member/dashboard">← マイページ</a>
     <?php if ($officialUrl !== ''): ?>
         <a href="<?= e($officialUrl) ?>" target="_blank" rel="noopener" style="color:#06c755;font-weight:700;">公式LINEを開く →</a>
     <?php endif; ?>
@@ -99,7 +99,7 @@ require __DIR__ . '/_header.php';
         <?php if ($officialUrl !== ''): ?>
             <a class="btn" href="<?= e($officialUrl) ?>" target="_blank" rel="noopener" style="background:#06c755;border-color:#06c755;">公式LINEを開く →</a>
         <?php endif; ?>
-        <a class="btn btn--ghost" href="/member/intro.php?reset=1" data-confirm="プロフィールから作り直します（未保存の編集は消えます）。よろしいですか？">作り直す</a>
+        <a class="btn btn--ghost" href="/member/intro?reset=1" data-confirm="プロフィールから作り直します（未保存の編集は消えます）。よろしいですか？">作り直す</a>
     </div>
 </form>
 

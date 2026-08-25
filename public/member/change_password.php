@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $back = take_login_return_path();
             header('Location: ' . ($back !== ''
                 ? $back
-                : '/member/dashboard.php?msg=' . rawurlencode('パスワードを変更しました。') . '&type=ok'));
+                : '/member/dashboard?msg=' . rawurlencode('パスワードを変更しました。') . '&type=ok'));
             exit;
         } catch (\InvalidArgumentException $e) {
             $error = $e->getMessage(); // 強度不足など

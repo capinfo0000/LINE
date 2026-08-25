@@ -47,8 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]],
                 'metadata' => $metadata,
                 'subscription_data' => ['metadata' => $metadata],
-                'success_url' => base_url() . '/success.php?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => base_url() . '/cancel.php',
+                'success_url' => base_url() . '/success?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => base_url() . '/cancel',
             ];
             if ($email !== '') {
                 $params['customer_email'] = $email;
@@ -89,14 +89,14 @@ $token = csrf_token();
             <p style="margin-top:12px;">
                 <label style="font-weight:normal;">
                     <input type="checkbox" name="agree" value="1" required>
-                    <a href="terms.php" target="_blank">利用規約</a>・<a href="privacy.php" target="_blank">プライバシーポリシー</a>・<a href="policy.php" target="_blank">返金ポリシー</a>に同意します
+                    <a href="terms" target="_blank">利用規約</a>・<a href="privacy" target="_blank">プライバシーポリシー</a>・<a href="policy" target="_blank">返金ポリシー</a>に同意します
                 </label>
             </p>
             <p style="margin-top:12px;"><button type="submit" class="btn">お支払いへ進む（Stripe）</button></p>
         </form>
     </div>
     <p class="muted">カード情報の入力・処理は Stripe 上で安全に行われます。当方はカード情報を保持しません。</p>
-    <p class="muted"><a href="policy.php">キャンセル・返金ポリシー</a></p>
+    <p class="muted"><a href="policy">キャンセル・返金ポリシー</a></p>
 </div>
 </body>
 </html>

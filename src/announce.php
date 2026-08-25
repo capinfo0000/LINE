@@ -28,9 +28,9 @@ function announcement_themes(): array
 function announcement_seed_rows(): array
 {
     return [
-        ['ENLINK', 'ビジネスの縁が、ここから。', '相性で出会う、次のパートナー', '/member/recommend.php', 'brand'],
-        ['紹介キャンペーン', '5人ご紹介で、翌月無料。', '紹介した仲間が続くほどおトクに', '/member/points.php', 'ref'],
-        ['RANKING', '実績ポイント・ランキング', '活躍している会員をチェック', '/member/directory.php?tab=ranking', 'rank'],
+        ['ENLINK', 'ビジネスの縁が、ここから。', '相性で出会う、次のパートナー', '/member/recommend', 'brand'],
+        ['紹介キャンペーン', '5人ご紹介で、翌月無料。', '紹介した仲間が続くほどおトクに', '/member/points', 'ref'],
+        ['RANKING', '実績ポイント・ランキング', '活躍している会員をチェック', '/member/directory?tab=ranking', 'rank'],
     ];
 }
 
@@ -108,7 +108,7 @@ function announcement_save(int $id, array $in): array
         return ['ok' => false, 'message' => '配色が正しくありません。一覧から選び直してください。'];
     }
     if (!is_valid_announcement_url($url)) {
-        return ['ok' => false, 'message' => 'リンク先が正しくありません。「/member/points.php」のようなサイト内のパスか、「https://」から始まるURLを入力してください。'];
+        return ['ok' => false, 'message' => 'リンク先が正しくありません。「/member/points」のようなサイト内のパスか、「https://」から始まるURLを入力してください。'];
     }
 
     $now = time();

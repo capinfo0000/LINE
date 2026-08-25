@@ -47,8 +47,8 @@ cp .env.example .env    # 各種キーを設定（下記）
 php bin/console.php init
 php bin/console.php create-admin you@example.com あなたのパスワード
 php -S localhost:8000 -t public
-# 運営: http://localhost:8000/admin/login.php
-# 会員: http://localhost:8000/member/login.php（IDは入金 or `make-member` で発行）
+# 運営: http://localhost:8000/admin/login
+# 会員: http://localhost:8000/member/login（IDは入金 or `make-member` で発行）
 ```
 
 ### 主な .env（詳細は `.env.example`）

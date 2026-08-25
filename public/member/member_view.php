@@ -15,13 +15,13 @@ $evalType = 'ok';
 
 // 月額未加入なら他会員のプロフィールは見せない（自分のプレビューは可）。
 if ((string) $viewer['id'] !== $targetId && member_search_locked($viewer)) {
-    header('Location: /member/directory.php');
+    header('Location: /member/directory');
     exit;
 }
 
 // 自己紹介を公式LINEに送るまで、他会員のプロフィールは見せない（自分のプレビューは可）。
 if ((string) $viewer['id'] !== $targetId && member_needs_intro($viewer)) {
-    header('Location: /member/directory.php');
+    header('Location: /member/directory');
     exit;
 }
 
@@ -38,7 +38,7 @@ if ($view === null) {
     $showLogout = true;
     require __DIR__ . '/_header.php';
     echo '<div class="card"><p>指定の会員は表示できません。</p></div>';
-    echo '<p><a href="/member/directory.php">← ディレクトリへ戻る</a></p>';
+    echo '<p><a href="/member/directory">← ディレクトリへ戻る</a></p>';
     require __DIR__ . '/_footer.php';
     exit;
 }
@@ -110,7 +110,7 @@ $avatarBg = $hasApprovedPhoto ? '' : ' style="background:linear-gradient(150deg,
 <div class="tp-ig">
     <div class="tp-ig-cover"<?= $coverAbs === null ? ' style="background:linear-gradient(120deg,#fdba74,#f97316)"' : '' ?>>
         <?php if ($coverAbs !== null): ?><img src="<?= e(member_photo_url($member, 'cover', (int) ($profile['updated_at'] ?? 0))) ?>" alt="カバー画像"><?php endif; ?>
-        <a class="tp-hback" href="/member/directory.php" aria-label="ディレクトリへ戻る">
+        <a class="tp-hback" href="/member/directory" aria-label="ディレクトリへ戻る">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </a>
     </div>
@@ -204,7 +204,7 @@ $hasAnyTag = ($labels['area'] ?? []) || ($labels['job'] ?? []) || ($labels['purp
 <?php endif; ?>
 
 <?php if ($iAmSelf): ?>
-    <p style="text-align:center;margin:16px 0;"><a class="btn btn--ghost" href="/member/profile.php">プロフィールを編集</a></p>
+    <p style="text-align:center;margin:16px 0;"><a class="btn btn--ghost" href="/member/profile">プロフィールを編集</a></p>
 <?php else: ?>
     <nav class="tp-actions" aria-label="アクション">
         <div class="tp-fabwrap">

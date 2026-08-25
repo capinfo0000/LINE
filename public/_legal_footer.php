@@ -1,4 +1,4 @@
-        <p style="margin-top:24px;"><a href="index.php">← トップへ戻る</a></p>
+        <p style="margin-top:24px;"><a href="/">← トップへ戻る</a></p>
     </div>
 </div>
 </body>

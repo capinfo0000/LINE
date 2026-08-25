@@ -194,7 +194,7 @@ function deliver_member_credentials(array $member, string $loginId, string $temp
     $delivered = false;
     $email = (string) ($member['email'] ?? '');
     $lineUserId = (string) ($member['line_user_id'] ?? '');
-    $loginUrl = base_url() . '/member/login.php';
+    $loginUrl = base_url() . '/member/login';
     $openChatUrl = active_openchat_url();
     $viaLine = false;
 

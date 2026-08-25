@@ -30,7 +30,7 @@ if ($signupOpen && $_SERVER['REQUEST_METHOD'] === 'POST') {
             create_tenant($email, $password, $name);
             audit_log('signup', ['email' => mask_email_for_log($email)]);
             login_tenant($email, $password);
-            header('Location: dashboard.php');
+            header('Location: dashboard');
             exit;
         } catch (\Throwable $e) {
             $error = $e->getMessage();
@@ -40,7 +40,7 @@ if ($signupOpen && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // すでにログイン済みならダッシュボードへ
 if (current_tenant() !== null) {
-    header('Location: dashboard.php');
+    header('Location: dashboard');
     exit;
 }
 
@@ -50,7 +50,7 @@ require __DIR__ . '/_auth_header.php';
 <h1>運営アカウント登録</h1>
 <?php if (!$signupOpen): ?>
     <div class="card"><p style="margin:0;">現在、新規登録の受付を停止しています。アカウントについては運営者へお問い合わせください。</p></div>
-    <p class="muted">すでにアカウントをお持ちですか？ <a href="login.php">ログイン</a></p>
+    <p class="muted">すでにアカウントをお持ちですか？ <a href="login">ログイン</a></p>
 <?php else: ?>
 <p class="muted">メールアドレスとパスワードを入力するだけで、すぐに始められます。</p>
 <?php if ($error !== ''): ?><p class="err"><?= e($error) ?></p><?php endif; ?>
@@ -65,6 +65,6 @@ require __DIR__ . '/_auth_header.php';
     <?= captcha_widget_html() ?>
     <p style="margin-top:16px;"><button type="submit" class="btn">登録してはじめる</button></p>
 </form>
-<p class="muted">すでにアカウントをお持ちですか？ <a href="login.php">ログイン</a></p>
+<p class="muted">すでにアカウントをお持ちですか？ <a href="login">ログイン</a></p>
 <?php endif; ?>
 <?php require __DIR__ . '/_auth_footer.php'; ?>

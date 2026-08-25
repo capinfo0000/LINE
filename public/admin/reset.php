@@ -39,10 +39,10 @@ require __DIR__ . '/_auth_header.php';
 
 <?php if ($done): ?>
     <div class="card"><p>パスワードを変更しました。新しいパスワードでログインしてください。</p></div>
-    <p><a class="btn" href="login.php" style="display:inline-block;width:auto;text-decoration:none;">ログインへ</a></p>
+    <p><a class="btn" href="login" style="display:inline-block;width:auto;text-decoration:none;">ログインへ</a></p>
 <?php elseif ($valid === null): ?>
     <div class="err">リンクが無効か、有効期限が切れています。</div>
-    <p class="muted"><a href="forgot.php">もう一度申し込む</a></p>
+    <p class="muted"><a href="forgot">もう一度申し込む</a></p>
 <?php else: ?>
     <?php if ($error !== ''): ?><div class="err"><?= e($error) ?></div><?php endif; ?>
     <form method="post" class="card">

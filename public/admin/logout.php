@@ -5,5 +5,5 @@ declare(strict_types=1);
 require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 logout_tenant();
-header('Location: login.php');
+header('Location: login');
 exit;

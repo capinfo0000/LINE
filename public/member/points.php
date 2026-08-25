@@ -41,7 +41,7 @@ $pageTitle = 'ポイント';
 $showLogout = true;
 require __DIR__ . '/_header.php';
 ?>
-<p class="muted"><a href="/member/dashboard.php">← 会員トップへ</a></p>
+<p class="muted"><a href="/member/dashboard">← 会員トップへ</a></p>
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
 
 <div class="card">

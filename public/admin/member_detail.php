@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
             }
             if (admin_delete_member($id)) {
-                header('Location: members.php?msg=' . rawurlencode('会員を削除しました。'));
+                header('Location: members?msg=' . rawurlencode('会員を削除しました。'));
                 exit;
             }
             $msg = '会員が見つかりませんでした。';
@@ -104,7 +104,7 @@ $pageSub = $member['login_id'];
 require __DIR__ . '/_app_header.php';
 ?>
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
-<p><a href="members.php">← 会員一覧</a></p>
+<p><a href="members">← 会員一覧</a></p>
 
 <div class="card">
     <div class="card__title">基本情報</div>
@@ -201,7 +201,7 @@ $myReports = $myReports->fetchAll();
 <?php if (!empty($profile['photo_path'])): ?>
 <div class="card">
     <div class="card__title">顔写真</div>
-    <p><img src="member_photo.php?id=<?= e($id) ?>" alt="" style="max-width:160px;border-radius:10px;"></p>
+    <p><img src="member_photo?id=<?= e($id) ?>" alt="" style="max-width:160px;border-radius:10px;"></p>
 </div>
 <?php endif; ?>
 

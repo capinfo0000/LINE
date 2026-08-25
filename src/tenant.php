@@ -255,7 +255,7 @@ function require_tenant(): array
 {
     $tenant = current_tenant();
     if ($tenant === null) {
-        header('Location: login.php');
+        header('Location: login');
         exit;
     }
     return $tenant;

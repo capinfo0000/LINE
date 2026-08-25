@@ -10,13 +10,42 @@
 #    なり配信されないため、以下の Rewrite は無害（何も起きない）。
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # --- URL から .php を消す ---
+    # 画面のリンクはすべて拡張子なし（/member/directory）で出しているが、
+    # 以前に配ったリンクやブックマークが .php 付きで来ることがあるので、
+    # その場合だけ拡張子なしへ1回転送して、アドレスバーを揃える。
+    #
+    # ・判定には THE_REQUEST（ブラウザが送ってきた元のリクエスト行）を使う。
+    #   内部転送では書き換わらないため、下の内部転送と往復し続ける事故が起きない。
+    # ・GET 以外は転送しない（POST を 301 で転送するとデータが落ちる）。
+    # ・外部サービスに登録済みのエンドポイントは .php のまま受ける。
+    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteCond %{THE_REQUEST} \s/+index\.php[\s?]
+    RewriteRule ^index\.php$ / [R=301,L,QSA]
+
+    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteCond %{THE_REQUEST} \s/+[^?\s]*\.php[\s?]
+    RewriteCond %{REQUEST_URI} !^/(webhook|line_webhook|cron|install)\.php$
+    RewriteRule ^(.+)\.php$ /$1 [R=301,L,QSA]
+
     # 既に public/ 宛ての内部URLは二重付与しない
     RewriteCond %{REQUEST_URI} !^/public/
     # 実ファイル/ディレクトリでも public/ 側を優先（src/ 等は public/ 配下に無いので404=隠蔽）
     RewriteRule ^$ public/index.php [L]
+
     # プロフィールの短い共有URL（/u/<コード>）。catch-all より前に置くこと。
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^u/([A-Za-z0-9]{4,32})/?$ public/u.php?c=$1 [L,QSA]
+
+    # 拡張子なしのURL（/member/directory 等）を実体の .php につなぐ。
+    # 同名の .php が実在するときだけ通すので、無い場所は素通りして404になる。
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteCond %{DOCUMENT_ROOT}/public/$1.php -f
+    RewriteRule ^([A-Za-z0-9_\-/]+)$ public/$1.php [L,QSA]
+
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>

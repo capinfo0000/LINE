@@ -25,7 +25,7 @@ require_once dirname(__DIR__) . '/src/bootstrap.php';
         <p>ご入会手続きが完了しました。</p>
         <p>会員サイトの<strong>ログインID・仮パスワード</strong>を、メール（または公式LINE）でお送りします。
            初回ログイン時に、ご自身のパスワードへの変更をお願いします。</p>
-        <p style="margin-top:16px;"><a class="btn" href="/member/login.php">会員ログインへ</a></p>
+        <p style="margin-top:16px;"><a class="btn" href="/member/login">会員ログインへ</a></p>
     </div>
     <p class="muted">数分待ってもご連絡が届かない場合は、運営までお問い合わせください。</p>
 </div>

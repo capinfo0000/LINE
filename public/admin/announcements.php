@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $note = $r['message'];
         $type = $r['ok'] ? 'ok' : 'ng';
     }
-    header('Location: /admin/announcements.php?msg=' . rawurlencode($note) . '&type=' . $type);
+    header('Location: /admin/announcements?msg=' . rawurlencode($note) . '&type=' . $type);
     exit;
 }
 
@@ -63,8 +63,8 @@ $renderForm = static function (array $a, array $themes, string $token, bool $isN
         <input type="text" name="subtitle" maxlength="60" value="<?= e((string) ($a['subtitle'] ?? '')) ?>" placeholder="例: 紹介した仲間が続くほどおトクに">
 
         <label>タップ先（任意・空ならリンクなし）</label>
-        <input type="text" name="url" maxlength="300" value="<?= e((string) ($a['url'] ?? '')) ?>" placeholder="例: /member/points.php">
-        <p class="hint" style="margin:4px 0 0;">サイト内は「/member/points.php」のように / から始めます。外部は https:// から始まるURLのみ。</p>
+        <input type="text" name="url" maxlength="300" value="<?= e((string) ($a['url'] ?? '')) ?>" placeholder="例: /member/points">
+        <p class="hint" style="margin:4px 0 0;">サイト内は「/member/points」のように / から始めます。外部は https:// から始まるURLのみ。</p>
 
         <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin-top:10px;">
             <div>
@@ -103,7 +103,7 @@ $renderForm = static function (array $a, array $themes, string $token, bool $isN
     <p class="hint" style="margin:0;">
         公開中のお知らせが「さがす」の上部に横並びで出て、<strong>約6秒ごとに自動で次へ切り替わります</strong>（指で左右に送ることもできます）。<br>
         並び順の数字が小さいものから表示します。非公開にすると会員側から消えますが、内容は残ります。全部を非公開にすると枠ごと出ません。<br>
-        <a href="/member/directory.php" target="_blank" rel="noopener">会員側の画面を開く →</a>
+        <a href="/member/directory" target="_blank" rel="noopener">会員側の画面を開く →</a>
     </p>
 </div>
 

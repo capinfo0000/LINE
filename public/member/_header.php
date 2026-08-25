@@ -24,5 +24,5 @@ $hideBrand = $hideBrand ?? false; // true で上部の「Enlink」ブランド�
 <body>
 <div class="container<?= $wide ? '' : ' container--narrow' ?><?= $appWide ? ' container--app' : '' ?>">
     <?php if (!$hideBrand): ?>
-    <div class="brandbar">Enlink<?php if ($showLogout): ?><a href="/member/logout.php" style="float:right;font-size:.8rem;">ログアウト</a><?php endif; ?></div>
+    <div class="brandbar">Enlink<?php if ($showLogout): ?><a href="/member/logout" style="float:right;font-size:.8rem;">ログアウト</a><?php endif; ?></div>
     <?php endif; ?>

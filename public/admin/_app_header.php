@@ -12,28 +12,30 @@ declare(strict_types=1);
 $pageTitle = $pageTitle ?? '';
 $pageSub   = $pageSub ?? '';
 $topActions = $topActions ?? '';
-$current = basename($_SERVER['SCRIPT_NAME'] ?? '');
+// URL は拡張子なし（members など）で出しているが、SCRIPT_NAME には実体の .php が
+// 入るので、比較のためにここで落としておく（どちらの形でも一致する）。
+$current = preg_replace('/\.php$/', '', basename($_SERVER['SCRIPT_NAME'] ?? ''));
 
 /** ナビ項目（active 判定用に対象スクリプト名の配列を持つ）。 */
 $navItems = [
-    ['dashboard.php', '', 'ダッシュボード', ['dashboard.php']],
-    ['members.php',   '', '会員管理',       ['members.php', 'member_detail.php']],
-    ['slots.php',     '', '説明会',         ['slots.php']],
-    ['line_send.php', '', 'LINE配信',       ['line_send.php']],
-    ['contacts.php',  '', '申し込み者',     ['contacts.php']],
-    ['openchat.php',  '', 'オープンチャット', ['openchat.php']],
-    ['tags.php',      '', 'タグ管理',       ['tags.php']],
-    ['announcements.php', '', 'お知らせ',   ['announcements.php']],
-    ['account.php',   '', 'アカウント設定', ['account.php']],
+    ['dashboard',     '', 'ダッシュボード', ['dashboard']],
+    ['members',       '', '会員管理',       ['members', 'member_detail']],
+    ['slots',         '', '説明会',         ['slots']],
+    ['line_send',     '', 'LINE配信',       ['line_send']],
+    ['contacts',      '', '申し込み者',     ['contacts']],
+    ['openchat',      '', 'オープンチャット', ['openchat']],
+    ['tags',          '', 'タグ管理',       ['tags']],
+    ['announcements', '', 'お知らせ',       ['announcements']],
+    ['account',       '', 'アカウント設定', ['account']],
 ];
 if ((int) ($tenant['is_admin'] ?? 0) === 1) {
     // 公開される法的文書（規約・ポリシー・特商法の表記）に関わる設定は管理者のみ。
-    $navItems[] = ['settings_site.php', '', '各種設定', ['settings_site.php']];
-    $navItems[] = ['settings_legal.php', '', '規約・ポリシー', ['settings_legal.php']];
-    $navItems[] = ['invites.php', '', '運営者を招待', ['invites.php']];
+    $navItems[] = ['settings_site', '', '各種設定', ['settings_site']];
+    $navItems[] = ['settings_legal', '', '規約・ポリシー', ['settings_legal']];
+    $navItems[] = ['invites', '', '運営者を招待', ['invites']];
     // 初期設定ページは存在する間だけ表示（自己削除後は自動的に消える）。
     if (is_file(__DIR__ . '/settings_env.php')) {
-        $navItems[] = ['settings_env.php', '', '初期設定', ['settings_env.php']];
+        $navItems[] = ['settings_env', '', '初期設定', ['settings_env']];
     }
 }
 ?>
@@ -57,7 +59,7 @@ if ((int) ($tenant['is_admin'] ?? 0) === 1) {
                 </a>
             <?php endforeach; ?>
             <div class="nav__sep"></div>
-            <a href="logout.php">ログアウト</a>
+            <a href="logout">ログアウト</a>
         </nav>
         <div class="sidebar__foot"><?= e($tenant['display_name'] ?? '') ?><br><?= e($tenant['email'] ?? '') ?></div>
     </aside>

@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'selfdestruct') {
         @unlink(__FILE__);
         audit_log('settings.env_page_deleted', []);
-        header('Location: dashboard.php?msg=' . rawurlencode('初期設定ページを削除しました。') . '&type=ok');
+        header('Location: dashboard?msg=' . rawurlencode('初期設定ページを削除しました。') . '&type=ok');
         exit;
     }
 }

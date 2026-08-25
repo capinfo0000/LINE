@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (login_tenant($email, $password)) {
         clear_failed_logins($email);
         audit_log('login.ok', ['email' => mask_email_for_log($email)]);
-        header('Location: dashboard.php');
+        header('Location: dashboard');
         exit;
     } else {
         record_failed_login($email);
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // すでにログイン済みならダッシュボードへ
 if (current_tenant() !== null) {
-    header('Location: dashboard.php');
+    header('Location: dashboard');
     exit;
 }
 
@@ -53,6 +53,6 @@ require __DIR__ . '/_auth_header.php';
     <?= captcha_widget_html() ?>
     <p style="margin-top:16px;"><button type="submit" class="btn">ログイン</button></p>
 </form>
-<p class="muted"><a href="forgot.php">パスワードを忘れた場合</a></p>
-<p class="muted">アカウントをお持ちでない方は <a href="signup.php">新規登録</a>（無料）</p>
+<p class="muted"><a href="forgot">パスワードを忘れた場合</a></p>
+<p class="muted">アカウントをお持ちでない方は <a href="signup">新規登録</a>（無料）</p>
 <?php require __DIR__ . '/_auth_footer.php'; ?>

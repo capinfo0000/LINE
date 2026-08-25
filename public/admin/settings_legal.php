@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $doc = (string) ($_POST['doc'] ?? '');
 
     if (!isset($defs[$doc])) {
-        header('Location: /admin/settings_legal.php?msg=' . rawurlencode('対象の文書が不明です。もう一度お試しください。') . '&type=ng');
+        header('Location: /admin/settings_legal?msg=' . rawurlencode('対象の文書が不明です。もう一度お試しください。') . '&type=ng');
         exit;
     }
 
@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $body = (string) ($_POST['body'] ?? '');
         if (trim($body) === '') {
-            header('Location: /admin/settings_legal.php?msg=' . rawurlencode('本文が空です。空欄では保存できません（既定に戻す場合は「既定の文面に戻す」を押してください）。') . '&type=ng');
+            header('Location: /admin/settings_legal?msg=' . rawurlencode('本文が空です。空欄では保存できません（既定に戻す場合は「既定の文面に戻す」を押してください）。') . '&type=ng');
             exit;
         }
         legal_body_save($doc, $body);
@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $note = $defs[$doc]['label'] . 'を保存しました。公開ページに反映されます。'
             . (legal_body_is_default($doc) ? '（既定の文面と同じ内容だったため、既定に追従する状態に戻しました）' : '');
     }
-    header('Location: /admin/settings_legal.php?msg=' . rawurlencode($note) . '&type=ok');
+    header('Location: /admin/settings_legal?msg=' . rawurlencode($note) . '&type=ok');
     exit;
 }
 
@@ -62,7 +62,7 @@ require __DIR__ . '/_app_header.php';
         <tr><td style="padding:4px 8px 4px 0;white-space:nowrap;"><code>- 項目</code></td><td>箇条書き（・）になります</td></tr>
         <tr><td style="padding:4px 8px 4px 0;white-space:nowrap;"><code>1. 項目</code></td><td>番号付きの箇条書きになります</td></tr>
         <tr><td style="padding:4px 8px 4px 0;white-space:nowrap;"><code>**強調**</code></td><td>太字になります</td></tr>
-        <tr><td style="padding:4px 8px 4px 0;white-space:nowrap;"><code>[表示文字](/policy.php)</code></td><td>リンクになります</td></tr>
+        <tr><td style="padding:4px 8px 4px 0;white-space:nowrap;"><code>[表示文字](/policy)</code></td><td>リンクになります</td></tr>
         <tr><td style="padding:4px 8px 4px 0;white-space:nowrap;"><code>空行</code></td><td>段落の区切りになります</td></tr>
     </table>
 </div>
@@ -124,8 +124,8 @@ require __DIR__ . '/_app_header.php';
 <div class="card">
     <div class="card__title">特定商取引法に基づく表記について</div>
     <p class="hint" style="margin:0;">
-        特商法のページは項目が決まっているため、ここではなく<a href="/admin/settings_site.php">各種設定</a>の事業者情報から入力します。
-        入力すると<a href="/tokushoho.php" target="_blank" rel="noopener">特商法ページ</a>に反映され、上の規約・ポリシーの <code>{事業者名}</code> 等にも同じ値が入ります。
+        特商法のページは項目が決まっているため、ここではなく<a href="/admin/settings_site">各種設定</a>の事業者情報から入力します。
+        入力すると<a href="/tokushoho" target="_blank" rel="noopener">特商法ページ</a>に反映され、上の規約・ポリシーの <code>{事業者名}</code> 等にも同じ値が入ります。
     </p>
 </div>
 <?php require __DIR__ . '/_app_footer.php'; ?>

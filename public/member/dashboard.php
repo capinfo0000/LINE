@@ -41,7 +41,7 @@ require __DIR__ . '/_header.php';
 
 <div class="tp-mp-head">
     <div class="tp-mp-av"<?= $hasPhoto ? '' : ' style="background:linear-gradient(150deg,hsl(' . $hue . ' 66% 54%),hsl(' . $hue2 . ' 64% 45%))"' ?>>
-        <?php if ($hasPhoto): ?><img src="/member/photo.php?v=<?= (int) ($profile['updated_at'] ?? 0) ?>" alt=""><?php else: ?><?= e($ini) ?><?php endif; ?>
+        <?php if ($hasPhoto): ?><img src="/member/photo?v=<?= (int) ($profile['updated_at'] ?? 0) ?>" alt=""><?php else: ?><?= e($ini) ?><?php endif; ?>
     </div>
     <div class="tp-mp-name"><?= e($nm) ?></div>
     <?php if ($age !== '' || $area !== ''): ?>
@@ -52,19 +52,19 @@ require __DIR__ . '/_header.php';
 
 <div class="tp-tiles tp-tiles--4">
     <div class="tp-tile"><b><?= (int) $recv ?></b><span>気になる</span></div>
-    <a class="tp-tile" href="/member/directory.php?tab=footprint"><b><?= (int) footprint_count($id) ?></b><span>足あと</span></a>
-    <a class="tp-tile" href="/member/points.php"><b><?= number_format($bal) ?></b><span>ポイント</span></a>
-    <a class="tp-tile" href="/member/points.php"><b style="font-size:.9rem;line-height:1.8;"><?= e($title) ?></b><span>称号</span></a>
+    <a class="tp-tile" href="/member/directory?tab=footprint"><b><?= (int) footprint_count($id) ?></b><span>足あと</span></a>
+    <a class="tp-tile" href="/member/points"><b><?= number_format($bal) ?></b><span>ポイント</span></a>
+    <a class="tp-tile" href="/member/points"><b style="font-size:.9rem;line-height:1.8;"><?= e($title) ?></b><span>称号</span></a>
 </div>
 
 <div class="tp-menu">
     <a href="<?= e(member_public_path($member)) ?>">👀 プロフィールを確認<span class="chev">›</span></a>
-    <a href="/member/profile.php">✏️ プロフィールを編集<span class="chev">›</span></a>
-    <a href="/member/intro.php">💬 自己紹介ひな形（LINE用）<span class="chev">›</span></a>
-    <a href="/member/points.php">⭐ ポイント<?= billing_started() ? '・紹介' : '' ?><span class="chev">›</span></a>
-    <a href="/member/billing.php">💳 お支払い・解約<span class="chev">›</span></a>
-    <a href="/member/account.php">🪪 ログインID・パスワード<span class="chev">›</span></a>
-    <a href="/member/logout.php">↩️ ログアウト<span class="chev">›</span></a>
+    <a href="/member/profile">✏️ プロフィールを編集<span class="chev">›</span></a>
+    <a href="/member/intro">💬 自己紹介ひな形（LINE用）<span class="chev">›</span></a>
+    <a href="/member/points">⭐ ポイント<?= billing_started() ? '・紹介' : '' ?><span class="chev">›</span></a>
+    <a href="/member/billing">💳 お支払い・解約<span class="chev">›</span></a>
+    <a href="/member/account">🪪 ログインID・パスワード<span class="chev">›</span></a>
+    <a href="/member/logout">↩️ ログアウト<span class="chev">›</span></a>
 </div>
 
 <p class="muted" style="text-align:center;font-size:.8rem;">ログインID：<code><?= e($member['login_id']) ?></code></p>

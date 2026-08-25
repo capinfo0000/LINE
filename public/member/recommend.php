@@ -13,11 +13,11 @@ $member = require_member();
 
 // 自己紹介を公式LINEに送るまでロック（さがすのロック画面へ）。
 if (member_search_locked($member)) {
-    header('Location: /member/directory.php'); // さがす画面で理由と支払い導線を出す
+    header('Location: /member/directory'); // さがす画面で理由と支払い導線を出す
     exit;
 }
 if (member_needs_intro($member)) {
-    header('Location: /member/directory.php');
+    header('Location: /member/directory');
     exit;
 }
 
@@ -44,13 +44,13 @@ $hideBrand = true;
 require __DIR__ . '/_header.php';
 ?>
 <h1 style="font-size:1.5rem;margin:0 0 4px;">あなたへのおすすめ</h1>
-<p class="muted"><a href="/member/directory.php">← さがすへ</a></p>
+<p class="muted"><a href="/member/directory">← さがすへ</a></p>
 <p class="muted">「あなたの求める条件に合う」かつ「相手の求める条件にもあなたが合う」相手だけを表示しています。</p>
 
 <?php if ($profileThin): ?>
     <div class="flash flash--ng">
         プロフィールの<strong>タグ</strong>や<strong>求める条件</strong>が未設定だと、双方向マッチのおすすめが出にくくなります。
-        <a href="/member/profile.php">プロフィールを編集</a>してください。
+        <a href="/member/profile">プロフィールを編集</a>してください。
     </div>
 <?php endif; ?>
 
@@ -95,7 +95,7 @@ require __DIR__ . '/_header.php';
     <?php if ($recCapped): ?>
         <div class="card" style="text-align:center;background:#f8fafc;">
             <p style="margin:.2rem 0;">ベーシックプランでは1日に表示できるおすすめは <strong><?= (int) $recMax ?>人</strong>までです。</p>
-            <p style="margin:.2rem 0;"><a class="btn" href="/member/billing.php">プレミアムで全員を見る</a></p>
+            <p style="margin:.2rem 0;"><a class="btn" href="/member/billing">プレミアムで全員を見る</a></p>
         </div>
     <?php endif; ?>
 <?php endif; ?>

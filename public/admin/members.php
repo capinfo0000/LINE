@@ -16,14 +16,14 @@ $msgType = ((string) ($_GET['type'] ?? 'ok')) === 'ng' ? 'ng' : 'ok';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'delete_member') {
     csrf_verify($_POST['csrf_token'] ?? null);
     $ok = admin_delete_member((string) ($_POST['id'] ?? ''));
-    header('Location: members.php?msg=' . rawurlencode($ok ? '会員を削除しました。' : '会員が見つかりませんでした。'));
+    header('Location: members?msg=' . rawurlencode($ok ? '会員を削除しました。' : '会員が見つかりませんでした。'));
     exit;
 }
 
 // 一括付与（ポイント・プラン・称号）。まとめて効くので管理者のみ。
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'bulk_grant') {
     csrf_verify($_POST['csrf_token'] ?? null);
-    $back = 'members.php?' . http_build_query(['q' => (string) ($_POST['q'] ?? ''), 'status' => (string) ($_POST['status'] ?? '')]);
+    $back = 'members?' . http_build_query(['q' => (string) ($_POST['q'] ?? ''), 'status' => (string) ($_POST['status'] ?? '')]);
     if ((int) ($tenant['is_admin'] ?? 0) !== 1) {
         header('Location: ' . $back . '&msg=' . rawurlencode('一括付与にはプラットフォーム管理者権限が必要です。') . '&type=ng');
         exit;
@@ -138,7 +138,7 @@ require __DIR__ . '/_app_header.php';
                 <td><?= e($m['email'] ?? '-') ?></td>
                 <td><?= e(date('Y-m-d', (int) $m['created_at'])) ?></td>
                 <td style="white-space:nowrap;">
-                    <a href="member_detail.php?id=<?= e($m['id']) ?>">詳細</a>
+                    <a href="member_detail?id=<?= e($m['id']) ?>">詳細</a>
                     <form method="post" style="display:inline;margin-left:8px;">
                         <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
                         <input type="hidden" name="id" value="<?= e($m['id']) ?>">

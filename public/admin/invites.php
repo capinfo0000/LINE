@@ -30,7 +30,7 @@ require __DIR__ . '/_app_header.php';
 <?php if ($newCode !== ''): ?>
     <div class="card">
         <p style="margin-top:0;">招待リンクを発行しました。これを相手に共有してください：</p>
-        <input type="text" class="js-select" readonly value="<?= e($base . '/admin/signup.php?invite=' . $newCode) ?>">
+        <input type="text" class="js-select" readonly value="<?= e($base . '/admin/signup?invite=' . $newCode) ?>">
     </div>
 <?php endif; ?>
 

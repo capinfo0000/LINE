@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (rate_limit_check('member_forgot', 5, 3600) && captcha_verify($_POST['cf-turnstile-response'] ?? null)) {
         $token = create_member_password_reset($email);
         if ($token !== null) {
-            $link = base_url() . '/member/reset.php?token=' . $token;
+            $link = base_url() . '/member/reset?token=' . $token;
             $body = "会員サイトのパスワード再設定のご依頼を受け付けました。\n\n"
                 . "以下のリンクから1時間以内に新しいパスワードを設定してください。\n"
                 . $link . "\n\n"
@@ -40,7 +40,7 @@ require __DIR__ . '/_header.php';
         <p>ご登録のメールアドレスにアカウントがあれば、再設定リンクを送信しました。</p>
         <p class="muted">メールが届かない場合は、アドレスをご確認のうえ再度お試しください。ご不明な場合は運営へお問い合わせください。</p>
     </div>
-    <p class="muted"><a href="/member/login.php">ログインに戻る</a></p>
+    <p class="muted"><a href="/member/login">ログインに戻る</a></p>
 <?php else: ?>
     <p class="muted">ご登録のメールアドレスに再設定リンクを送ります。</p>
     <form method="post" class="card">
@@ -50,6 +50,6 @@ require __DIR__ . '/_header.php';
         <?= captcha_widget_html() ?>
         <p style="margin-top:14px;"><button type="submit" class="btn">再設定リンクを送る</button></p>
     </form>
-    <p class="muted"><a href="/member/login.php">ログインに戻る</a></p>
+    <p class="muted"><a href="/member/login">ログインに戻る</a></p>
 <?php endif; ?>
 <?php require __DIR__ . '/_footer.php'; ?>

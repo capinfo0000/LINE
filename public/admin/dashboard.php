@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
     csrf_verify($_POST['csrf_token'] ?? null);
     $mode = strtoupper((string) ($_POST['mode'] ?? 'A')) === 'B' ? 'B' : 'A';
     app_setting_set('referral_waiver_mode', $mode);
-    header('Location: /admin/dashboard.php?msg=' . rawurlencode('紹介判定モードを ' . $mode . '案 に変更しました。') . '&type=ok');
+    header('Location: /admin/dashboard?msg=' . rawurlencode('紹介判定モードを ' . $mode . '案 に変更しました。') . '&type=ok');
     exit;
 }
 
@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
     $sm = (string) ($_POST['mode'] ?? 'auto') === 'normal' ? 'normal' : 'auto';
     set_signup_mode($sm);
     $label = $sm === 'auto' ? '初期運用（友だち追加で即発行）' : '通常運用（説明会→決済→発行）';
-    header('Location: /admin/dashboard.php?msg=' . rawurlencode('登録運用モードを「' . $label . '」に変更しました。') . '&type=ok');
+    header('Location: /admin/dashboard?msg=' . rawurlencode('登録運用モードを「' . $label . '」に変更しました。') . '&type=ok');
     exit;
 }
 
@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
         : '自己紹介ロックをOFFにしました。' . ($exempted > 0
             ? "現在の会員{$exempted}名を解除済みとして記録したので、ONに戻しても再ロックされません。"
             : '（新たに記録した会員はありません）');
-    header('Location: /admin/dashboard.php?msg=' . rawurlencode($note) . '&type=ok');
+    header('Location: /admin/dashboard?msg=' . rawurlencode($note) . '&type=ok');
     exit;
 }
 
@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string) ($_POST['action'] ?? ''), ['seed_samples', 'delete_samples'], true)) {
     csrf_verify($_POST['csrf_token'] ?? null);
     if ((int) ($tenant['is_admin'] ?? 0) !== 1) {
-        header('Location: /admin/dashboard.php?msg=' . rawurlencode('権限がありません。') . '&type=ng');
+        header('Location: /admin/dashboard?msg=' . rawurlencode('権限がありません。') . '&type=ng');
         exit;
     }
     if ((string) $_POST['action'] === 'seed_samples') {
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string) ($_POST['action']
         $n = delete_sample_members();
         $m = "サンプル会員を {$n} 名削除しました。";
     }
-    header('Location: /admin/dashboard.php?msg=' . rawurlencode($m) . '&type=ok');
+    header('Location: /admin/dashboard?msg=' . rawurlencode($m) . '&type=ok');
     exit;
 }
 
@@ -181,7 +181,7 @@ $__csrf = csrf_token();
     <div class="card__title">未処理の通報（<?= count($__reports) ?> 件）</div>
     <?php foreach ($__reports as $rp): ?>
         <p style="margin:6px 0;border-bottom:1px solid var(--border);padding-bottom:6px;">
-            <a href="member_detail.php?id=<?= e($rp['target_id']) ?>"><code><?= e($rp['target_login'] ?? '-') ?></code></a> への通報
+            <a href="member_detail?id=<?= e($rp['target_id']) ?>"><code><?= e($rp['target_login'] ?? '-') ?></code></a> への通報
             <span class="muted" style="font-size:.82rem;">（通報者 <?= e($rp['rater_login'] ?? '-') ?>・<?= e(date('m/d H:i', (int) $rp['created_at'])) ?>）</span>
             <?php if (($rp['note'] ?? '') !== ''): ?><br><span class="muted" style="font-size:.85rem;"><?= e(mb_substr((string) $rp['note'], 0, 80)) ?></span><?php endif; ?>
         </p>
@@ -193,21 +193,21 @@ $__csrf = csrf_token();
 <div class="card">
     <div class="card__title">運営メニュー</div>
     <p>
-        <a class="btn btn--ghost" href="members.php">会員管理</a>
-        <a class="btn btn--ghost" href="slots.php">説明会</a>
-        <a class="btn btn--ghost" href="line_send.php">LINE配信</a>
-        <a class="btn btn--ghost" href="contacts.php">申し込み者</a>
-        <a class="btn btn--ghost" href="openchat.php">オープンチャット</a>
-        <a class="btn btn--ghost" href="tags.php">タグ管理</a>
+        <a class="btn btn--ghost" href="members">会員管理</a>
+        <a class="btn btn--ghost" href="slots">説明会</a>
+        <a class="btn btn--ghost" href="line_send">LINE配信</a>
+        <a class="btn btn--ghost" href="contacts">申し込み者</a>
+        <a class="btn btn--ghost" href="openchat">オープンチャット</a>
+        <a class="btn btn--ghost" href="tags">タグ管理</a>
     </p>
 </div>
 
 <div class="card">
     <div class="card__title">アカウント</div>
     <p>
-        <a class="btn btn--ghost" href="account.php">アカウント設定</a>
+        <a class="btn btn--ghost" href="account">アカウント設定</a>
         <?php if ((int) ($tenant['is_admin'] ?? 0) === 1): ?>
-            <a class="btn btn--ghost" href="invites.php">運営者を招待</a>
+            <a class="btn btn--ghost" href="invites">運営者を招待</a>
         <?php endif; ?>
     </p>
 </div>

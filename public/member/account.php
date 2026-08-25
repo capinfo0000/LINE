@@ -32,7 +32,7 @@ $hideBrand = true;
 require __DIR__ . '/_header.php';
 ?>
 <h1 style="font-size:1.4rem;margin:0 0 4px;">ログインID・パスワード</h1>
-<p class="muted" style="margin:0 0 12px;"><a href="/member/dashboard.php">← マイページ</a></p>
+<p class="muted" style="margin:0 0 12px;"><a href="/member/dashboard">← マイページ</a></p>
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
 
 <div class="card">
@@ -52,6 +52,6 @@ require __DIR__ . '/_header.php';
 <div class="card">
     <div class="card__title" style="color:var(--coral-d);">パスワード</div>
     <p class="muted" style="margin-top:0;">パスワードの変更は専用ページで行えます。</p>
-    <p><a class="btn btn--ghost" href="/member/change_password.php">パスワードを変更する</a></p>
+    <p><a class="btn btn--ghost" href="/member/change_password">パスワードを変更する</a></p>
 </div>
 <?php require __DIR__ . '/_footer.php'; ?>

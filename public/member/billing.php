@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             init_stripe();
             $session = \Stripe\BillingPortal\Session::create([
                 'customer'   => $customerId,
-                'return_url' => base_url() . '/member/billing.php',
+                'return_url' => base_url() . '/member/billing',
             ]);
             header('Location: ' . $session->url);
             exit;
@@ -94,5 +94,5 @@ require __DIR__ . '/_header.php';
 </div>
 <?php endif; ?>
 
-<p class="muted" style="margin-top:10px;"><a href="/member/dashboard.php">← 会員トップへ戻る</a></p>
+<p class="muted" style="margin-top:10px;"><a href="/member/dashboard">← 会員トップへ戻る</a></p>
 <?php require __DIR__ . '/_footer.php'; ?>

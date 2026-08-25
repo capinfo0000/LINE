@@ -262,7 +262,7 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
     <h1 style="font-size:1.5rem;margin:0;white-space:nowrap;">プロフィール編集</h1>
     <a class="btn btn--ghost" href="<?= e(member_public_path($member)) ?>" style="padding:8px 16px;border-radius:999px;flex:0 0 auto;width:auto;white-space:nowrap;">プレビュー</a>
 </div>
-<p class="muted" style="margin:0 0 14px;"><a href="/member/dashboard.php">← マイページ</a></p>
+<p class="muted" style="margin:0 0 14px;"><a href="/member/dashboard">← マイページ</a></p>
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= nl2br(e($msg)) ?></div><?php endif; ?>
 
 <div class="card">
@@ -290,12 +290,12 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
         <div class="tp-editcover">
             <label class="tp-cov">
                 <input type="file" name="cover" accept="image/jpeg,image/png,image/webp" hidden>
-                <?php if ($coverAbs !== null): ?><img src="/member/photo.php?kind=cover&v=<?= $imgV ?>" alt="カバー画像"><?php endif; ?>
+                <?php if ($coverAbs !== null): ?><img src="/member/photo?kind=cover&v=<?= $imgV ?>" alt="カバー画像"><?php endif; ?>
                 <span class="tp-cam"><?= $camSvg ?> カバー画像</span>
             </label>
             <label class="tp-avedit">
                 <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" hidden>
-                <?php if ($photoAbs !== null): ?><img src="/member/photo.php?v=<?= $imgV ?>" alt="顔写真"><?php else: ?><span class="tp-avedit__ph"><?= $camSvg ?></span><?php endif; ?>
+                <?php if ($photoAbs !== null): ?><img src="/member/photo?v=<?= $imgV ?>" alt="顔写真"><?php else: ?><span class="tp-avedit__ph"><?= $camSvg ?></span><?php endif; ?>
             </label>
         </div>
 
@@ -363,7 +363,7 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
             <p class="modal__lead">全会員に公開されます。個人情報の記載にご注意ください。</p>
             <label class="tp-cardedit">
                 <input type="file" name="card" accept="image/jpeg,image/png,image/webp" hidden>
-                <?php if ($cardAbs !== null): ?><img src="/member/photo.php?kind=card&v=<?= $imgV ?>" alt="名刺画像"><span class="tp-cam"><?= $camSvg ?> 変更</span><?php else: ?><span class="tp-cardedit__ph"><?= $camSvg ?> 名刺画像を選ぶ</span><?php endif; ?>
+                <?php if ($cardAbs !== null): ?><img src="/member/photo?kind=card&v=<?= $imgV ?>" alt="名刺画像"><span class="tp-cam"><?= $camSvg ?> 変更</span><?php else: ?><span class="tp-cardedit__ph"><?= $camSvg ?> 名刺画像を選ぶ</span><?php endif; ?>
             </label>
             <div class="modal__actions"><button type="button" class="btn" data-modal-close>決定</button></div>
         </div>
@@ -374,6 +374,6 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
         画像を選択しました。<strong>まだ保存されていません。</strong>下の「保存する」を押すと確定します。
     </div>
     <p><button type="submit" class="btn">保存する</button>
-       <a class="btn btn--ghost" href="/member/dashboard.php">戻る</a></p>
+       <a class="btn btn--ghost" href="/member/dashboard">戻る</a></p>
 </form>
 <?php require __DIR__ . '/_footer.php'; ?>

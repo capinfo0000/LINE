@@ -10,8 +10,25 @@
     </IfModule>
 </FilesMatch>
 
-# プロフィールの短い共有URL（/u/<コード>）を u.php へ渡す。
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # --- URL から .php を消す（考え方は プロジェクト直下の .htaccess と同じ） ---
+    # 判定は THE_REQUEST（元のリクエスト行）。内部転送では変わらないので往復しない。
+    # GET 以外は転送しない。外部サービスに登録済みのURLは .php のまま受ける。
+    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteCond %{THE_REQUEST} \s/+index\.php[\s?]
+    RewriteRule ^index\.php$ / [R=301,L,QSA]
+
+    RewriteCond %{REQUEST_METHOD} =GET
+    RewriteCond %{THE_REQUEST} \s/+[^?\s]*\.php[\s?]
+    RewriteCond %{REQUEST_URI} !^/(webhook|line_webhook|cron|install)\.php$
+    RewriteRule ^(.+)\.php$ /$1 [R=301,L,QSA]
+
+    # プロフィールの短い共有URL（/u/<コード>）を u.php へ渡す。
     RewriteRule ^u/([A-Za-z0-9]{4,32})/?$ u.php?c=$1 [L,QSA]
+
+    # 拡張子なしのURL（/member/directory 等）を実体の .php につなぐ。
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteRule ^([A-Za-z0-9_\-/]+)$ $1.php [L,QSA]
 </IfModule>

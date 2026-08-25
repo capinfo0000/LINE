@@ -28,8 +28,8 @@ if (member_needs_intro($member)) {
             会員どうしの検索・閲覧を始めるには、まず<strong>公式LINEのトークに自己紹介を送信</strong>してください。
             送信が確認されると自動で解除されます。
         </p>
-        <p style="margin:0 0 10px;"><a class="btn btn--lg" href="/member/intro.php?gate=1">自己紹介を送る（ひな形を開く）</a></p>
-        <p style="margin:0;"><a class="btn btn--ghost" href="/member/directory.php">送信した／再読み込みして確認</a></p>
+        <p style="margin:0 0 10px;"><a class="btn btn--lg" href="/member/intro?gate=1">自己紹介を送る（ひな形を開く）</a></p>
+        <p style="margin:0;"><a class="btn btn--ghost" href="/member/directory">送信した／再読み込みして確認</a></p>
         <p class="muted" style="font-size:.8rem;margin:10px 0 0;">送信するとすぐに反映されます。この画面は自動で切り替わらないため、上のボタンで再読み込みしてください。</p>
     </div>
     <?php
@@ -57,8 +57,8 @@ if (member_search_locked($member)) {
             月額会費（税込500円）のご登録が必要です。<br>
             プロフィールの編集やポイントの確認は、引き続きご利用いただけます。
         </p>
-        <p style="margin:0 0 10px;"><a class="btn btn--lg" href="/member/subscribe.php">月額会費を登録する</a></p>
-        <p style="margin:0;"><a class="btn btn--ghost" href="/member/dashboard.php">マイページへ戻る</a></p>
+        <p style="margin:0 0 10px;"><a class="btn btn--lg" href="/member/subscribe">月額会費を登録する</a></p>
+        <p style="margin:0;"><a class="btn btn--ghost" href="/member/dashboard">マイページへ戻る</a></p>
     </div>
     <?php
     require __DIR__ . '/_footer.php';
@@ -72,9 +72,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($likeTo !== '') {
         toggle_interest((string) $member['id'], $likeTo);
     }
-    $ret = (string) ($_POST['return'] ?? '/member/directory.php');
+    $ret = (string) ($_POST['return'] ?? '/member/directory');
     if (!preg_match('#^/member/[A-Za-z0-9_./?=&%+-]*$#', $ret)) {
-        $ret = '/member/directory.php'; // オープンリダイレクト対策
+        $ret = '/member/directory'; // オープンリダイレクト対策
     }
     header('Location: ' . $ret);
     exit;
@@ -232,7 +232,7 @@ if ($showRail) {
 ?>
 <form id="likeform" method="post" hidden>
     <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-    <input type="hidden" name="return" value="<?= e($_SERVER['REQUEST_URI'] ?? '/member/directory.php') ?>">
+    <input type="hidden" name="return" value="<?= e($_SERVER['REQUEST_URI'] ?? '/member/directory') ?>">
 </form>
 
 <!-- 検索バー＋絞り込みドロップダウン（pato風トップバー） -->
@@ -255,11 +255,11 @@ if ($showRail) {
                 <p style="margin:12px 0 4px;font-weight:700;font-size:.85rem;">目的</p>
                 <div><?php $renderChecks($grouped['purpose'] ?? [], 'purpose', $checkedPurpose); ?></div>
             <?php else: ?>
-                <p class="muted" style="font-size:.8rem;margin:10px 0 0;">仕事ジャンル・目的・キーワード検索は<strong>プレミアム</strong>限定です。<a href="/member/billing.php">プレミアムにする</a></p>
+                <p class="muted" style="font-size:.8rem;margin:10px 0 0;">仕事ジャンル・目的・キーワード検索は<strong>プレミアム</strong>限定です。<a href="/member/billing">プレミアムにする</a></p>
             <?php endif; ?>
             <div class="tp-filteractions">
                 <button type="submit" class="btn">この条件で検索</button>
-                <a class="btn btn--ghost" href="/member/directory.php">クリア</a>
+                <a class="btn btn--ghost" href="/member/directory">クリア</a>
             </div>
         </div>
     </details>
@@ -268,7 +268,7 @@ if ($showRail) {
 <!-- カテゴリタブ（横スクロール） -->
 <nav class="tp-cat" aria-label="カテゴリ">
     <?php foreach ($tabs as $k => $label): ?>
-        <a href="/member/directory.php?tab=<?= e($k) ?>" class="tp-cattab<?= (!$hasQuery && $tab === $k) ? ' on' : '' ?>"><?= e($label) ?></a>
+        <a href="/member/directory?tab=<?= e($k) ?>" class="tp-cattab<?= (!$hasQuery && $tab === $k) ? ' on' : '' ?>"><?= e($label) ?></a>
     <?php endforeach; ?>
 </nav>
 
@@ -300,14 +300,14 @@ if ($showRail) {
     <!-- キャンペーンバー -->
     <?php if (billing_started()): ?>
         <!-- 課金フェーズ：紹介で月額を無料にできるので、キャンペーンを出す。 -->
-        <a class="tp-coupon" href="/member/points.php">
+        <a class="tp-coupon" href="/member/points">
             <span class="tp-cbadge">紹介</span>
             <span class="tp-ctext"><b>5人ご紹介で翌月の月額が0円</b>／紹介はずっと有効</span>
             <span class="tp-chelp" aria-hidden="true">?</span>
         </a>
     <?php elseif (billing_grace_active()): ?>
         <!-- 猶予期間：いつから有料になるかを先に伝える。 -->
-        <a class="tp-coupon tp-coupon--notice" href="/member/billing.php">
+        <a class="tp-coupon tp-coupon--notice" href="/member/billing">
             <span class="tp-cbadge">お知らせ</span>
             <span class="tp-ctext"><b><?= e(billing_grace_notice()) ?></b></span>
             <span class="tp-chelp" aria-hidden="true">?</span>
@@ -333,7 +333,7 @@ if ($showRail) {
     <div class="tp-secttl">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 15 8.5 22 9.3l-5 4.6 1.3 6.9L12 17.8 5.7 20.8 7 13.9 2 9.3l7-.8z"/></svg>
         あなたへのおすすめ
-        <a class="more" href="/member/recommend.php">すべて見る →</a>
+        <a class="more" href="/member/recommend">すべて見る →</a>
     </div>
     <div class="tp-rail">
         <?php foreach ($recCards as $c): $renderCard($c); endforeach; ?>
@@ -352,7 +352,7 @@ if ($hasQuery) {
     // 右上に出すのは「すべて見る」だけ。件数は出さない。
     // 「すべての会員」は初期30名なので、続きがあるときだけ出す。
     if ($tab === 'osusume' && !empty($hasMore)) {
-        echo ' <a class="more" href="/member/directory.php?all=1">すべて見る →</a>';
+        echo ' <a class="more" href="/member/directory?all=1">すべて見る →</a>';
     }
     echo '</div>';
 }

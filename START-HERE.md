@@ -46,8 +46,8 @@ php -S localhost:8000 -t public
 ブラウザで **http://localhost:8000/install.php** を開き、フォームに入力（Stripe/LINE/Zoomは空欄でOK）。
 → `.env` 生成・DB初期化・運営管理者作成が完了し、`install.php` は自動削除されます。
 
-- 運営：http://localhost:8000/admin/login.php
-- 会員：http://localhost:8000/member/login.php
+- 運営：http://localhost:8000/admin/login
+- 会員：http://localhost:8000/member/login
 
 ### install.php を使わず手動で動かす場合
 ```bash

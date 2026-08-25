@@ -473,6 +473,19 @@ function db_migrate(\PDO $pdo): void
             $ins->execute([$r[0], $r[1], $r[2], $r[3], $r[4], $i, $now, $now]);
         }
     }
+    // URL から .php を出さない方針にしたので、既に入っているサイト内リンクからも落とす
+    // （リダイレクトで開けはするが、押した瞬間にアドレスバーが一度 .php になるため）。
+    // 対象はサイト内（/ 始まり）だけ。外部URLは触らない。件数は最大10件なので毎回見ても軽い。
+    $annUrls = $pdo->query("SELECT id, url FROM announcements WHERE url LIKE '/%.php%'")->fetchAll();
+    if ($annUrls !== []) {
+        $updAnn = $pdo->prepare('UPDATE announcements SET url = ? WHERE id = ?');
+        foreach ($annUrls as $a) {
+            $fixed = preg_replace('#\.php(?=$|[?\#])#', '', (string) $a['url'], 1);
+            if ($fixed !== null && $fixed !== (string) $a['url']) {
+                $updAnn->execute([$fixed, (int) $a['id']]);
+            }
+        }
+    }
 
     // アプリ全体の設定（キー・値）。料金フェーズ(billing_started)などを保持。
     $pdo->exec(<<<'SQL'

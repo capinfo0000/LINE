@@ -501,7 +501,7 @@ function send_payment_link_to_contact(string $userId): bool
     if ((int) ($c['approved'] ?? 0) !== 1) {
         return false; // 承認ゲート
     }
-    $url = base_url() . '/checkout.php?lu=' . rawurlencode($userId);
+    $url = base_url() . '/checkout?lu=' . rawurlencode($userId);
     if (!empty($c['email'])) {
         $url .= '&email=' . rawurlencode((string) $c['email']);
     }

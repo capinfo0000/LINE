@@ -28,11 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 初回PW強制変更が必要なら変更ページへ、そうでなければダッシュボードへ。
         $m = current_member();
         if ($m !== null && (int) ($m['must_change_pw'] ?? 0) === 1) {
-            header('Location: /member/change_password.php');
+            header('Location: /member/change_password');
         } else {
             // 共有URLから来た場合はその画面へ戻す。無ければ会員トップ。
             $back = take_login_return_path();
-            header('Location: ' . ($back !== '' ? $back : '/member/dashboard.php'));
+            header('Location: ' . ($back !== '' ? $back : '/member/dashboard'));
         }
         exit;
     } else {
@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // すでにログイン済みなら会員トップ（共有URLから来ていればその画面）へ
 if (current_member() !== null) {
     $back = take_login_return_path();
-    header('Location: ' . ($back !== '' ? $back : '/member/dashboard.php'));
+    header('Location: ' . ($back !== '' ? $back : '/member/dashboard'));
     exit;
 }
 
@@ -59,7 +59,7 @@ require __DIR__ . '/_header.php';
         <?= e($error) ?>
         <div style="font-size:.82rem;margin-top:6px;font-weight:400;">
             ・ログインIDは入会時にお送りした <code>el〜</code> の形式です（大文字・小文字は区別しません）。<br>
-            ・分からない場合は <a href="/member/forgot.php">パスワードを忘れた場合</a> から再設定できます。
+            ・分からない場合は <a href="/member/forgot">パスワードを忘れた場合</a> から再設定できます。
         </div>
     </div>
 <?php endif; ?>
@@ -72,12 +72,12 @@ require __DIR__ . '/_header.php';
     <?= captcha_widget_html() ?>
     <p style="margin-top:16px;"><button type="submit" class="btn">ログイン</button></p>
 </form>
-<p class="muted"><a href="/member/forgot.php">パスワードを忘れた場合</a></p>
+<p class="muted"><a href="/member/forgot">パスワードを忘れた場合</a></p>
 <p class="muted"><?= e(ops_credentials_description()) ?></p>
 <p class="muted" style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;font-size:.82rem;">
-    <a href="/tokushoho.php">特定商取引法に基づく表記</a> ／
-    <a href="/policy.php">キャンセル・返金ポリシー</a> ／
-    <a href="/terms.php">利用規約</a> ／
-    <a href="/privacy.php">プライバシーポリシー</a>
+    <a href="/tokushoho">特定商取引法に基づく表記</a> ／
+    <a href="/policy">キャンセル・返金ポリシー</a> ／
+    <a href="/terms">利用規約</a> ／
+    <a href="/privacy">プライバシーポリシー</a>
 </p>
 <?php require __DIR__ . '/_footer.php'; ?>
