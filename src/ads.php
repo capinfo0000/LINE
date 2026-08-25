@@ -17,6 +17,28 @@
 
 declare(strict_types=1);
 
+/**
+ * 広告の表示そのものを、まとめて止められるようにする。
+ *
+ * 個別の広告にも「掲載する/止める」があるが、それとは別に全体のスイッチを持つ。
+ * 提携先とのトラブル、掲載内容の差し替え待ち、キャンペーンの終了など
+ * 「とりあえず全部止めたい」場面で、広告を1件ずつ触らずに済ませるため。
+ * 個別の設定は残るので、ONに戻せば元の状態に戻る。
+ *
+ * 既定はON。OFFが既定だと、広告を登録したのに出ない理由が分からなくなる。
+ */
+function ads_enabled(): bool
+{
+    return app_setting_get('ads_enabled', '1') !== '0';
+}
+
+/** 全体のスイッチを切り替える。 */
+function ads_set_enabled(bool $on): void
+{
+    app_setting_set('ads_enabled', $on ? '1' : '0');
+    audit_log('admin.ads_enabled', ['on' => $on ? 1 : 0]);
+}
+
 /** 枠の種類と、運営画面に出す説明。 */
 function ad_slots(): array
 {
@@ -49,7 +71,9 @@ function ads_dir(): string
  */
 function ads_for_slot(string $slot, int $limit = 1): array
 {
-    if (!isset(ad_slots()[$slot])) {
+    // 全体のスイッチがOFFなら、ここで打ち切る。表示する側の分岐を増やさずに
+    // 1箇所で効かせるため、抽出の入口に置いている。
+    if (!ads_enabled() || !isset(ad_slots()[$slot])) {
         return [];
     }
     $now = time();
@@ -62,6 +86,12 @@ function ads_for_slot(string $slot, int $limit = 1): array
     );
     $stmt->execute([$slot, $now, $now]);
     $rows = $stmt->fetchAll() ?: [];
+
+    // 画像の実ファイルが無いものは外す。DBにパスが残っていてもファイルが消えている
+    // ことはある（手で消した、保存が途中で失敗した等）。そのまま出すと
+    // 画像が表示されない空の枠になるので、最初から候補に入れない。
+    $rows = array_values(array_filter($rows, static fn (array $r): bool => ad_image_abs_path($r) !== null));
+
     if ($rows === [] || count($rows) <= $limit) {
         return $rows;
     }

@@ -33,6 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ok = ad_delete($id);
         $note = $ok ? '広告を削除しました。' : '対象の広告が見つかりませんでした。';
         $type = $ok ? 'ok' : 'ng';
+    } elseif ($action === 'toggle_all') {
+        ads_set_enabled(!ads_enabled());
+        $note = ads_enabled() ? '広告の表示をONにしました。' : '広告の表示をOFFにしました（登録内容はそのまま残っています）。';
+        $type = 'ok';
     } elseif ($action === 'toggle') {
         $ad = find_ad($id);
         if ($ad === null) {
@@ -174,6 +178,30 @@ $renderForm = static function (array $a, array $slots, string $token, bool $isNe
 };
 ?>
 <?php if ($msg !== ''): ?><div class="flash <?= $msgType === 'ok' ? 'flash--ok' : 'flash--ng' ?>"><?= e($msg) ?></div><?php endif; ?>
+
+<div class="card">
+    <div class="card__title" style="margin:0;">
+        広告の表示
+        <span class="badge badge--<?= ads_enabled() ? 'info' : 'mute' ?>"><?= ads_enabled() ? 'ON' : 'OFF' ?></span>
+    </div>
+    <p class="hint" style="margin:.6rem 0 0;">
+        <?php if (ads_enabled()): ?>
+            いま広告は会員画面に出ています。OFFにすると、<strong>下の登録内容はそのまま残したまま</strong>、
+            すべての広告が出なくなります。
+        <?php else: ?>
+            いま広告は<strong>どこにも出ていません</strong>。下の個別の設定に関係なく、全部止まっています。
+            ONにすると、掲載中にしてある広告が元どおり出ます。
+        <?php endif; ?>
+    </p>
+    <form method="post" style="margin:.8rem 0 0;">
+        <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
+        <input type="hidden" name="action" value="toggle_all">
+        <button type="submit" class="btn<?= ads_enabled() ? ' btn--ghost' : '' ?>"
+                data-confirm="<?= ads_enabled() ? '広告の表示をすべてOFFにします。よろしいですか？（登録内容は残ります）' : '広告の表示をONにします。よろしいですか？' ?>">
+            <?= ads_enabled() ? '広告をすべてOFFにする' : '広告をONにする' ?>
+        </button>
+    </form>
+</div>
 
 <div class="card">
     <div class="card__title" style="margin:0;">この画面でできること</div>
