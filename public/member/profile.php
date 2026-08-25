@@ -53,33 +53,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         return false;
     };
     $uploaded = $hasUpload();
-    // 顔写真：新しいファイルがあればアップロード優先、無ければ削除指定を処理。
-    if (($_FILES['photo']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-        $perr = '';
-        if (!save_member_photo($memberId, $_FILES['photo'], $perr)) {
-            $imgMsgs[] = '顔写真：' . $perr;
+
+    /**
+     * 画像1つ分の受け取り。
+     *  ・error が OK なら保存する
+     *  ・error が NO_FILE（未選択）なら、削除指定だけを見る
+     *  ・それ以外（上限超過など）は理由を返す
+     *    ここを取りこぼすと「保存しました」と出るのに画像だけ入らない、
+     *    原因の分からない不具合になる。
+     */
+    $takeImage = static function (
+        string $field,
+        string $label,
+        callable $save,
+        callable $delete
+    ) use (&$imgMsgs): void {
+        $code = (int) ($_FILES[$field]['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($code === UPLOAD_ERR_OK) {
+            $err = '';
+            if (!$save($_FILES[$field], $err)) {
+                $imgMsgs[] = $label . '：' . $err;
+            }
+            return;
         }
-    } elseif (!empty($_POST['photo_delete'])) {
-        delete_member_photo($memberId);
-    }
-    // カバー画像（全会員公開）
-    if (($_FILES['cover']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-        $cerr = '';
-        if (!save_member_image($memberId, 'cover_path', 'cover', $_FILES['cover'], 1200, $cerr)) {
-            $imgMsgs[] = 'カバー画像：' . $cerr;
+        if ($code !== UPLOAD_ERR_NO_FILE) {
+            $imgMsgs[] = $label . '：' . upload_error_message($code);
+            return;
         }
-    } elseif (!empty($_POST['cover_delete'])) {
-        delete_member_image($memberId, 'cover_path');
-    }
-    // 名刺画像（全会員公開）
-    if (($_FILES['card']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-        $kerr = '';
-        if (!save_member_image($memberId, 'card_path', 'card', $_FILES['card'], 1000, $kerr)) {
-            $imgMsgs[] = '名刺画像：' . $kerr;
+        if (!empty($_POST[$field . '_delete'])) {
+            $delete();
         }
-    } elseif (!empty($_POST['card_delete'])) {
-        delete_member_image($memberId, 'card_path');
-    }
+    };
+
+    $takeImage(
+        'photo',
+        '顔写真',
+        static fn (array $f, string &$e): bool => save_member_photo($memberId, $f, $e),
+        static function () use ($memberId): void { delete_member_photo($memberId); }
+    );
+    $takeImage(
+        'cover',
+        'カバー画像',
+        static fn (array $f, string &$e): bool => save_member_image($memberId, 'cover_path', 'cover', $f, 1200, $e),
+        static function () use ($memberId): void { delete_member_image($memberId, 'cover_path'); }
+    );
+    $takeImage(
+        'card',
+        '名刺画像',
+        static fn (array $f, string &$e): bool => save_member_image($memberId, 'card_path', 'card', $f, 1000, $e),
+        static function () use ($memberId): void { delete_member_image($memberId, 'card_path'); }
+    );
 
     if ($errors !== []) {
         // 本文は保存せずにエラーを表示（入力はそのまま残す）。

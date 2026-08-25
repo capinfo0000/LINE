@@ -110,7 +110,7 @@ try {
     } elseif ($job === 'diag') {
         // 運用診断（秘密情報は出力しない）。自己紹介ロック・LINE受信の状況を確認する。
         $L = [];
-        $L[] = 'code_version=seo_aio_1';
+        $L[] = 'code_version=upload_fix_1';
         $L[] = 'signup_mode=' . signup_mode();
         $L[] = 'intro_gate=' . (intro_gate_enabled() ? 'ON' : 'OFF');
         $L[] = 'line_token=' . (line_channel_token() !== null ? 'set' : 'MISSING');
@@ -124,6 +124,13 @@ try {
         $L[] = 'intro_exempt=' . $q('SELECT COUNT(*) FROM members WHERE intro_gate_exempt = 1');
         // 共有URL（/u/<コード>）。未発行が残っていないかの確認用。
         $L[] = 'share_code_missing=' . $q("SELECT COUNT(*) FROM members WHERE public_code IS NULL OR public_code = ''");
+        // 画像アップロードの上限。.user.ini が効いていないと既定値（2M/8M程度）のままで、
+        // スマホの写真が黙って捨てられる。効いていれば 10M/12M と出る。
+        $L[] = 'upload_max_filesize=' . ini_get('upload_max_filesize');
+        $L[] = 'post_max_size=' . ini_get('post_max_size');
+        $L[] = 'gd=' . (function_exists('imagecreatefromstring') ? 'yes' : 'MISSING')
+            . ' webp=' . (function_exists('imagewebp') ? 'yes' : 'no');
+        $L[] = 'uploads_writable=' . (is_writable(uploads_dir()) ? 'yes' : 'NO');
         // 年齢制限を入れる前に登録された、最低年齢に満たない会員がいないかの確認用。
         $L[] = 'min_age=' . member_min_age();
         // 「先着◯名」に数えるのは自己紹介まで入った会員だけ。両方出して差を見る。

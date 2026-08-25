@@ -626,6 +626,32 @@ function member_image_abs_path(array $profile, string $column): ?string
  *
  * @param array{tmp_name?:string,size?:int,error?:int} $file
  */
+/**
+ * アップロードの失敗理由を日本語にする。
+ *
+ * これまで $_FILES の error を見ずに「OK以外は何もしない」実装だったため、
+ * サーバの上限を超えた画像が黙って捨てられ、しかも「保存しました」と
+ * 出ていた（利用者からは原因が分からない）。必ず理由を返す。
+ */
+function upload_error_message(int $code): string
+{
+    switch ($code) {
+        case UPLOAD_ERR_INI_SIZE:
+        case UPLOAD_ERR_FORM_SIZE:
+            return 'ファイルが大きすぎます（このサーバの上限は ' . ini_get('upload_max_filesize')
+                . '）。もう少し小さい画像でお試しください。';
+        case UPLOAD_ERR_PARTIAL:
+            return 'アップロードが途中で終わりました。通信状況を確認して、もう一度お試しください。';
+        case UPLOAD_ERR_NO_TMP_DIR:
+        case UPLOAD_ERR_CANT_WRITE:
+            return 'サーバ側で一時保存に失敗しました。少し時間をおいてお試しください。';
+        case UPLOAD_ERR_EXTENSION:
+            return 'サーバの設定でアップロードが拒否されました。';
+        default:
+            return 'アップロードに失敗しました（コード ' . $code . '）。';
+    }
+}
+
 function save_member_image(string $memberId, string $column, string $kind, array $file, int $maxW, string &$error = '', bool $fromUpload = true): bool
 {
     $errCode = $file['error'] ?? UPLOAD_ERR_NO_FILE;

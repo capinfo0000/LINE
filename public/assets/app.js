@@ -212,6 +212,76 @@
       });
     });
 
+    // 送信前に画像を縮める。
+    //
+    // スマホの写真はそのままだと数MBあり、サーバの upload_max_filesize を
+    // 超えると、ブラウザは何も言わずに中身を捨てて送る（PHP側では error=1 になる）。
+    // 「プレビューは出るのに保存されない」の主因がこれ。
+    // ここで長辺 1600px・JPEG 品質85 に落としてから送るので、
+    // 上限に当たらなくなる。サーバ側でも用途ごとの幅に再圧縮している。
+    //
+    // 縮小に失敗した場合・元のほうが小さい場合は、元のファイルをそのまま送る。
+    var SHRINK_MAX = 1600;
+    var SHRINK_THRESHOLD = 900 * 1024; // これ以下は触らない（劣化させない）
+
+    function shrinkFile(file) {
+      return new Promise(function (resolve) {
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size <= SHRINK_THRESHOLD) {
+          resolve(null); return;
+        }
+        if (!window.HTMLCanvasElement || !document.createElement('canvas').toBlob) { resolve(null); return; }
+        var url = URL.createObjectURL(file);
+        var im = new Image();
+        im.onload = function () {
+          URL.revokeObjectURL(url);
+          var scale = Math.min(1, SHRINK_MAX / Math.max(im.width, im.height));
+          var w = Math.max(1, Math.round(im.width * scale));
+          var h = Math.max(1, Math.round(im.height * scale));
+          var cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          var cx = cv.getContext('2d');
+          if (!cx) { resolve(null); return; }
+          cx.drawImage(im, 0, 0, w, h);
+          cv.toBlob(function (blob) {
+            // 縮めた結果が元より大きければ意味がないので、元を使う。
+            if (!blob || blob.size >= file.size) { resolve(null); return; }
+            resolve(new File([blob], file.name.replace(/\.(png|webp)$/i, '.jpg'), { type: 'image/jpeg' }));
+          }, 'image/jpeg', 0.85);
+        };
+        im.onerror = function () { URL.revokeObjectURL(url); resolve(null); };
+        im.src = url;
+      });
+    }
+
+    document.querySelectorAll('form[enctype="multipart/form-data"]').forEach(function (form) {
+      var busy = false;
+      form.addEventListener('submit', function (ev) {
+        if (busy) { return; }
+        var inputs = [].slice.call(form.querySelectorAll('input[type="file"]')).filter(function (i) {
+          return i.files && i.files.length === 1;
+        });
+        if (inputs.length === 0) { return; }
+        ev.preventDefault();
+        busy = true;
+        var btn = form.querySelector('button[type="submit"]');
+        var label = btn ? btn.textContent : '';
+        if (btn) { btn.disabled = true; btn.textContent = '画像を準備中…'; }
+        Promise.all(inputs.map(function (inp) {
+          return shrinkFile(inp.files[0]).then(function (small) {
+            if (!small || typeof DataTransfer === 'undefined') { return; }
+            try {
+              var dt = new DataTransfer();
+              dt.items.add(small);
+              inp.files = dt.files;
+            } catch (e) { /* 差し替えできない環境では元のまま送る */ }
+          });
+        })).then(function () {
+          if (btn) { btn.disabled = false; btn.textContent = label; }
+          form.submit();
+        });
+      });
+    });
+
     // 画像選択の即時プレビュー（カバー/顔写真/名刺）。選んだ瞬間に見た目で分かるようにする。
     document.querySelectorAll('.tp-cov input[type="file"], .tp-avedit input[type="file"], .tp-cardedit input[type="file"]').forEach(function (inp) {
       inp.addEventListener('change', function () {
