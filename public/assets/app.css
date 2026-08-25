@@ -329,42 +329,33 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
   color:var(--muted); background:#f4eeee; white-space:nowrap; }
 .tp-cattab.on{ background:var(--coral); color:#fff; box-shadow:0 4px 12px rgba(180,83,9,.30); }
 
-/* --- さがす：ヒーローカルーセル（中央フォーカス型） ---
-   左右に前後のスライドを覗かせ、中央の1枚が主役。自動送りで中央が入れ替わる。
-   スライド幅は --pw で持たせ、画面幅ごとに変える。左右の余白を
-   「(全体幅 - スライド幅) / 2」にすることで、先頭と末尾も中央に来られる。 */
-/* --pw はスライド1枚の幅。%ではなく絶対長にする。
-   %にすると「余白が広がる→内容幅が縮む→%で決まるスライドも縮む」と
-   互いに縮み合って、意図した幅にならない（実測194pxまで縮んだ）。 */
-.tp-promo{ --pw: clamp(240px, 86vw, 420px); display:flex; gap:10px; overflow-x:auto;
+/* --- さがす：ヒーローカルーセル（1枚ずつ・全幅） ---
+   1枚を幅いっぱいに出し、自動送り・スワイプ・下の点で切り替える。
+   前後のスライドは覗かせない（両隣を見せる形は取りやめ）。 */
+/* 幅は 100%。左右に余白を作らないので、% でも縮み合いは起きない
+   （以前は左右の余白を % で取っていたため、「余白が広がる→内容幅が縮む→
+   % で決まるスライドも縮む」と互いに縮み合い、実測194pxまで縮んだ）。 */
+.tp-promo{ display:flex; gap:10px; overflow-x:auto;
   scroll-snap-type:x mandatory; scrollbar-width:none;
-  margin:12px -4px 6px; padding-inline:max(4px, calc(50% - var(--pw) / 2)); -webkit-overflow-scrolling:touch; }
+  margin:12px 0 8px; -webkit-overflow-scrolling:touch; }
 .tp-promo::-webkit-scrollbar{ display:none; }
-.tp-pslide{ scroll-snap-align:center; flex:0 0 var(--pw); border-radius:18px; padding:22px 20px; color:#fff; text-decoration:none;
-  display:flex; flex-direction:column; justify-content:center; min-height:118px; position:relative; overflow:hidden; box-shadow:var(--shadow-sm);
-  /* 中央以外は少し引っ込ませて、主役がどれか分かるようにする（JSが .is-center を付ける）。 */
-  transform:scale(.94); opacity:.6; transition:transform .35s, opacity .35s; }
-.tp-pslide.is-center{ transform:scale(1); opacity:1; box-shadow:var(--shadow-md); }
-/* 動きを減らす設定の端末では拡大縮小をやめ、濃さだけで区別する。 */
-@media (prefers-reduced-motion: reduce){
-  .tp-pslide{ transform:none; transition:opacity .2s; }
-  .tp-pslide.is-center{ transform:none; }
-}
+.tp-pslide{ scroll-snap-align:center; flex:0 0 100%; border-radius:18px; padding:22px 20px; color:#fff; text-decoration:none;
+  display:flex; flex-direction:column; justify-content:center; min-height:118px; position:relative; overflow:hidden; box-shadow:var(--shadow-md); }
 .tp-pslide .tp-slabel{ font-size:.7rem; font-weight:800; letter-spacing:.14em; opacity:.9; }
 .tp-pslide b{ font-size:1.28rem; font-weight:800; margin:3px 0 2px; line-height:1.25; }
 .tp-pslide .tp-ssub{ font-size:.82rem; opacity:.95; }
 .tp-pslide--brand{ background:linear-gradient(120deg,#3a2b4d,#1f2937); }
 .tp-pslide--ref{ background:linear-gradient(120deg,var(--brand),#c2760a); }
 .tp-pslide--rank{ background:linear-gradient(120deg,#f0b429,#b8860b); }
-.tp-dots{ display:flex; gap:6px; justify-content:center; align-items:center; margin:2px 0 4px; }
-/* 前後ボタン。自動送りに任せきりにせず、自分で送れるようにする。 */
-.tp-pnav{ flex:none; width:26px; height:26px; margin:0 2px; padding:0; border:0; border-radius:50%;
-  background:transparent; color:var(--faint, #9ca3af); cursor:pointer; display:grid; place-items:center; }
-.tp-pnav:hover{ background:var(--bg); color:var(--coral-d); }
-.tp-pnav svg{ width:15px; height:15px; }
-/* 表示中のスライドを .on で示す（JSが付け外しする）。自動送りに合わせて動く。 */
-.tp-dots span{ width:6px; height:6px; border-radius:50%; background:var(--border); transition:background .2s, width .2s; }
-.tp-dots span.on{ background:var(--coral); width:16px; border-radius:999px; }
+.tp-dots{ display:flex; gap:0; justify-content:center; align-items:center; margin:2px 0 6px; }
+/* 表示中のスライドを .on で示す（JSが付け外しする）。自動送りに合わせて動く。
+   点は見た目7pxのまま、透明な枠でタップできる範囲を15pxに広げている
+   （見た目どおりの7pxだと指で押しにくい）。全体で box-sizing:border-box に
+   しているので、width を中身の寸法として扱うため content-box に戻す。 */
+.tp-dots span{ box-sizing:content-box; width:7px; height:7px; border-radius:50%;
+  background:#d1d5db; cursor:pointer; border:4px solid transparent; background-clip:padding-box;
+  transition:background .2s; }
+.tp-dots span.on{ background:var(--coral); }
 /* リンクの無いお知らせも同じ見た目にする（div で出力されるため）。 */
 div.tp-pslide{ cursor:default; }
 
@@ -593,8 +584,6 @@ div.tp-pslide{ cursor:default; }
 .container--app{ max-width: 1120px; }
 
 /* 画面が広いほど左右の覗きが大きくなる（PCでは3枚が並んで中央が主役）。 */
-@media (min-width: 560px){ .tp-promo{ --pw: 420px; } }
-@media (min-width: 900px){ .tp-promo{ --pw: 460px; } }
 
 /* 画面幅ごとの列数（カード最小幅を保ちながら増やす）。 */
 @media (min-width: 560px){

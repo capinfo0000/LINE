@@ -338,12 +338,13 @@
     //   滑らかなスクロールをやめて瞬間移動にする（動き自体は必要な機能なので残す）。
     // ・ホバーでは止めない（PCで見ていると固まって見えるため）。
     //   指でドラッグ中とキーボード操作中だけ止める。
-    // ・点（.tp-dots span）は表示位置から求めるので、スワイプでも前後ボタンでも追随する。
+    // ・点（.tp-dots span）は表示位置から求めるので、スワイプでも自動送りでも追随する。
+    //   前後ボタン（[data-carousel]）の処理は残してある。今の画面には置いていないが、
+    //   置けばそのまま動く（0件への forEach なので害はない）。
     document.querySelectorAll('[data-autoplay]').forEach(function (rail) {
       var slides = rail.children;
       if (slides.length < 2) { return; }
       var nav = document.querySelector('[data-dots-for="' + rail.className.split(' ')[0] + '"]');
-      // 点だけを取り出す（同じ行に前後ボタンが入っているため children は使えない）。
       var dots = nav ? nav.querySelectorAll('span') : [];
       var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       var wait = parseInt(rail.getAttribute('data-autoplay'), 10) || 6000;
@@ -363,8 +364,6 @@
       function paint() {
         var n = current();
         for (var i = 0; i < dots.length; i++) { dots[i].classList.toggle('on', i === n); }
-        // 中央の1枚だけ大きく・濃く見せる（左右は覗いている状態）。
-        for (var j = 0; j < slides.length; j++) { slides[j].classList.toggle('is-center', j === n); }
       }
       // そのスライドが中央に来る位置までスクロールする。
       function go(i) {
