@@ -374,8 +374,23 @@ if ($hasQuery) {
         <?php endif; ?>
     </p></div>
 <?php else: ?>
+    <?php
+    // 一覧の中に広告を1枠だけ挟む。スマホでも必ず通る位置に置きたいので、
+    // 4件目の後ろ（1画面スクロールしたあたり）にする。
+    // 件数が4件未満のときは末尾に出す（挟む場所が無いため）。
+    $adFeed = ads_render('feed', 1);
+    $adAfter = 4;
+    ?>
     <div class="tp-grid">
-        <?php foreach ($results as $i => $r): $renderCard($r, $isRanking ? $i + 1 : 0); endforeach; ?>
+        <?php foreach ($results as $i => $r): ?>
+            <?php $renderCard($r, $isRanking ? $i + 1 : 0); ?>
+            <?php if ($adFeed !== '' && $i + 1 === $adAfter): ?>
+                <div class="ad-feed"><?= $adFeed ?></div>
+            <?php endif; ?>
+        <?php endforeach; ?>
+        <?php if ($adFeed !== '' && count($results) < $adAfter): ?>
+            <div class="ad-feed"><?= $adFeed ?></div>
+        <?php endif; ?>
     </div>
 <?php endif; ?>
 <?php require __DIR__ . '/_footer.php'; ?>

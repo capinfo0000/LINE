@@ -613,3 +613,37 @@ div.tp-pslide{ cursor:default; }
   background:var(--bg); font-size:.84rem; line-height:1.5; word-break:break-all; user-select:all; }
 /* .container--narrow .btn の width:100% を上書きするため、同じ強さの指定にする。 */
 .tp-share .btn{ width:auto; flex:0 0 auto; white-space:nowrap; padding:9px 20px; }
+
+/* --- 広告枠 -------------------------------------------------------------
+   自前の画像＋リンクだけを出す（外部の配信は使わないので CSP は変えていない）。
+
+   PC の左右（.ad-rail）は、一覧（1120px）の外側に固定で置く。
+   出すのは 1520px 以上のときだけ。それより狭いと一覧に重なる：
+   1120 + (160 + 24)×2 = 1488px が必要な幅で、余白16pxを足して1520pxを境目にした。
+   1280〜1440px のノートPCでは出ない（一覧の見やすさを優先する判断）。 */
+.ad-rail{ display:none; }
+@media (min-width: 1520px){
+  .ad-rail{ display:block; position:fixed; top:50%; transform:translateY(-50%); width:160px; z-index:5; }
+  /* 560px = 一覧の幅1120pxの半分。そこから間隔24pxと広告の幅160pxを足した位置に置く。 */
+  .ad-rail--l{ left:calc(50% - 560px - 184px); }
+  .ad-rail--r{ left:calc(50% + 560px + 24px); }
+}
+/* 画面の高さが足りないと縦型がはみ出すので、そのときは出さない。 */
+@media (max-height: 680px){ .ad-rail{ display:none; } }
+
+/* 一覧の中に挟む枠。カード2列（スマホ）でも3〜5列（PC）でも、横いっぱいに広げる。 */
+.ad-feed{ grid-column:1 / -1; }
+/* PCでは一覧が1120pxあるので、そのまま伸ばすと広告が一列まるごと占める。
+   横幅に上限を付けて中央に置く（スマホは幅いっぱいのまま）。 */
+@media (min-width: 900px){
+  .ad-feed .ad{ max-width:720px; margin-inline:auto; }
+}
+
+.ad{ position:relative; display:block; border-radius:14px; overflow:hidden; background:var(--surface);
+  border:1px solid var(--border); box-shadow:var(--shadow); line-height:0; }
+.ad img{ display:block; width:100%; height:auto; }
+/* 「広告」の印。会員の投稿と見分けられるように必ず出す。 */
+.ad__tag{ position:absolute; top:6px; right:6px; z-index:1; padding:2px 7px; border-radius:999px;
+  background:rgba(17,24,39,.62); color:#fff; font-size:.66rem; font-weight:700; line-height:1.5;
+  letter-spacing:.04em; pointer-events:none; }
+.ad--side{ width:160px; }

@@ -46,6 +46,21 @@ $hideBrand = $hideBrand ?? false; // true で上部の「Enlink」ブランド�
     <script src="/assets/app.js" defer></script>
 </head>
 <body>
+<?php
+// PCの左右の空きに出す縦型広告。一覧を出す画面（幅の広いレイアウト）だけに置く。
+// 狭い画面では CSS 側で消えるので、ここでは出す・出さないだけを決める。
+if ($appWide) {
+    // 2枚あれば左右に1枚ずつ。1枚しか無ければ右だけに出す
+    // （左右で同じ画像が並ぶと、貼り間違いのように見えるため）。
+    $__side = ads_render_each('side', 2);
+    if (count($__side) >= 2) {
+        echo '<div class="ad-rail ad-rail--l">' . $__side[0] . "</div>\n";
+        echo '<div class="ad-rail ad-rail--r">' . $__side[1] . "</div>\n";
+    } elseif (count($__side) === 1) {
+        echo '<div class="ad-rail ad-rail--r">' . $__side[0] . "</div>\n";
+    }
+}
+?>
 <div class="container<?= $wide ? '' : ' container--narrow' ?><?= $appWide ? ' container--app' : '' ?>">
     <?php if (!$hideBrand): ?>
     <div class="brandbar">Enlink<?php if ($showLogout): ?><a href="/member/logout" style="float:right;font-size:.8rem;">ログアウト</a><?php endif; ?></div>

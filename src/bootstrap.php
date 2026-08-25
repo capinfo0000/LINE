@@ -41,6 +41,7 @@ require __DIR__ . '/admin.php';
 require __DIR__ . '/legal.php';
 require __DIR__ . '/meta.php';
 require __DIR__ . '/feedback.php';
+require __DIR__ . '/ads.php';
 require __DIR__ . '/legacy_import.php';
 require __DIR__ . '/mail.php';
 require __DIR__ . '/captcha.php';

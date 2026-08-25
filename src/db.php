@@ -503,6 +503,29 @@ function db_migrate(\PDO $pdo): void
     SQL);
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_feedbacks_open ON feedbacks(handled, id);');
 
+    // 広告枠。運営が画像とリンクを登録して会員画面に出す。
+    // 外部の広告配信は使わないので、ここに入るのは自前の画像だけ。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS ads (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            title       TEXT NOT NULL DEFAULT '',     -- 運営が見分けるための名前（会員には出さない）
+            slot        TEXT NOT NULL,                -- side（PCの左右・縦型）/ feed（さがすの一覧の中）
+            image_path  TEXT,                         -- data/ads/<id>.webp のような相対パス
+            url         TEXT NOT NULL DEFAULT '',     -- 遷移先。空なら押せない画像として出す
+            alt         TEXT NOT NULL DEFAULT '',     -- 画像の説明（読み上げ・画像が出ないとき用）
+            weight      INTEGER NOT NULL DEFAULT 1,   -- 同じ枠に複数あるときの出やすさ
+            starts_at   INTEGER,                      -- 掲載開始（null=すぐ）
+            ends_at     INTEGER,                      -- 掲載終了（null=無期限）
+            is_active   INTEGER NOT NULL DEFAULT 1,
+            impressions INTEGER NOT NULL DEFAULT 0,   -- 表示回数
+            clicks      INTEGER NOT NULL DEFAULT 0,   -- クリック回数
+            created_at  INTEGER NOT NULL,
+            updated_at  INTEGER NOT NULL
+        );
+    SQL);
+    // 表示のたびに引く条件（枠・有効・期間）で引けるようにする。
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_ads_live ON ads(slot, is_active, starts_at, ends_at);');
+
     // アプリ全体の設定（キー・値）。料金フェーズ(billing_started)などを保持。
     $pdo->exec(<<<'SQL'
         CREATE TABLE IF NOT EXISTS app_settings (
