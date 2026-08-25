@@ -10,7 +10,8 @@ declare(strict_types=1);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>運営 - Enlink</title>
     <?php echo page_meta_tags(['noindex' => true]); ?>
-    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
+    <link rel="apple-touch-icon" href="/assets/icon-180.png">
     <link rel="stylesheet" href="/assets/app.css">
     <script src="/assets/app.js" defer></script>
 </head>

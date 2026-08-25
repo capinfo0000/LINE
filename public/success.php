@@ -16,7 +16,8 @@ require_once dirname(__DIR__) . '/src/bootstrap.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>お支払い完了 - Enlink</title>
     <?php echo page_meta_tags(['title' => 'お支払い完了', 'noindex' => true]); ?>
-    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
+    <link rel="apple-touch-icon" href="/assets/icon-180.png">
     <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>

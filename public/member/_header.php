@@ -40,7 +40,8 @@ $hideBrand = $hideBrand ?? false; // true で上部の「Enlink」ブランド�
         echo '    ' . site_jsonld();
     }
     ?>
-    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
+    <link rel="apple-touch-icon" href="/assets/icon-180.png">
     <link rel="stylesheet" href="/assets/app.css">
     <script src="/assets/app.js" defer></script>
 </head>

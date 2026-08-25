@@ -12,8 +12,21 @@
 
 declare(strict_types=1);
 
-/** リンクプレビューに使う画像のパス（1200×630）。 */
-const OG_IMAGE_PATH = '/assets/og.png';
+/**
+ * リンクプレビューに使う画像のパス（1200×630）。
+ *
+ * LINE・X・Facebook はこのURL単位で画像をキャッシュする。差し替えたのに古い画像が
+ * 出続けるのを避けるため、中身を変えたときはファイル名も変える（=URLを変える）。
+ */
+const OG_IMAGE_PATH = '/assets/og.jpg';
+const OG_IMAGE_TYPE = 'image/jpeg';
+
+/**
+ * 構造化データ（Organization.logo）に使うロゴ。
+ * OGP画像は「人が写った紹介カード」なので、ロゴとしては別のファイルを渡す。
+ * 検索側はここをブランドのロゴとして扱うため、写真ではなくロゴそのものを置く。
+ */
+const SITE_LOGO_PATH = '/assets/logo.png';
 
 /** サービスの既定の説明文（og:description / meta description の既定値）。 */
 function site_tagline(): string
@@ -90,7 +103,7 @@ function page_meta_tags(array $o = []): string
     $out[] = '<meta property="og:url" content="' . e($url) . '">';
     $out[] = '<meta property="og:image" content="' . e($base . OG_IMAGE_PATH) . '">';
     $out[] = '<meta property="og:image:secure_url" content="' . e($base . OG_IMAGE_PATH) . '">';
-    $out[] = '<meta property="og:image:type" content="image/png">';
+    $out[] = '<meta property="og:image:type" content="' . OG_IMAGE_TYPE . '">';
     $out[] = '<meta property="og:image:width" content="1200">';
     $out[] = '<meta property="og:image:height" content="630">';
     $out[] = '<meta property="og:image:alt" content="' . e($siteName . ' — ビジネスの縁が、ここから。') . '">';
@@ -118,7 +131,7 @@ function site_jsonld(): string
         '@type' => 'Organization',
         'name'  => site_setting('biz_name') !== '' ? site_setting('biz_name') : 'Enlink',
         'url'   => $base . '/',
-        'logo'  => $base . OG_IMAGE_PATH,
+        'logo'  => $base . SITE_LOGO_PATH,
     ];
     if (site_setting('biz_email') !== '' || site_setting('biz_tel') !== '') {
         $contact = ['@type' => 'ContactPoint', 'contactType' => 'customer support'];
