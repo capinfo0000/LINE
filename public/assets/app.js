@@ -257,6 +257,11 @@
       var busy = false;
       form.addEventListener('submit', function (ev) {
         if (busy) { return; }
+        // 「削除する」で送信されたときは何もしない。
+        // 下で form.submit() を呼ぶと、押したボタンの name/value（cover_delete など）が
+        // 送られず、削除の指示が消えてしまうため。
+        var by = ev.submitter;
+        if (by && by.name && /_delete$/.test(by.name)) { return; }
         var inputs = [].slice.call(form.querySelectorAll('input[type="file"]')).filter(function (i) {
           return i.files && i.files.length === 1;
         });
@@ -283,30 +288,43 @@
     });
 
     // 画像選択の即時プレビュー（カバー/顔写真/名刺）。選んだ瞬間に見た目で分かるようにする。
-    document.querySelectorAll('.tp-cov input[type="file"], .tp-avedit input[type="file"], .tp-cardedit input[type="file"]').forEach(function (inp) {
+    //
+    // ファイル選択はモーダル（選択画面）の中にあるので、モーダル内のプレビューだけを
+    // 更新すると、閉じたあともページ上のサムネイルが古いまま見える。
+    // data-thumb-for="cover" ↔ data-thumb="cover" の対で、外側も一緒に更新する。
+    function markUnsaved(el, url) {
+      var img = el.querySelector('img');
+      if (!img) { img = document.createElement('img'); el.appendChild(img); }
+      img.src = url;
+      var ph = el.querySelector('.tp-cardedit__ph, .tp-avedit__ph');
+      if (ph) { ph.style.display = 'none'; }
+      el.classList.add('is-unsaved');
+      // 丸い顔写真はバッジが見切れるので枠線だけにする。
+      if (!el.classList.contains('tp-avedit') && !el.querySelector('.tp-unsaved')) {
+        var badge = document.createElement('span');
+        badge.className = 'tp-unsaved';
+        badge.textContent = '未保存';
+        el.appendChild(badge);
+      }
+    }
+
+    document.querySelectorAll('.tp-cardedit input[type="file"]').forEach(function (inp) {
       inp.addEventListener('change', function () {
         var f = inp.files && inp.files[0];
         if (!f) { return; }
         var label = inp.closest('label') || inp.parentElement;
         var url = URL.createObjectURL(f);
-        var img = label.querySelector('img');
-        if (!img) { img = document.createElement('img'); label.appendChild(img); }
-        img.src = url;
-        var ph = label.querySelector('.tp-cardedit__ph, .tp-avedit__ph');
-        if (ph) { ph.style.display = 'none'; }
-        // 保存前だと分かるように枠線を付ける。丸い顔写真はバッジが見切れるため枠線のみ。
-        label.classList.add('is-unsaved');
-        var isAvatar = label.classList.contains('tp-avedit');
-        if (!isAvatar && !label.querySelector('.tp-unsaved')) {
-          var badge = document.createElement('span');
-          badge.className = 'tp-unsaved';
-          badge.textContent = '未保存';
-          label.appendChild(badge);
+        markUnsaved(label, url);
+        // ページ上のサムネイル（カバー・顔写真）にも反映する。
+        var key = label.getAttribute('data-thumb-for');
+        if (key) {
+          var thumb = document.querySelector('[data-thumb="' + key + '"]');
+          if (thumb) { markUnsaved(thumb, url); }
         }
         // ページ下部の注意書きを表示（保存前だと明確に伝える）。
         var notice = document.getElementById('unsavedNotice');
         if (notice) { notice.hidden = false; }
-        // 名刺は行サマリに「選択中（保存で確定）」を出して、アップロード予定が分かるようにする。
+        // 名刺は行サマリに「選択中（未保存）」を出して、アップロード予定が分かるようにする。
         if (inp.name === 'card') {
           var row = document.querySelector('[data-modal-open="m-card"] .tp-field__v');
           if (row) { row.textContent = '選択中（未保存）'; row.classList.remove('is-empty'); }

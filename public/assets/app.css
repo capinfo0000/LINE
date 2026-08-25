@@ -419,25 +419,8 @@ div.tp-pslide{ cursor:default; }
 .rank--rookie{ background:#f1f5f9; color:#64748b; }
 
 /* --- プロフィール --- */
-/* プロフィール編集：カバー＋顔写真の画像エディタ（インスタ風） */
-.tp-editcover{ position:relative; margin:2px 0 52px; }
-.tp-cov{ display:block; position:relative; height:150px; border-radius:16px; overflow:hidden; cursor:pointer;
-  background:linear-gradient(120deg,#f3f4f6,#e9ebef); border:1px solid var(--border); }
-.tp-cov img{ width:100%; height:100%; object-fit:cover; display:block; }
-.tp-cam{ position:absolute; right:10px; bottom:10px; display:inline-flex; align-items:center; gap:5px;
-  background:rgba(17,24,39,.55); color:#fff; font-size:.76rem; font-weight:700; padding:6px 11px; border-radius:999px; }
-.tp-cam svg{ width:14px; height:14px; }
-.tp-avedit{ position:absolute; left:16px; bottom:-38px; width:92px; height:92px; border-radius:50%; overflow:hidden;
-  cursor:pointer; border:4px solid var(--surface); background:#eef0f3; display:grid; place-items:center; box-shadow:var(--shadow-sm); }
-.tp-avedit img{ width:100%; height:100%; object-fit:cover; }
-.tp-avedit__ph{ color:var(--faint); display:grid; place-items:center; }
-.tp-avedit__ph svg{ width:26px; height:26px; }
-.tp-cam-badge{ position:absolute; right:2px; bottom:2px; width:28px; height:28px; border-radius:50%; background:var(--coral);
-  color:#fff; display:grid; place-items:center; border:2px solid var(--surface); }
-.tp-cam-badge svg{ width:14px; height:14px; }
-.tp-imgdel{ display:flex; gap:16px; flex-wrap:wrap; margin:4px 0 0; }
-.tp-imgdel label{ font-weight:normal; font-size:.82rem; color:var(--muted); display:inline-flex; gap:5px; align-items:center; margin:0; }
-.tp-imgdel input{ width:auto; }
+/* ※ カバー＋顔写真のエディタは下の「インスタ風エディタ」ブロックにまとめている
+      （以前ここに同じ定義が重複していた）。 */
 .tp-cardedit{ display:block; position:relative; margin-top:4px; border:1px dashed var(--border); border-radius:12px;
   overflow:hidden; cursor:pointer; min-height:88px; background:#f7f8fa; }
 .tp-cardedit img{ width:100%; display:block; }
@@ -446,7 +429,10 @@ div.tp-pslide{ cursor:default; }
 
 /* プロフィール編集：カバー＋顔写真のインスタ風エディタ */
 .tp-editcover{ position:relative; margin:0 0 52px; }
-.tp-cov{ display:block; position:relative; height:150px; border-radius:16px; overflow:hidden; cursor:pointer;
+/* カバーと顔写真は <button>（押すと選択画面が開く）。
+   ボタンの既定スタイルを打ち消して、見た目は画像だけにする。 */
+.tp-cov, .tp-avedit{ padding:0; font:inherit; color:inherit; text-align:left; -webkit-appearance:none; appearance:none; }
+.tp-cov{ display:block; width:100%; position:relative; height:150px; border-radius:16px; overflow:hidden; cursor:pointer;
   background:linear-gradient(120deg,#f3f4f6,#e9ebef); border:1px solid var(--border); }
 .tp-cov img{ width:100%; height:100%; object-fit:cover; display:block; }
 .tp-cam{ position:absolute; right:10px; bottom:10px; background:rgba(15,18,28,.55); color:#fff; font-size:.76rem; font-weight:700;
@@ -457,18 +443,12 @@ div.tp-pslide{ cursor:default; }
 .tp-avedit img{ width:100%; height:100%; object-fit:cover; }
 .tp-avedit__ph{ color:var(--faint); display:grid; place-items:center; }
 .tp-avedit__ph svg{ width:26px; height:26px; }
-.tp-cam-badge{ position:absolute; right:2px; bottom:2px; width:28px; height:28px; border-radius:50%; background:var(--coral); color:#fff;
-  display:grid; place-items:center; border:2px solid var(--surface); }
-.tp-cam-badge svg{ width:14px; height:14px; }
 /* 画像を選んだ直後の「未保存」表示（保存前だと分かるように） */
 .tp-unsaved{ position:absolute; top:8px; left:8px; z-index:6; background:var(--dng); color:#fff; white-space:nowrap;
   font-size:.7rem; font-weight:800; padding:3px 9px; border-radius:999px; box-shadow:0 2px 6px rgba(0,0,0,.25); }
 /* 未保存の画像は枠線で強調（丸い顔写真はバッジを出さず枠線のみ） */
 .tp-cov.is-unsaved, .tp-cardedit.is-unsaved{ outline:3px solid var(--dng); outline-offset:2px; }
 .tp-avedit.is-unsaved{ border-color:var(--dng); }
-.tp-imgdel{ display:flex; gap:16px; flex-wrap:wrap; margin:2px 0 0; }
-.tp-imgdel label{ font-weight:normal; font-size:.82rem; color:var(--muted); display:inline-flex; gap:5px; align-items:center; margin:0; }
-.tp-imgdel input{ width:auto; }
 .tp-cardedit{ display:block; position:relative; margin-top:4px; border:1px dashed var(--border); border-radius:12px; overflow:hidden;
   cursor:pointer; min-height:96px; background:#f7f8fa; }
 .tp-cardedit img{ width:100%; display:block; }

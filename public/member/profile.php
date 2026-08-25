@@ -43,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 「名前が未入力」などで保存を中断すると、選んだ画像だけが黙って捨てられていた。
     // 画像は名前や生年月日とは独立して保存できるので、ここで先に確定させる。
     $imgMsgs = [];
+    $imgDeleted = [];
     /** この送信で画像が1つでも添付されていたか。 */
     $hasUpload = static function (): bool {
         foreach (['photo', 'cover', 'card'] as $k) {
@@ -67,7 +68,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         string $label,
         callable $save,
         callable $delete
-    ) use (&$imgMsgs): void {
+    ) use (&$imgMsgs, &$imgDeleted): void {
+        // 「削除する」が押されていれば、選ばれているファイルより削除を優先する。
+        // 押した本人の意図は削除なので、添付があっても取り込まない。
+        if (!empty($_POST[$field . '_delete'])) {
+            $delete();
+            $imgDeleted[] = $label;
+            return;
+        }
         $code = (int) ($_FILES[$field]['error'] ?? UPLOAD_ERR_NO_FILE);
         if ($code === UPLOAD_ERR_OK) {
             $err = '';
@@ -78,10 +86,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if ($code !== UPLOAD_ERR_NO_FILE) {
             $imgMsgs[] = $label . '：' . upload_error_message($code);
-            return;
-        }
-        if (!empty($_POST[$field . '_delete'])) {
-            $delete();
         }
     };
 
@@ -107,9 +111,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($errors !== []) {
         // 本文は保存せずにエラーを表示（入力はそのまま残す）。
         // 画像は上で保存済みなので、その旨も伝える（選び直させないため）。
+        $done = [];
+        if ($imgDeleted !== []) {
+            $done[] = implode('と', $imgDeleted) . 'を削除しました。';
+        }
+        if ($imgMsgs === [] && $uploaded && $imgDeleted === []) {
+            $done[] = '選んだ画像は保存しました。';
+        }
         $msg = implode("\n", array_merge($imgMsgs, $errors));
-        if ($imgMsgs === [] && $uploaded) {
-            $msg .= "\n※ 選んだ画像は保存しました。上の項目を直して、もう一度「保存」を押してください。";
+        if ($done !== []) {
+            $msg .= "\n※ " . implode(' ', $done) . '上の項目を直して、もう一度「保存」を押してください。';
         }
         $msgType = 'ng';
         goto render; // 本文の保存処理をスキップ
@@ -146,6 +157,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 画像だけ失敗した場合。本文は保存できているので、その旨も伝える。
         $msg = implode("\n", $imgMsgs) . "\nそれ以外の内容は保存しました。";
         $msgType = 'ng';
+    } elseif ($imgDeleted !== []) {
+        // 何が起きたか分かるように、削除したものを名前で伝える。
+        $msg = implode('と', $imgDeleted) . 'を削除しました。';
     } else {
         $msg = 'プロフィールを保存しました。';
     }
@@ -327,17 +341,16 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
         $camSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
         $imgV = (int) ($profile['updated_at'] ?? 0); // キャッシュバスター（保存直後に即反映）
         ?>
-        <!-- カバー＋顔写真（インスタ風エディタ） -->
+        <!-- カバー＋顔写真。押すと選択画面（モーダル）が開く。
+             ファイル選択と削除はモーダルの中にまとめてある。 -->
         <div class="tp-editcover">
-            <label class="tp-cov">
-                <input type="file" name="cover" accept="image/jpeg,image/png,image/webp" hidden>
+            <button type="button" class="tp-cov" data-modal-open="m-cover" data-thumb="cover" aria-label="カバー画像を変更">
                 <?php if ($coverAbs !== null): ?><img src="/member/photo?kind=cover&v=<?= $imgV ?>" alt="カバー画像"><?php endif; ?>
                 <span class="tp-cam"><?= $camSvg ?> カバー画像</span>
-            </label>
-            <label class="tp-avedit">
-                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" hidden>
+            </button>
+            <button type="button" class="tp-avedit" data-modal-open="m-photo" data-thumb="photo" aria-label="顔写真を変更">
                 <?php if ($photoAbs !== null): ?><img src="/member/photo?v=<?= $imgV ?>" alt="顔写真"><?php else: ?><span class="tp-avedit__ph"><?= $camSvg ?></span><?php endif; ?>
-            </label>
+            </button>
         </div>
 
         <hr style="border:0;border-top:1px solid var(--border);margin:18px 0;">
@@ -396,19 +409,87 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
     </div>
     <template id="linkRowTpl"><?php $renderLinkRow(); ?></template>
 
-    <!-- 名刺画像 編集モーダル -->
-    <div class="modal" id="m-card">
-        <div class="modal__box">
-            <button type="button" class="modal__close" data-modal-close aria-label="閉じる">×</button>
-            <div class="modal__title">名刺画像</div>
-            <p class="modal__lead">全会員に公開されます。個人情報の記載にご注意ください。</p>
-            <label class="tp-cardedit">
-                <input type="file" name="card" accept="image/jpeg,image/png,image/webp" hidden>
-                <?php if ($cardAbs !== null): ?><img src="/member/photo?kind=card&v=<?= $imgV ?>" alt="名刺画像"><span class="tp-cam"><?= $camSvg ?> 変更</span><?php else: ?><span class="tp-cardedit__ph"><?= $camSvg ?> 名刺画像を選ぶ</span><?php endif; ?>
-            </label>
-            <div class="modal__actions"><button type="button" class="btn" data-modal-close>決定</button></div>
+    <?php
+    /**
+     * 画像の選択画面（モーダル）。写真を選ぶ枠と、登録済みなら削除ボタンを出す。
+     *
+     * 削除は送信ボタンにして、サーバ側の <field>_delete の受け口をそのまま使う。
+     * formnovalidate を付けるのは、名前が未入力でも削除できるようにするため
+     * （HTML5の入力チェックで送信が止まると、サーバに届かず消せない）。
+     */
+    $renderImageModal = static function (
+        string $id,
+        string $field,
+        string $title,
+        string $lead,
+        ?string $abs,
+        string $imgUrl,
+        string $pickLabel,
+        string $camSvg
+    ): void {
+        ?>
+        <div class="modal" id="<?= e($id) ?>">
+            <div class="modal__box">
+                <button type="button" class="modal__close" data-modal-close aria-label="閉じる">×</button>
+                <div class="modal__title"><?= e($title) ?></div>
+                <p class="modal__lead"><?= e($lead) ?></p>
+                <label class="tp-cardedit" data-thumb-for="<?= e($field) ?>">
+                    <input type="file" name="<?= e($field) ?>" accept="image/jpeg,image/png,image/webp" hidden>
+                    <?php if ($abs !== null): ?>
+                        <img src="<?= e($imgUrl) ?>" alt="<?= e($title) ?>"><span class="tp-cam"><?= $camSvg ?> 変更</span>
+                    <?php else: ?>
+                        <span class="tp-cardedit__ph"><?= $camSvg ?> <?= e($pickLabel) ?></span>
+                    <?php endif; ?>
+                </label>
+                <div class="modal__actions">
+                    <button type="button" class="btn" data-modal-close>決定</button>
+                    <?php if ($abs !== null): ?>
+                        <button type="submit" name="<?= e($field) ?>_delete" value="1" formnovalidate
+                                class="btn btn--danger"
+                                data-confirm="<?= e($title . 'を削除します。元に戻せません。よろしいですか？') ?>">削除する</button>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
-    </div>
+        <?php
+    };
+    ?>
+
+    <!-- カバー画像 選択モーダル -->
+    <?php $renderImageModal(
+        'm-cover',
+        'cover',
+        'カバー画像',
+        'プロフィール上部に出る横長の画像です。全会員に公開されます。',
+        $coverAbs,
+        '/member/photo?kind=cover&v=' . $imgV,
+        'カバー画像を選ぶ',
+        $camSvg
+    ); ?>
+
+    <!-- 顔写真 選択モーダル -->
+    <?php $renderImageModal(
+        'm-photo',
+        'photo',
+        '顔写真',
+        '会員一覧やプロフィールに出ます。公開したくない場合は登録しなくても利用できます。',
+        $photoAbs,
+        '/member/photo?v=' . $imgV,
+        '顔写真を選ぶ',
+        $camSvg
+    ); ?>
+
+    <!-- 名刺画像 選択モーダル -->
+    <?php $renderImageModal(
+        'm-card',
+        'card',
+        '名刺画像',
+        '全会員に公開されます。個人情報の記載にご注意ください。',
+        $cardAbs,
+        '/member/photo?kind=card&v=' . $imgV,
+        '名刺画像を選ぶ',
+        $camSvg
+    ); ?>
 
     <!-- 画像を選んだときだけ表示される未保存の注意（app.js が表示を切り替える） -->
     <div id="unsavedNotice" class="flash flash--ng" hidden>
