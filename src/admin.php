@@ -255,6 +255,70 @@ function site_setting_save(array $input): int
 }
 
 /**
+ * 一括付与（ポイント・プラン・称号）を、指定した会員へまとめて適用する。
+ *
+ * 取り返しがつきにくい操作なので、対象が空なら何もせず理由を返す。
+ * どの操作も監査ログに件数を残す。
+ *
+ * @param string[] $memberIds
+ * @return array{ok:bool, message:string}
+ */
+function admin_bulk_grant(array $memberIds, string $op, array $params): array
+{
+    $memberIds = array_values(array_filter(array_map('strval', $memberIds), static fn ($v) => $v !== ''));
+    if ($memberIds === []) {
+        return ['ok' => false, 'message' => '対象の会員がいません。検索条件を確認してください。'];
+    }
+
+    if ($op === 'points') {
+        $delta = (int) ($params['delta'] ?? 0);
+        if ($delta === 0) {
+            return ['ok' => false, 'message' => '増減するポイント数を入力してください（0 では変更されません）。'];
+        }
+        $note = mb_substr(clean_line_text((string) ($params['note'] ?? '')), 0, 200);
+        foreach ($memberIds as $mid) {
+            add_points($mid, $delta, 'admin_adjust', null, $note);
+        }
+        $n = count($memberIds);
+        audit_log('admin.bulk_points', ['count' => $n, 'delta' => $delta]);
+        return ['ok' => true, 'message' => "{$n}名に " . ($delta > 0 ? '+' : '') . "{$delta}pt を付与しました。"];
+    }
+
+    if ($op === 'plan') {
+        $plan = (string) ($params['plan'] ?? '');
+        if (!in_array($plan, ['basic', 'premium'], true)) {
+            return ['ok' => false, 'message' => 'プランが正しくありません。一覧から選び直してください。'];
+        }
+        foreach ($memberIds as $mid) {
+            set_member_plan($mid, $plan);
+        }
+        $n = count($memberIds);
+        audit_log('admin.bulk_plan', ['count' => $n, 'plan' => $plan]);
+        return ['ok' => true, 'message' => "{$n}名のプランを" . plan_label($plan) . 'に変更しました。'];
+    }
+
+    if ($op === 'title') {
+        $title = trim((string) ($params['title'] ?? ''));
+        if ($title !== '' && !in_array($title, assignable_titles(), true)) {
+            return ['ok' => false, 'message' => '称号が正しくありません。一覧から選び直してください。'];
+        }
+        $n = 0;
+        foreach ($memberIds as $mid) {
+            $r = set_member_title($mid, $title);
+            if ($r['ok']) {
+                $n++;
+            }
+        }
+        audit_log('admin.bulk_title', ['count' => $n, 'title' => $title]);
+        return ['ok' => true, 'message' => $title === ''
+            ? "{$n}名の称号をポイント連動（自動）に戻しました。"
+            : "{$n}名の称号を「{$title}」に設定しました。"];
+    }
+
+    return ['ok' => false, 'message' => '操作の種類が不明です。'];
+}
+
+/**
  * タグを削除する。会員に付いている紐付け・求める条件からも取り除く。
  * @return bool 削除できたら true
  */

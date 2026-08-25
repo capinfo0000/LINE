@@ -81,6 +81,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msgType = 'ng';
             }
             break;
+        case 'set_title':
+            $r = set_member_title($id, (string) ($_POST['title'] ?? ''));
+            $msg = $r['message'];
+            $msgType = $r['ok'] ? 'ok' : 'ng';
+            break;
         case 'set_plan':
             $plan = (string) ($_POST['plan'] ?? 'basic');
             set_member_plan($id, $plan);
@@ -139,13 +144,27 @@ $myReports = $myReports->fetchAll();
 ?>
 <div class="card">
     <div class="card__title">ポイント・称号</div>
-    <p><strong style="font-size:1.3rem;"><?= number_format($pBalance) ?></strong> pt <span class="muted" style="font-size:.82rem;">使えるポイント</span>　<span class="badge badge--title"><?= e(points_title($pEarned)) ?></span> <span class="muted" style="font-size:.82rem;">（累計獲得 <?= number_format($pEarned) ?> pt）</span>
+    <p><strong style="font-size:1.3rem;"><?= number_format($pBalance) ?></strong> pt <span class="muted" style="font-size:.82rem;">使えるポイント</span>　<span class="badge badge--title"><?= e(member_title($member)) ?></span> <span class="muted" style="font-size:.82rem;">（累計獲得 <?= number_format($pEarned) ?> pt）</span>
        <span class="muted">／ 受けた評価 <?= (int) praise_count($id) ?> 件・通報 <?= (int) report_count($id) ?> 件・紹介 <?= (int) referral_count($id) ?> 名</span></p>
     <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:8px;">
         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="action" value="points_adjust">
         <div><label>調整（±）</label><input type="number" name="delta" value="0" style="max-width:110px;"></div>
         <div style="flex:1;min-width:160px;"><label>メモ（任意）</label><input type="text" name="note" maxlength="200"></div>
         <div><button class="btn">ポイント調整</button></div>
+    </form>
+    <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="action" value="set_title">
+        <div style="flex:1;min-width:200px;">
+            <label>称号</label>
+            <select name="title">
+                <option value="">自動（累計ポイントで決まる）</option>
+                <?php foreach (assignable_titles() as $t): ?>
+                    <option value="<?= e($t) ?>"<?= (string) ($member['title_override'] ?? '') === $t ? ' selected' : '' ?>><?= e($t) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div><button class="btn">称号を設定</button></div>
+        <p class="hint" style="flex-basis:100%;margin:2px 0 0;">手動で設定すると、以後ポイントが増えても称号は変わりません。「自動」に戻すとポイント連動に戻ります。</p>
     </form>
 </div>
 

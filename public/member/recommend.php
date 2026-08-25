@@ -73,7 +73,7 @@ require __DIR__ . '/_header.php';
                         <?php $__age = profile_age_text($r); ?><?php if ($__age !== ''): ?><span class="muted" style="font-weight:normal;">（<?= e($__age) ?>）</span><?php endif; ?>
                         <span style="float:right;font-size:.78rem;color:var(--info-fg);">マッチ度 <?= (int) $r['score'] ?></span>
                     </div>
-                    <div style="margin:3px 0;"><span class="badge badge--title"><?= e(points_title($bal)) ?></span> <span class="muted" style="font-size:.82rem;"><?= number_format($bal) ?> pt</span></div>
+                    <div style="margin:3px 0;"><span class="badge badge--title"><?= e(member_title_by_id((string) $r['member_id'])) ?></span> <span class="muted" style="font-size:.82rem;"><?= number_format($bal) ?> pt</span></div>
                     <?php if (($r['company_title'] ?? '') !== ''): ?><div class="muted"><?= e($r['company_title']) ?></div><?php endif; ?>
                     <?php if (($r['headline'] ?? '') !== ''): ?><div style="margin:4px 0;"><?= e($r['headline']) ?></div><?php endif; ?>
                     <ul style="margin:6px 0 0;padding-left:18px;">

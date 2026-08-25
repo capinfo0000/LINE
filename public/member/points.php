@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $balance = member_points($memberId);           // 使えるポイント（残高）
 $earned = member_points_earned($memberId);     // 累計獲得（称号の基準・下がらない）
-$title = points_title($earned);
+$title = member_title($member);
 $history = member_point_history($memberId, 50);
 $alreadyReferred = has_referrer($memberId);
 $myRefCount = referral_count($memberId);

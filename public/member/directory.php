@@ -179,7 +179,7 @@ $rankClass = static function (string $t): string {
 /** 会員カード1枚を出力（さがすグリッド／おすすめカルーセルで共通利用）。$rank>0 で順位バッジ表示。 */
 $renderCard = function (string $mid, string $nm, string $age, bool $hasPhoto, int $rank = 0) use ($member, $rankClass): void {
     $labels = member_tag_labels($mid);
-    $title = points_title(member_points_earned($mid));
+    $title = member_title_by_id($mid);
     $nm = $nm !== '' ? $nm : '会員';
     $ini = mb_substr($nm, 0, 1);
     // 写真が無い会員のカード背景。会員ごとに少し色味を変えつつ、

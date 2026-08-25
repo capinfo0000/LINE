@@ -506,6 +506,9 @@ function db_migrate(\PDO $pdo): void
     db_add_column_if_missing($pdo, 'profiles', 'intro_text', 'TEXT');
     // 公式LINEへ自己紹介を送信済みかの記録（さがすの閲覧ロック解除に使用）。
     db_add_column_if_missing($pdo, 'members', 'intro_submitted_at', 'INTEGER');
+    // 称号の手動設定。空ならポイントから自動で決まる。
+    // 「システム管理者」「運用責任者」のようにポイントでは到達できない称号もここで持つ。
+    db_add_column_if_missing($pdo, 'members', 'title_override', 'TEXT');
     // 自己紹介ロックの免除。ロックをOFFにした時点で在籍していた会員に立て、
     // 再度ONに戻したときに巻き込んで再ロックしないようにする（未送信でも解除扱い）。
     db_add_column_if_missing($pdo, 'members', 'intro_gate_exempt', 'INTEGER NOT NULL DEFAULT 0');

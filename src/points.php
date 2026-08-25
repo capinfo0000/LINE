@@ -37,6 +37,69 @@ function points_title_ladder(): array
     ];
 }
 
+/**
+ * ポイントでは到達できない、運営が手で付ける称号。
+ *
+ * @return string[]
+ */
+function special_titles(): array
+{
+    return ['システム管理者', '運用責任者'];
+}
+
+/** 管理画面で選べる称号の一覧（ポイント称号＋特別称号）。 */
+function assignable_titles(): array
+{
+    return array_merge(array_column(points_title_ladder(), 'label'), special_titles());
+}
+
+/**
+ * この会員の称号。
+ * 手動設定（title_override）があればそれを優先し、無ければ累計獲得ポイントで決まる。
+ * 累計で判定するのは、ポイントを使っても称号が下がらないようにするため。
+ *
+ * @param array<string,mixed> $member members の行
+ */
+function member_title(array $member): string
+{
+    $override = trim((string) ($member['title_override'] ?? ''));
+    if ($override !== '') {
+        return $override;
+    }
+    return points_title(member_points_earned((string) ($member['id'] ?? '')));
+}
+
+/** 会員IDから称号を求める（members の行が手元に無いとき用）。 */
+function member_title_by_id(string $memberId): string
+{
+    $stmt = db()->prepare('SELECT id, title_override FROM members WHERE id = ?');
+    $stmt->execute([$memberId]);
+    $row = $stmt->fetch();
+    return $row ? member_title($row) : points_title(member_points_earned($memberId));
+}
+
+/**
+ * 称号の手動設定を保存する。空文字を渡すとポイント連動に戻る。
+ *
+ * @return array{ok:bool, message:string}
+ */
+function set_member_title(string $memberId, string $title): array
+{
+    $title = trim($title);
+    if ($title !== '' && !in_array($title, assignable_titles(), true)) {
+        return ['ok' => false, 'message' => '称号が正しくありません。一覧から選び直してください。'];
+    }
+    $stmt = db()->prepare('UPDATE members SET title_override = ? WHERE id = ?');
+    $stmt->execute([$title === '' ? null : $title, $memberId]);
+    if ($stmt->rowCount() === 0) {
+        return ['ok' => false, 'message' => '会員が見つかりませんでした。'];
+    }
+    audit_log('admin.set_title', ['member' => $memberId, 'title' => $title]);
+    return ['ok' => true, 'message' => $title === ''
+        ? '称号をポイント連動（自動）に戻しました。'
+        : '称号を「' . $title . '」に設定しました。'];
+}
+
 /** 残高から称号ラベルを返す。 */
 function points_title(int $balance): string
 {

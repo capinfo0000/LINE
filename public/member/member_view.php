@@ -79,7 +79,7 @@ require __DIR__ . '/_header.php';
 ?>
 <?php
 $targetBalance = member_points_earned($targetId); // 累計獲得（称号の基準・実績）
-$targetTitle = points_title($targetBalance);
+$targetTitle = member_title($member);
 $targetPraise = praise_count($targetId);
 $iAmSelf = (string) $viewer['id'] === $targetId;
 $rankClass = ['プラチナ' => 'rank--plat', 'ゴールド' => 'rank--gold', 'レギュラー' => 'rank--reg', 'ルーキー' => 'rank--rookie'][$targetTitle] ?? 'rank--rookie';
