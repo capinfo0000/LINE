@@ -58,8 +58,12 @@ function search_directory(array $filters, string $viewerId, int $limit = 60, str
     // キーワード（名前・見出し・自己紹介・会社/肩書き）
     $keyword = trim((string) ($filters['keyword'] ?? ''));
     if ($keyword !== '') {
-        $params[':kw'] = '%' . $keyword . '%';
-        $where[] = '(p.name_text LIKE :kw OR p.headline LIKE :kw OR p.bio LIKE :kw OR p.company_title LIKE :kw)';
+        // LIKE のワイルドカード（% と _）をそのまま渡すと、「%」の1文字検索で全員が出てしまう。
+        // ESCAPE 句を付けて、入力された記号は文字として扱う。
+        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $keyword);
+        $params[':kw'] = '%' . $escaped . '%';
+        $where[] = "(p.name_text LIKE :kw ESCAPE '\\' OR p.headline LIKE :kw ESCAPE '\\'"
+            . " OR p.bio LIKE :kw ESCAPE '\\' OR p.company_title LIKE :kw ESCAPE '\\')";
     }
 
     // 並び順：新着＝入会日→作成日の新しい順／既定＝累計獲得ポイント（実績）上位。

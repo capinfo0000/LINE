@@ -90,13 +90,13 @@ function save_profile(string $memberId, array $d): void
     }
 
     $fields = [
-        'name_text'     => mb_substr(trim((string) ($d['name_text'] ?? $existing['name_text'])), 0, 100),
-        'age_text'      => mb_substr(trim($ageText), 0, 40),
-        'occupation'    => mb_substr(trim((string) ($d['occupation'] ?? $existing['occupation'] ?? '')), 0, 80),
-        'job_title'     => mb_substr(trim((string) ($d['job_title'] ?? $existing['job_title'] ?? '')), 0, 80),
-        'company_title' => mb_substr(trim((string) ($d['company_title'] ?? $existing['company_title'])), 0, 120),
-        'headline'      => mb_substr(trim((string) ($d['headline'] ?? $existing['headline'])), 0, 120),
-        'bio'           => mb_substr(trim((string) ($d['bio'] ?? $existing['bio'])), 0, 2000),
+        'name_text'     => mb_substr(clean_line_text((string) ($d['name_text'] ?? $existing['name_text'])), 0, 100),
+        'age_text'      => mb_substr(clean_line_text($ageText), 0, 40),
+        'occupation'    => mb_substr(clean_line_text((string) ($d['occupation'] ?? $existing['occupation'] ?? '')), 0, 80),
+        'job_title'     => mb_substr(clean_line_text((string) ($d['job_title'] ?? $existing['job_title'] ?? '')), 0, 80),
+        'company_title' => mb_substr(clean_line_text((string) ($d['company_title'] ?? $existing['company_title'])), 0, 120),
+        'headline'      => mb_substr(clean_line_text((string) ($d['headline'] ?? $existing['headline'])), 0, 120),
+        'bio'           => mb_substr(clean_multiline_text((string) ($d['bio'] ?? $existing['bio'])), 0, 2000),
     ];
 
     $stmt = db()->prepare(
@@ -116,7 +116,7 @@ function save_profile(string $memberId, array $d): void
 /** 自己紹介ひな形（オープンチャット投稿用の編集済み文面）を保存する。 */
 function save_intro_text(string $memberId, string $text): void
 {
-    $text = mb_substr($text, 0, 3000);
+    $text = mb_substr(clean_multiline_text($text), 0, 3000);
     save_profile($memberId, []); // 行の存在を保証
     $stmt = db()->prepare('UPDATE profiles SET intro_text = ?, updated_at = ? WHERE member_id = ?');
     $stmt->execute([$text, time(), $memberId]);
@@ -159,6 +159,30 @@ function profile_has_photo(array $profile): bool
         return false;
     }
     return member_image_abs_path($profile, 'photo_path') !== null;
+}
+
+/**
+ * 1行入力用のテキストを整える（名前・ひとことPR・職業など）。
+ * 制御文字（NULバイト・改行・タブ等）を取り除く。画面では1行の入力欄でも、
+ * POSTを直接組み立てれば改行やNULバイトを送り込めるため、保存前にサーバ側で落とす。
+ */
+function clean_line_text(string $s): string
+{
+    $s = str_replace(["\r\n", "\r", "\n", "\t"], ' ', $s);
+    $s = (string) preg_replace('/[\x00-\x1F\x7F]/u', '', $s);
+    $s = (string) preg_replace('/\s{2,}/u', ' ', $s);
+    return trim($s);
+}
+
+/**
+ * 複数行入力用のテキストを整える（自己紹介など）。
+ * 改行は残しつつ、それ以外の制御文字とNULバイトを取り除く。
+ */
+function clean_multiline_text(string $s): string
+{
+    $s = str_replace(["\r\n", "\r"], "\n", $s);
+    $s = (string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $s);
+    return trim($s);
 }
 
 /**
@@ -444,7 +468,8 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
         return false;
     }
     $tmp = (string) ($file['tmp_name'] ?? '');
-    if ($tmp === '' || !is_readable($tmp)) {
+    // is_uploaded_file: 実際にHTTPでアップロードされた一時ファイル以外を掴まされないための多層防御。
+    if ($tmp === '' || !is_uploaded_file($tmp) || !is_readable($tmp)) {
         $error = '画像を読み取れませんでした。';
         return false;
     }
@@ -585,7 +610,8 @@ function save_member_image(string $memberId, string $column, string $kind, array
         return false;
     }
     $tmp = (string) ($file['tmp_name'] ?? '');
-    if ($tmp === '' || !is_readable($tmp)) {
+    // is_uploaded_file: 実際にHTTPでアップロードされた一時ファイル以外を掴まされないための多層防御。
+    if ($tmp === '' || !is_uploaded_file($tmp) || !is_readable($tmp)) {
         $error = '画像を読み取れませんでした。';
         return false;
     }

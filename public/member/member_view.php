@@ -19,20 +19,6 @@ if ((string) $viewer['id'] !== $targetId && member_needs_intro($viewer)) {
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $targetId !== '') {
-    csrf_verify($_POST['csrf_token'] ?? null);
-    $act = (string) ($_POST['action'] ?? '');
-    if ($act === 'praise' || $act === 'report') {
-        $r = evaluate_member((string) $viewer['id'], $targetId, $act, (string) ($_POST['note'] ?? ''));
-        $evalMsg = $r['message'];
-        $evalType = $r['ok'] ? 'ok' : 'ng';
-    } elseif ($act === 'interest') {
-        $on = toggle_interest((string) $viewer['id'], $targetId);
-        $evalMsg = $on ? '「気になる」を送りました。' : '「気になる」を取り消しました。';
-        $evalType = 'ok';
-    }
-}
-
 // 本人のプレビューは、ディレクトリ非掲載でも常に閲覧できるようにする。
 if ($targetId !== '' && (string) $viewer['id'] === $targetId) {
     $selfMember = find_member_by_id($targetId);
@@ -53,6 +39,23 @@ if ($view === null) {
 
 $member = $view['member'];
 $profile = $view['profile'];
+
+// 評価・通報・気になるは、この閲覧者が実際に見られる相手にだけ許可する。
+// （可視性の判定より前に処理すると、退会・停止・ディレクトリ非掲載の相手にも
+//  ID を直接指定して通報＝減点を送れてしまうため、必ず $view 確定後に行う。）
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $targetId !== '') {
+    csrf_verify($_POST['csrf_token'] ?? null);
+    $act = (string) ($_POST['action'] ?? '');
+    if ($act === 'praise' || $act === 'report') {
+        $r = evaluate_member((string) $viewer['id'], $targetId, $act, (string) ($_POST['note'] ?? ''));
+        $evalMsg = $r['message'];
+        $evalType = $r['ok'] ? 'ok' : 'ng';
+    } elseif ($act === 'interest') {
+        $on = toggle_interest((string) $viewer['id'], $targetId);
+        $evalMsg = $on ? '「気になる」を送りました。' : '「気になる」を取り消しました。';
+        $evalType = 'ok';
+    }
+}
 
 // 足あとを記録（自分自身の閲覧は除く）。GET表示時のみ。
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && (string) $viewer['id'] !== $targetId) {

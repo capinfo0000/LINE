@@ -314,7 +314,10 @@ function login_member(string $loginId, string $password): bool
 function logout_member(): void
 {
     session_boot();
-    unset($_SESSION['member_id'], $_SESSION['member_last_activity']);
+    // キーを消すだけでは、共有端末でセッションID（とCSRFトークン）が生き残る。
+    // 運営側の logout_tenant() と同じく、セッションごと破棄する。
+    $_SESSION = [];
+    session_destroy();
 }
 
 /** 現在ログイン中の会員（未ログイン・失効なら null）。 */

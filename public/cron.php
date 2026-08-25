@@ -5,7 +5,7 @@
  * トークン保護。CoreServer 等の cron から curl で叩く：
  *   curl -s "https://<ドメイン>/cron.php?job=remind&token=<CRON_TOKEN>"
  *   job = remind（予約リマインド）/ reconcile（Stripe照合）/ recommend（おすすめ再構築）
- *       / thankyou（説明会後の意向確認）/ waiver（紹介特典の月額無料化判定）
+ *       / waiver（紹介特典の月額無料化判定）
  *
  * ※ CLI 版（bin/reconcile.php 等）と同じ処理を Web から実行する。多重起動ロックあり・冪等。
  */
@@ -25,7 +25,7 @@ if ($expected === '' || !hash_equals($expected, $given)) {
 }
 
 $job = (string) ($_GET['job'] ?? '');
-if (!in_array($job, ['remind', 'reconcile', 'recommend', 'thankyou', 'waiver', 'seed', 'unseed', 'samplephotos', 'diag'], true)) {
+if (!in_array($job, ['remind', 'reconcile', 'recommend', 'waiver', 'seed', 'unseed', 'samplephotos', 'diag'], true)) {
     http_response_code(400);
     exit("unknown job\n");
 }
@@ -89,24 +89,6 @@ try {
         $out = "reconcile scanned={$scanned} provisioned={$provisioned}";
     } elseif ($job === 'recommend') {
         $out = 'recommend total=' . rebuild_all_recommendations();
-    } elseif ($job === 'thankyou') {
-        // 説明会終了後に「参加お礼＋意向確認」を自動送信（1人1回・重複防止）。
-        $after = (int) env('SEMINAR_END_AFTER_SEC', '3600');
-        $sent = 0;
-        foreach (bookings_needing_thankyou($after) as $b) {
-            $lu = (string) ($b['line_user_id'] ?? '');
-            if ($lu === '') {
-                continue;
-            }
-            if (!claim_thankyou((string) $b['id'])) {
-                continue;
-            }
-            if (send_intent_check_to_contact($lu)) {
-                set_line_contact_state($lu, 'seminar_done');
-                $sent++;
-            }
-        }
-        $out = "thankyou sent={$sent}";
     } elseif ($job === 'waiver') {
         // 紹介特典（月額無料化）の判定。active サブスク会員ごとに「アクティブな紹介先」を数え、
         // しきい値(既定5)以上で100%OFFクーポンを適用、割り込んだら解除。冪等。

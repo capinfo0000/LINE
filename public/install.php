@@ -28,7 +28,10 @@ function install_is_done(string $lockPath): bool
     try {
         return (int) db()->query('SELECT COUNT(*) FROM tenants')->fetchColumn() > 0;
     } catch (\Throwable $e) {
-        return false;
+        // DBが読めないときに「未インストール」と判定すると、障害時にインストーラが
+        // 誰にでも開いてしまう（＝管理者を新規作成され .env を上書きされる）。
+        // 判定できない場合はインストール済みとみなして閉じる（フェイルクローズ）。
+        return true;
     }
 }
 

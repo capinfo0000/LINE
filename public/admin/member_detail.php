@@ -34,7 +34,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg = '自己紹介ロックを再設定しました。';
             break;
         case 'delete_member':
-            // 会員を完全削除（元に戻せない）。削除後は一覧へ戻す。
+            // 会員を完全削除（元に戻せない）。取り返しがつかないため管理者テナント限定。
+            // ※ サンプル会員の一括操作（dashboard.php）と同じ基準に揃えている。
+            if ((int) ($tenant['is_admin'] ?? 0) !== 1) {
+                $msg = 'この操作にはプラットフォーム管理者権限が必要です。会員の削除は管理者にご依頼ください。';
+                break;
+            }
             if (admin_delete_member($id)) {
                 header('Location: members.php?msg=' . rawurlencode('会員を削除しました。'));
                 exit;
@@ -218,10 +223,14 @@ $myReports = $myReports->fetchAll();
         LINE連絡先の紐付けは解除されます（連絡先自体は残ります）。<br>
         一時的に利用を止めるだけなら、上の「ステータス変更」で<strong>停止</strong>または<strong>退会</strong>にしてください。
     </p>
+    <?php if ((int) ($tenant['is_admin'] ?? 0) === 1): ?>
     <form method="post">
         <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>">
         <button class="btn btn--danger" name="action" value="delete_member"
                 data-confirm="この会員を完全に削除します。元に戻せません。よろしいですか？">この会員を削除する</button>
     </form>
+    <?php else: ?>
+    <p class="hint" style="margin:0;">削除はプラットフォーム管理者のみが行えます。必要な場合は管理者にご依頼ください。</p>
+    <?php endif; ?>
 </div>
 <?php require __DIR__ . '/_app_footer.php'; ?>

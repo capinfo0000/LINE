@@ -286,10 +286,17 @@ function legal_drop_empty_sections(array $lines): array
 function legal_inline(string $s): string
 {
     $s = e($s);
-    // [表示文字](/path) — 相対パスと https:// のみ許可する。
+    // [表示文字](/path) — 同一サイトの相対パスと https:// のみ許可する。
+    // 「//evil.com」はスキーム相対URLで外部サイトへ飛ぶため、相対パスとして通してはいけない。
     $s = preg_replace_callback(
         '/\[([^\]]+)\]\((\/[A-Za-z0-9._\/?=&#%;-]*|https:\/\/[A-Za-z0-9._\/?=&#%;:-]+)\)/u',
-        static fn (array $m): string => '<a href="' . $m[2] . '">' . $m[1] . '</a>',
+        static function (array $m): string {
+            $href = $m[2];
+            if (strncmp($href, '//', 2) === 0) {
+                return $m[0]; // 外部へのスキーム相対URL：リンクにせず、書いたまま表示する
+            }
+            return '<a href="' . $href . '">' . $m[1] . '</a>';
+        },
         $s
     ) ?? $s;
     // **強調**
