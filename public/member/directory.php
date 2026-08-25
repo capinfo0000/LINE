@@ -219,7 +219,7 @@ $renderCard = function (array $row, int $rank = 0) use ($member, $rankClass): vo
             </div>
         </div>
         <button class="tp-clike<?= $liked ? ' on' : '' ?>" form="likeform" type="submit" name="like_to" value="<?= e($mid) ?>" aria-label="気になる">
-            <svg viewBox="0 0 24 24" fill="<?= $liked ? '#fff' : 'none' ?>" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v16l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
+            <svg viewBox="0 0 24 24" fill="<?= $liked ? '#fff' : 'none' ?>" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v16l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
         </button>
     </div>
     <?php

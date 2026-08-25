@@ -140,7 +140,22 @@ $stage = (string) ($_POST['stage'] ?? '');
 $allUids = array_map(static fn ($f) => (string) $f['line_user_id'], $friends);
 $targetUids = array_values(array_intersect($allUids, $uids));
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_onboarding'])) {
+// LINEへの配信と会員資格の発行は、外に出ていく操作で取り消せない
+// （配信は宛先1件ごとに課金される。発行は相手にID/パスワードが届く）。
+// 会員・ご意見・連絡先の完全削除と同じ扱いにして、プラットフォーム管理者だけに許す。
+// 画面のボタンも隠しているが、POSTを直接投げられても通らないようここで止める。
+// 確認画面（stage=preview）と宛先の絞り込みは、スタッフでも従来どおり使える。
+$isAdmin = (int) ($tenant['is_admin'] ?? 0) === 1;
+$isPushRequest = $_SERVER['REQUEST_METHOD'] === 'POST'
+    && (isset($_POST['do_onboarding']) || isset($_POST['do_issue']) || isset($_POST['do_slots']) || $stage === 'send');
+
+if ($isPushRequest && !$isAdmin) {
+    csrf_verify($_POST['csrf_token'] ?? null);
+    audit_log('authz.admin_deny', ['tenant' => $tenant['id'], 'path' => 'admin/line_send.push']);
+    $msg = 'LINEの配信と会員資格の発行には、プラットフォーム管理者権限が必要です。';
+    $msgType = 'ng';
+    $stage = '';
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_onboarding'])) {
     // 初回メッセージ（あいさつ＋説明会の日程）を選択宛先へ手動送信。
     csrf_verify($_POST['csrf_token'] ?? null);
     if ($targetUids === []) {
@@ -263,12 +278,16 @@ require __DIR__ . '/_app_header.php';
         <div class="card__title">配信内容の確認</div>
         <p style="white-space:pre-wrap;border:1px solid var(--border);border-radius:8px;padding:10px;background:#f9fafb;"><?= e($finalText) ?></p>
         <p class="muted">宛先 <strong><?= count($targetUids) ?> 名</strong>（＝<?= count($targetUids) ?> 通・<strong>1通ごとに課金</strong>）へ送信します。</p>
-        <form method="post" style="display:inline;" data-confirm="この内容を <?= count($targetUids) ?> 名へ配信します。よろしいですか？">
-            <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="stage" value="send">
-            <input type="hidden" name="text" value="<?= e($text) ?>"><input type="hidden" name="slot_id" value="<?= e($slotId) ?>">
-            <?php foreach ($targetUids as $u): ?><input type="hidden" name="uids[]" value="<?= e($u) ?>"><?php endforeach; ?>
-            <button class="btn">この内容で配信する</button>
-        </form>
+        <?php if ($isAdmin): ?>
+            <form method="post" style="display:inline;" data-confirm="この内容を <?= count($targetUids) ?> 名へ配信します。よろしいですか？">
+                <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="stage" value="send">
+                <input type="hidden" name="text" value="<?= e($text) ?>"><input type="hidden" name="slot_id" value="<?= e($slotId) ?>">
+                <?php foreach ($targetUids as $u): ?><input type="hidden" name="uids[]" value="<?= e($u) ?>"><?php endforeach; ?>
+                <button class="btn">この内容で配信する</button>
+            </form>
+        <?php else: ?>
+            <p class="hint" style="margin:0 0 10px;">配信の実行はプラットフォーム管理者のみです。この内容のままお伝えください。</p>
+        <?php endif; ?>
         <a class="btn btn--ghost" href="line_send">やめる</a>
     </div>
 <?php else: ?>
@@ -376,17 +395,26 @@ require __DIR__ . '/_app_header.php';
         <div class="card">
             <p class="muted" style="margin-top:0;"><strong>宛先1件ごとに1通課金</strong>されます。送信前に確認画面が出ます。</p>
             <button type="submit" class="btn">確認画面へ</button>
-            <button type="submit" name="do_slots" value="1" class="btn btn--ghost"
-                    data-confirm="選択した宛先へ『日程（予約ボタン付きカード）』を送信します。よろしいですか？">📅 日程を送る（予約ボタン付き）</button>
-            <button type="submit" name="do_onboarding" value="1" class="btn btn--ghost"
-                    data-confirm="選択した宛先へ『初回メッセージ（あいさつ＋説明会の日程・予約ボタン付き）』を送信します。よろしいですか？">初回メッセージを送る</button>
-            <button type="submit" name="do_issue" value="1" class="btn btn--ghost" style="border-color:#b45309;color:#b45309;font-weight:700;"
-                    data-confirm="選択した宛先に『会員資格（ID/パスワード）』を即時発行してLINEで送信します。決済・説明会を経ない手動発行です。よろしいですか？">🎫 会員資格を発行して送信</button>
-            <p class="muted" style="font-size:.82rem;margin:8px 0 0;">
-                「📅 日程を送る」＝説明会の日程を<strong>カード＋予約ボタン付き</strong>で送信（相手はタップで日程を選んで予約）。<br>
-                「初回メッセージを送る」＝友だち追加時と同じ、あいさつ＋説明会の予約ボタン付きメッセージ。<br>
-                「🎫 会員資格を発行して送信」＝選択した相手に<strong>会員ID/パスワードを即時発行</strong>してLINEで送信（<strong>決済・説明会を経ない手動発行</strong>／既に会員の相手は再発行しません）。<br>
-                （日程・初回・発行の各ボタンは本文・添付を使いません）</p>
+            <?php if ($isAdmin): ?>
+                <button type="submit" name="do_slots" value="1" class="btn btn--ghost"
+                        data-confirm="選択した宛先へ『日程（予約ボタン付きカード）』を送信します。よろしいですか？">📅 日程を送る（予約ボタン付き）</button>
+                <button type="submit" name="do_onboarding" value="1" class="btn btn--ghost"
+                        data-confirm="選択した宛先へ『初回メッセージ（あいさつ＋説明会の日程・予約ボタン付き）』を送信します。よろしいですか？">初回メッセージを送る</button>
+                <button type="submit" name="do_issue" value="1" class="btn btn--ghost" style="border-color:var(--accent-d);color:var(--accent-d);font-weight:700;"
+                        data-confirm="選択した宛先に『会員資格（ID/パスワード）』を即時発行してLINEで送信します。決済・説明会を経ない手動発行です。よろしいですか？">🎫 会員資格を発行して送信</button>
+            <?php endif; ?>
+            <?php if ($isAdmin): ?>
+                <p class="muted" style="font-size:.82rem;margin:8px 0 0;">
+                    「📅 日程を送る」＝説明会の日程を<strong>カード＋予約ボタン付き</strong>で送信（相手はタップで日程を選んで予約）。<br>
+                    「初回メッセージを送る」＝友だち追加時と同じ、あいさつ＋説明会の予約ボタン付きメッセージ。<br>
+                    「🎫 会員資格を発行して送信」＝選択した相手に<strong>会員ID/パスワードを即時発行</strong>してLINEで送信（<strong>決済・説明会を経ない手動発行</strong>／既に会員の相手は再発行しません）。<br>
+                    （日程・初回・発行の各ボタンは本文・添付を使いません）</p>
+            <?php else: ?>
+                <p class="hint" style="margin:8px 0 0;">
+                    配信の実行・会員資格の発行はプラットフォーム管理者のみです。
+                    本文の作成と宛先の選択、確認画面まではご利用いただけます。
+                </p>
+            <?php endif; ?>
         </div>
     </form>
 <?php endif; ?>

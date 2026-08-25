@@ -84,7 +84,9 @@ $features = [
 // 画面に出しているFAQと同じ配列を渡すので、表示と中身がずれない。
 $metaDescription = 'Enlink（縁リンク）は「提供できること」と「求めていること」が噛み合う相手だけに出会える会員制のビジネスマッチングです。'
     . '料金・入会の流れ・よくある質問をまとめています。';
-$extraJsonLd = service_jsonld() . '    ' . faq_jsonld($faq);
+// Organization / WebSite も併せて出す。運営者・ロゴ・連絡先を検索側とAIに伝えるのは
+// このページの役目で、ここまでログイン画面にしか出していなかった。
+$extraJsonLd = site_jsonld() . '    ' . service_jsonld() . '    ' . faq_jsonld($faq);
 require __DIR__ . '/_legal_header.php';
 ?>
 <p class="lead">

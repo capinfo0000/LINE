@@ -108,7 +108,7 @@ $avatarBg = $hasApprovedPhoto ? '' : ' style="background:linear-gradient(150deg,
 ?>
 <!-- インスタ風ヘッダー：カバー画像＋丸アイコン重ね -->
 <div class="tp-ig">
-    <div class="tp-ig-cover"<?= $coverAbs === null ? ' style="background:linear-gradient(120deg,#fdba74,#f97316)"' : '' ?>>
+    <div class="tp-ig-cover"<?= $coverAbs === null ? ' style="background:linear-gradient(120deg,var(--brand),#c2760a)"' : '' ?>>
         <?php if ($coverAbs !== null): ?><img src="<?= e(member_photo_url($member, 'cover', (int) ($profile['updated_at'] ?? 0))) ?>" alt="カバー画像"><?php endif; ?>
         <a class="tp-hback" href="/member/directory" aria-label="ディレクトリへ戻る">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>

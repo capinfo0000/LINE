@@ -7,8 +7,15 @@
   --navy: #1b2a4a;
   --navy-2: #16223d;
   --navy-hover: #243a63;
-  --accent: #f97316;
-  --accent-d: #ea580c;
+  /* ロゴのオレンジ（#f69f00）を基準にした系統。
+     ロゴ色そのものは白文字に対するコントラストが足りない（約2.1:1）ため、
+     文字が載る面には1〜2段暗い色を使い分ける。
+       --brand   ロゴ色。文字を載せない飾り・グラデーションの明るい側に使う
+       --accent  白文字を載せるボタン・チップ（白との比 約3.2:1／従来2.8:1より改善）
+       --accent-d  白地に置く文字色とホバー（白との比 約4.9:1＝本文サイズでも読める） */
+  --brand: #f69f00;
+  --accent: #d97706;
+  --accent-d: #b45309;
   --bg: #f1f5f9;
   --surface: #ffffff;
   --border: #e5e7eb;
@@ -17,7 +24,7 @@
   --ok-bg: #dcfce7;   --ok-fg: #166534;
   --warn-bg: #fef9c3; --warn-fg: #854d0e;
   --dng: #dc2626;     --dng-bg: #fee2e2; --dng-fg: #991b1b;
-  --info-bg: #ffedd5; --info-fg: #9a3412;   /* アクセント（オレンジ）系の淡いバッジ */
+  --info-bg: #fef3c7; --info-fg: #92400e;   /* アクセント（オレンジ）系の淡いバッジ */
   --radius: 14px;
   --radius-sm: 9px;
   --shadow: 0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
@@ -154,7 +161,7 @@ input, select, textarea {
   width: 100%; font-size: 1rem; font-family: inherit; color: var(--text);
   padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff;
 }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(249,115,22,.15); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(217,119,6,.18); }
 input[readonly] { background: #f3f4f6; color: var(--muted); }
 textarea { min-height: 72px; resize: vertical; }
 .req { color: var(--dng); font-size: .78rem; font-weight: 700; margin-left: 4px; }
@@ -185,7 +192,7 @@ tbody tr:hover { background: #fafbfc; }
 .flash { padding: 12px 16px; border-radius: var(--radius-sm); margin: 0 0 16px; font-size: .92rem; }
 .flash--ok { background: var(--ok-bg); color: var(--ok-fg); }
 .flash--ng { background: var(--dng-bg); color: var(--dng-fg); }
-.notice { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; border-radius: var(--radius-sm); padding: 12px 16px; font-size: .9rem; }
+.notice { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 12px 16px; font-size: .9rem; }
 .err { background: var(--dng-bg); color: var(--dng-fg); padding: 14px 16px; border-radius: var(--radius-sm); }
 
 .muted { color: var(--muted); font-size: .85rem; }
@@ -229,7 +236,7 @@ tbody tr:hover { background: #fafbfc; }
 .guide__body p { margin: 3px 0; font-size: .9rem; }
 .guide__body .muted { font-size: .82rem; }
 .tpl { border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; margin: 6px 0; font-size: .88rem; }
-.tpl--on { border-color: var(--accent); background: #fff7ed; }
+.tpl--on { border-color: var(--accent); background: #fffbeb; }
 .tpl small { display: block; color: var(--muted); font-size: .78rem; }
 .perm { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 8px 0; }
 .perm__head { background: #f3f4f6; padding: 5px 12px; font-weight: 700; font-size: .8rem; }
@@ -285,8 +292,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 
 /* ============================ タップル風「さがす」/「プロフィール」（コーラル） ============================ */
 /* さがす／プロフィール専用のアクセントトークン（メインカラー＝オレンジ） */
-:root{ --coral:#f97316; --coral-d:#ea580c; --coral-soft:#ffedd5; --match:#10b981; --match-soft:#dcfaef;
-  --gold:#b8860b; --gold-soft:#fbf1d8; --like:#ea580c; --faint:#a8a29e; }
+:root{ --coral:#d97706; --coral-d:#b45309; --coral-soft:#fef3c7; --match:#10b981; --match-soft:#dcfaef;
+  --gold:#b8860b; --gold-soft:#fbf1d8; --like:#b45309; --faint:#a8a29e; }
 
 /* --- さがす：検索バー・チップ --- */
 .tp-search{ display:flex; align-items:center; gap:8px; background:#f7f8fa; border:1px solid var(--border);
@@ -320,7 +327,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-cat::-webkit-scrollbar{ display:none; }
 .tp-cattab{ flex:none; padding:8px 15px; border-radius:999px; font-size:.9rem; font-weight:700; text-decoration:none;
   color:var(--muted); background:#f4eeee; white-space:nowrap; }
-.tp-cattab.on{ background:var(--coral); color:#fff; box-shadow:0 4px 12px rgba(249,115,22,.35); }
+.tp-cattab.on{ background:var(--coral); color:#fff; box-shadow:0 4px 12px rgba(180,83,9,.30); }
 
 /* --- さがす：ヒーローカルーセル（中央フォーカス型） ---
    左右に前後のスライドを覗かせ、中央の1枚が主役。自動送りで中央が入れ替わる。
@@ -347,7 +354,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width
 .tp-pslide b{ font-size:1.28rem; font-weight:800; margin:3px 0 2px; line-height:1.25; }
 .tp-pslide .tp-ssub{ font-size:.82rem; opacity:.95; }
 .tp-pslide--brand{ background:linear-gradient(120deg,#3a2b4d,#1f2937); }
-.tp-pslide--ref{ background:linear-gradient(120deg,#fdba74,#f97316); }
+.tp-pslide--ref{ background:linear-gradient(120deg,var(--brand),#c2760a); }
 .tp-pslide--rank{ background:linear-gradient(120deg,#f0b429,#b8860b); }
 .tp-dots{ display:flex; gap:6px; justify-content:center; align-items:center; margin:2px 0 4px; }
 /* 前後ボタン。自動送りに任せきりにせず、自分で送れるようにする。 */
@@ -363,7 +370,7 @@ div.tp-pslide{ cursor:default; }
 
 /* --- さがす：キャンペーンバー --- */
 .tp-coupon{ display:flex; align-items:center; gap:10px; margin:10px 0 4px; padding:11px 14px; border-radius:14px;
-  background:linear-gradient(120deg,#fb923c,#ea580c); color:#fff; text-decoration:none; box-shadow:var(--shadow-sm); }
+  background:linear-gradient(120deg,var(--brand),var(--accent-d)); color:#fff; text-decoration:none; box-shadow:var(--shadow-sm); }
 .tp-cbadge{ flex:none; background:rgba(255,255,255,.22); border-radius:8px; padding:3px 9px; font-size:.72rem; font-weight:800; }
 .tp-ctext{ flex:1; min-width:0; font-size:.82rem; line-height:1.3; }
 .tp-ctext b{ font-weight:800; }
@@ -375,7 +382,7 @@ div.tp-pslide{ cursor:default; }
 
 /* --- さがす：先着枠の進捗バー（無料フェーズ中だけ出す） --- */
 .tp-progress{ margin:10px 0 4px; padding:12px 14px; border-radius:14px;
-  background:linear-gradient(120deg,#fb923c,#ea580c); color:#fff; box-shadow:var(--shadow-sm); }
+  background:linear-gradient(120deg,var(--brand),var(--accent-d)); color:#fff; box-shadow:var(--shadow-sm); }
 .tp-progress__top{ display:flex; align-items:center; gap:10px; }
 .tp-progress__top b{ font-size:.86rem; font-weight:800; line-height:1.3; }
 .tp-progress__bar{ margin:9px 0 6px; height:7px; border-radius:999px; background:rgba(255,255,255,.28); overflow:hidden; }
@@ -407,14 +414,16 @@ div.tp-pslide{ cursor:default; }
 .tp-ptag--on{ background:var(--coral); }
 .tp-clike{ position:absolute; right:10px; bottom:12px; z-index:3; width:40px; height:40px; border-radius:50%; border:0;
   cursor:pointer; background:#fff; display:grid; place-items:center; box-shadow:0 3px 10px rgba(0,0,0,.28); }
+/* しおりの線はここで色を決める（HTML側は currentColor にしてある）。 */
 .tp-clike svg{ width:22px; height:22px; }
-.tp-clike.on{ background:linear-gradient(145deg,#fb923c,#ea580c); }
+.tp-clike{ color:var(--coral); }
+.tp-clike.on{ background:linear-gradient(145deg,var(--brand),var(--accent-d)); }
 .tp-clike.on svg path{ fill:#fff; stroke:#fff; }
 
 /* ランクバッジ（プロフィール実績など） */
 .rank{ font-size:.7rem; font-weight:800; padding:2px 8px; border-radius:999px; }
 .rank--gold{ background:var(--gold-soft); color:var(--gold); }
-.rank--reg{ background:#fff7ed; color:var(--accent-d); }
+.rank--reg{ background:#fffbeb; color:var(--accent-d); }
 .rank--plat{ background:#ede9fe; color:#7c3aed; }
 .rank--rookie{ background:#f1f5f9; color:#64748b; }
 
@@ -522,8 +531,8 @@ div.tp-pslide{ cursor:default; }
 .tp-fab:active{ transform:scale(.92); }
 .tp-fab--sm{ width:54px; height:54px; border:1px solid var(--border); color:var(--muted); }
 .tp-fab--line{ width:54px; height:54px; background:#06c755; color:#fff; text-decoration:none; }
-.tp-fab--like{ width:68px; height:68px; background:linear-gradient(145deg,#fb923c,#f97316); color:#fff; box-shadow:0 8px 22px rgba(249,115,22,.4); }
-.tp-fab--like.on{ background:linear-gradient(145deg,#f97316,#c2410c); }
+.tp-fab--like{ width:68px; height:68px; background:linear-gradient(145deg,var(--brand),var(--accent)); color:#fff; box-shadow:0 8px 22px rgba(180,83,9,.35); }
+.tp-fab--like.on{ background:linear-gradient(145deg,var(--accent),#92400e); }
 
 /* --- 会員サイトの下部2タブバー（さがす／プロフィール） --- */
 .tp-tabbar{ position:fixed; bottom:0; left:0; right:0; z-index:40; display:flex; justify-content:center;
@@ -545,7 +554,7 @@ div.tp-pslide{ cursor:default; }
 .tp-rail::-webkit-scrollbar{ display:none; }
 .tp-rail .tp-card{ flex:0 0 148px; }
 .tp-pickup{ margin:12px 0 4px; border-radius:18px; padding:16px 18px; color:#fff; position:relative; overflow:hidden;
-  background:linear-gradient(120deg,#fdba74,#f97316); }
+  background:linear-gradient(120deg,var(--brand),#c2760a); }
 .tp-pickup b{ display:block; font-size:1.15rem; font-weight:800; }
 .tp-pickup span{ font-size:.82rem; opacity:.95; }
 
