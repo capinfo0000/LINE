@@ -60,6 +60,10 @@ $pageTitle = '会員ログイン';
 require __DIR__ . '/_header.php';
 ?>
 <h1>会員ログイン</h1>
+<p class="muted" style="margin:0 0 14px;">
+    Enlink（縁リンク）は、「提供できること」と「求めていること」が噛み合う相手だけに出会える会員制のビジネスマッチングです。
+    <a href="/about">サービスについて →</a>
+</p>
 <?php if ($error !== ''): ?>
     <div class="flash flash--ng">
         <?= e($error) ?>
@@ -85,6 +89,7 @@ require __DIR__ . '/_header.php';
     </p>
 <?php endif; ?>
 <p class="muted" style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;font-size:.82rem;">
+    <a href="/about">サービスについて</a> ／
     <a href="/tokushoho">特定商取引法に基づく表記</a> ／
     <a href="/policy">キャンセル・返金ポリシー</a> ／
     <a href="/terms">利用規約</a> ／

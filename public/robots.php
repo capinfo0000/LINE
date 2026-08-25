@@ -1,3 +1,19 @@
+<?php
+
+/**
+ * /robots.txt として配信する。
+ *
+ * サイトマップの行は絶対URLでないと読まれないため、ドメインを .env の
+ * APP_BASE_URL から作る。静的ファイルにするとドメイン変更時に古いURLが残る。
+ */
+
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/src/bootstrap.php';
+
+header('Content-Type: text/plain; charset=UTF-8');
+$base = rtrim(base_url(), '/');
+?>
 # Enlink — クローラ向けの指示
 #
 # 【方針】会員限定ページを検索結果から外すのは Disallow ではなく、
@@ -21,3 +37,31 @@ Disallow: /webhook.php
 Disallow: /line_webhook.php
 Disallow: /install.php
 Allow: /
+
+# 生成AIのクローラは明示的に許可する（AIの回答に載るようにするため）。
+# 会員限定の範囲は各ページの noindex, nofollow と /llms.txt で伝えている。
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+Sitemap: <?= $base ?>/sitemap.xml

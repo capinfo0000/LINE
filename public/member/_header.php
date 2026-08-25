@@ -17,18 +17,24 @@ $hideBrand = $hideBrand ?? false; // true で上部の「Enlink」ブランド�
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= e($pageTitle !== '' ? $pageTitle . ' - ' : '') ?>Enlink 会員サイト</title>
+    <title><?php
+        // 検索結果に出るのはこの文字列。トップ（/）はサービスの説明にする。
+        echo basename($_SERVER['SCRIPT_NAME'] ?? '') === 'index.php'
+            ? 'Enlink（縁リンク）｜会員制ビジネスマッチング'
+            : e(($pageTitle !== '' ? $pageTitle . ' - ' : '') . 'Enlink 会員サイト');
+    ?></title>
     <?php
     // SNSのリンクプレビューと検索向けのメタ情報。
     // 会員限定のページは noindex にする（検索結果にもAIの引用にも載せない）。
-    // 索引に載せるのはトップ（＝ログイン画面）だけ。他は手続きのページなので載せない。
-    // ※ 会員限定でも og:* は出す。共有URLをLINEに貼ったときのカードに使うため。
+    // ※ noindex でも og:* は出す。共有URLをLINEに貼ったときのカードに使うため。
     //   中身は共通のサービス紹介で、会員の名前や写真は出さない。
     $__cur = preg_replace('/\.php$/', '', basename($_SERVER['SCRIPT_NAME'] ?? ''));
-    $__isPublic = in_array($__cur, ['index', 'login'], true);
+    // 索引に載せるのはトップ（/）だけ。/member/login は同じ中身なので、
+    // 両方を索引に入れると重複ページになる。あちらは noindex にして一本化する。
+    $__isPublic = ($__cur === 'index');
     // 共有URL（/u/<コード>）は、カードに会員の名前を出さない。
     // リンクを見た人全員に本名が見えてしまうため、共通のサービス紹介にそろえる。
-    $__ogTitle = ($__isPublic || $__cur === 'u') ? '' : $pageTitle;
+    $__ogTitle = ($__isPublic || $__cur === 'u' || $__cur === 'login') ? '' : $pageTitle;
     echo page_meta_tags(['title' => $__ogTitle, 'noindex' => !$__isPublic]);
     if ($__isPublic) {
         echo '    ' . site_jsonld();

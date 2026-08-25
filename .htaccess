@@ -40,6 +40,15 @@
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^u/([A-Za-z0-9]{4,32})/?$ public/u.php?c=$1 [L,QSA]
 
+    # 検索エンジン用のサイトマップと、生成AI向けの案内ファイル。
+    # ドメインを含むため中身はPHPで作る。決まった名前で配る必要があるのでここで繋ぐ。
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^robots\.txt$ public/robots.php [L]
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^sitemap\.xml$ public/sitemap.php [L]
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^llms\.txt$ public/llms.php [L]
+
     # 拡張子なしのURL（/member/directory 等）を実体の .php につなぐ。
     # 同名の .php が実在するときだけ通すので、無い場所は素通りして404になる。
     RewriteCond %{REQUEST_URI} !^/public/

@@ -413,7 +413,7 @@ function billing_grace_notice(): string
         return '';
     }
     $startsAt = billing_starts_at();
-    return date('n月j日', (int) $startsAt) . 'から、会員機能のご利用に月額会費（税込500円）が必要になります。';
+    return date('n月j日', (int) $startsAt) . 'から、会員機能のご利用に月額会費（' . monthly_fee_text() . '）が必要になります。';
 }
 
 /**

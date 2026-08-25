@@ -30,6 +30,12 @@
     # プロフィールの短い共有URL（/u/<コード>）を u.php へ渡す。
     RewriteRule ^u/([A-Za-z0-9]{4,32})/?$ u.php?c=$1 [L,QSA]
 
+    # 検索エンジン用のサイトマップと、生成AI向けの案内ファイル。
+    # ドメインを含むため中身はPHPで作る。決まった名前で配る必要があるのでここで繋ぐ。
+    RewriteRule ^robots\.txt$ robots.php [L]
+    RewriteRule ^sitemap\.xml$ sitemap.php [L]
+    RewriteRule ^llms\.txt$ llms.php [L]
+
     # 拡張子なしのURL（/member/directory 等）を実体の .php につなぐ。
     RewriteCond %{REQUEST_FILENAME}.php -f
     RewriteRule ^([A-Za-z0-9_\-/]+)$ $1.php [L,QSA]

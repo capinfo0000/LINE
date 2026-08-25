@@ -60,7 +60,7 @@ if (member_search_locked($member)) {
         <div class="card__title" style="justify-content:center;">「さがす」は月額会員のみご利用いただけます</div>
         <p class="muted" style="margin:0 auto 16px;max-width:24em;">
             先着<?= (int) billing_free_limit() ?>名の無料期間が終了しました。会員どうしの検索・閲覧を続けるには、
-            月額会費（税込500円）のご登録が必要です。<br>
+            月額会費（<?= e(monthly_fee_text()) ?>）のご登録が必要です。<br>
             プロフィールの編集やポイントの確認は、引き続きご利用いただけます。
         </p>
         <p style="margin:0 0 10px;"><a class="btn btn--lg" href="/member/subscribe">月額会費を登録する</a></p>

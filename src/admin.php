@@ -172,9 +172,9 @@ function ops_precontract_data_description(): string
 function ops_billing_description(): string
 {
     if (billing_started()) {
-        return '会員資格の維持には、月額会費（税込500円・サブスクリプション）のお支払いが必要です。';
+        return '会員資格の維持には、月額会費（' . monthly_fee_text() . '・サブスクリプション）のお支払いが必要です。';
     }
-    return '現在は無料でご利用いただけます。会員数が' . billing_free_limit() . '名を超えた以降は、会員資格の維持に月額会費（税込500円・サブスクリプション）が必要になります。';
+    return '現在は無料でご利用いただけます。会員数が' . billing_free_limit() . '名を超えた以降は、会員資格の維持に月額会費（' . monthly_fee_text() . '・サブスクリプション）が必要になります。';
 }
 
 /** 自己紹介ロックの説明。OFF のときは空文字（＝その条文自体を出さない）。 */
@@ -207,6 +207,26 @@ function ops_credentials_description(): string
     return signup_mode() === 'auto'
         ? 'ログインID・仮パスワードは、公式LINEを友だち追加された際にLINEでお送りしています。'
         : 'ログインID・仮パスワードは、入会手続きの完了時に公式LINEでお送りしています。';
+}
+
+/**
+ * 月額会費の金額と、表示用の文字列。
+ *
+ * これまで「税込500円」を運用文言・規約・紹介ページの複数箇所に直書きしていた。
+ * 金額を変えたときに一部だけ古い数字が残るので、ここ1箇所から出す。
+ */
+function monthly_fee_amount(): int
+{
+    // 0 や未設定は「決めていない」とみなして既定の 500 円を使う。
+    // 文面に「税込0円」と出てしまうのを防ぐため。
+    $v = (int) env('MONTHLY_FEE_AMOUNT', '500');
+    return $v > 0 ? $v : 500;
+}
+
+/** 例：「税込500円」。金額が未設定なら 500 円として扱う。 */
+function monthly_fee_text(): string
+{
+    return '税込' . number_format(monthly_fee_amount()) . '円';
 }
 
 /**

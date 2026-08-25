@@ -130,7 +130,15 @@ function site_jsonld(): string
         ],
     ];
 
-    // JSON_HEX_TAG で </script> の混入を防ぐ（設定値がそのまま入るため）。
+    return jsonld_script($data);
+}
+
+/**
+ * JSON-LD を1つの <script> として出す共通処理。
+ * 設定値がそのまま入るので、</script> の混入を防ぐエスケープを必ず通す。
+ */
+function jsonld_script(array $data): string
+{
     $json = json_encode(
         $data,
         JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
@@ -139,4 +147,68 @@ function site_jsonld(): string
         return '';
     }
     return '<script type="application/ld+json" nonce="' . e(csp_nonce()) . '">' . $json . '</script>' . "\n";
+}
+
+/**
+ * よくある質問の構造化データ（FAQPage）。
+ *
+ * 検索結果のQ&A表示に使われるだけでなく、生成AIが「Enlink とは」「料金は」と
+ * 聞かれたときに引用しやすい形になる。画面に出している文章と同じものを渡すこと
+ * （表示と構造化データが違う内容だと、検索側で無効と判断される）。
+ *
+ * @param array<int, array{q:string, a:string}> $faq
+ */
+function faq_jsonld(array $faq): string
+{
+    if ($faq === []) {
+        return '';
+    }
+    $items = [];
+    foreach ($faq as $qa) {
+        $q = trim((string) ($qa['q'] ?? ''));
+        $a = trim((string) ($qa['a'] ?? ''));
+        if ($q === '' || $a === '') {
+            continue;
+        }
+        $items[] = [
+            '@type'          => 'Question',
+            'name'           => $q,
+            'acceptedAnswer' => ['@type' => 'Answer', 'text' => $a],
+        ];
+    }
+    if ($items === []) {
+        return '';
+    }
+    return jsonld_script([
+        '@context'   => 'https://schema.org',
+        '@type'      => 'FAQPage',
+        'mainEntity' => $items,
+    ]);
+}
+
+/**
+ * サービス自体の構造化データ（Service）。何を・誰に・いくらで提供しているかを伝える。
+ * 料金は運用設定から取るので、値上げ・値下げをしても自動で追従する。
+ */
+function service_jsonld(): string
+{
+    $base = rtrim(base_url(), '/');
+    $provider = site_setting('biz_name') !== '' ? site_setting('biz_name') : 'Enlink';
+    return jsonld_script([
+        '@context'    => 'https://schema.org',
+        '@type'       => 'Service',
+        'name'        => 'Enlink（縁リンク）',
+        'serviceType' => '会員制ビジネスマッチング',
+        'description' => site_tagline(),
+        'url'         => $base . '/about',
+        'areaServed'  => ['@type' => 'Country', 'name' => '日本'],
+        'provider'    => ['@type' => 'Organization', 'name' => $provider, 'url' => $base . '/'],
+        'offers'      => [
+            '@type'         => 'Offer',
+            'price'         => (string) monthly_fee_amount(),
+            'priceCurrency' => 'JPY',
+            'description'   => ops_billing_description(),
+            'url'           => $base . '/about',
+        ],
+    ]);
 }
