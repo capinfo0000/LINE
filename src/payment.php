@@ -191,6 +191,29 @@ function activate_member(string $memberId, ?string $customerId, ?string $lineUse
 }
 
 /**
+ * 公式LINEで送る「ログイン情報のご案内」の本文。
+ *
+ * 送信から切り離してあるので、送らずに中身を確認できる。
+ * 交流用オープンチャットのURLは運営が管理画面（オープンチャット）で登録したものを使う。
+ * 未登録ならその段落ごと出さない（空のURLを案内しないため）。
+ */
+function member_credentials_line_text(string $loginId, string $tempPassword): string
+{
+    $loginUrl = base_url() . '/';
+    $text = "ご入会ありがとうございます。会員サイトのログイン情報をお送りします。\n\n"
+        . "ログインURL: {$loginUrl}\n"
+        . "ログインID: {$loginId}\n"
+        . "仮パスワード: {$tempPassword}\n\n"
+        . "初回ログイン時に、ご自身のパスワードへ変更してください。";
+    $openChatUrl = active_openchat_url();
+    if ($openChatUrl !== null) {
+        $text .= "\n\n■ 交流用オープンチャットはこちら\n{$openChatUrl}";
+    }
+    $text .= "\n\n※この情報は第三者に共有しないでください。";
+    return $text;
+}
+
+/**
  * 発行した会員資格情報（ログインID＋仮パスワード）を配布する。
  *
  * Phase 2: 会員メールが分かればメール送付する。Phase 3 で公式LINE Bot 配信を追加/優先する。
@@ -203,23 +226,22 @@ function deliver_member_credentials(array $member, string $loginId, string $temp
     $delivered = false;
     $email = (string) ($member['email'] ?? '');
     $lineUserId = (string) ($member['line_user_id'] ?? '');
-    $loginUrl = base_url() . '/member/login';
-    $openChatUrl = active_openchat_url();
+    // トップ（/）がそのままログイン画面なので、いちばん短い形で案内する。
+    $loginUrl = base_url() . '/';
     $viaLine = false;
 
     // 公式LINE Bot（Push）で ID/PW＋OpenChat URL を1通にまとめて配信（通数節約）。
     // 二重配布は line_contacts.credentials_sent の claim で防ぐ。
     if ($lineUserId !== '' && find_line_contact($lineUserId) !== null && claim_credentials_send($lineUserId)) {
-        $text = "ご入会ありがとうございます。会員サイトのログイン情報をお送りします。\n\n"
-            . "ログインURL: {$loginUrl}\n"
-            . "ログインID: {$loginId}\n"
-            . "仮パスワード: {$tempPassword}\n\n"
-            . "初回ログイン時に、ご自身のパスワードへ変更してください。";
-        if ($openChatUrl !== null) {
-            $text .= "\n\n■ 交流用オープンチャットはこちら\n{$openChatUrl}";
-        }
-        $text .= "\n\n※この情報は第三者に共有しないでください。";
+        $text = member_credentials_line_text($loginId, $tempPassword);
         $viaLine = line_push($lineUserId, [line_text($text)]);
+        if (!$viaLine) {
+            // 送れなかったのに配布済みフラグだけ立っていると、以後この人には二度と送られない。
+            // フラグを戻して、あとから再送できるようにする。
+            db()->prepare('UPDATE line_contacts SET credentials_sent = 0 WHERE line_user_id = ?')
+                ->execute([$lineUserId]);
+            audit_log('credentials.line_failed', ['member' => $member['id'] ?? '-']);
+        }
         $delivered = $viaLine || $delivered;
     }
 
@@ -494,6 +516,37 @@ function member_can_subscribe_now(array $member): bool
 /* ============================ 無料入会（無料フェーズ：LINE申込→承認発行） ============================ */
 
 /**
+ * まだ使われていない会員に、ログイン情報を送り直す。
+ *
+ * 友だち追加をやり直した場合など、line_contacts の行が残っていると
+ * 新規発行の経路に入らず「登録ありがとう」だけが届いてID/PWが来ない。
+ * 仮パスワードは保存していないので、送り直すには作り直すしかない。
+ *
+ * すでにご自身のパスワードへ変更済みの会員には何もしない。
+ * ここで作り直すと、いま使えているパスワードが使えなくなってしまうため。
+ *
+ * @return bool 送り直したら true
+ */
+function deliver_credentials_if_never_used(array $member): bool
+{
+    if ((int) ($member['must_change_pw'] ?? 0) !== 1) {
+        return false; // 本人のパスワードで運用中。触らない
+    }
+    $memberId = (string) $member['id'];
+    $temp = generate_temp_password();
+    db()->prepare('UPDATE members SET password_hash = ?, must_change_pw = 1 WHERE id = ?')
+        ->execute([password_hash($temp, PASSWORD_DEFAULT), $memberId]);
+    // LINE への再配布を通すため、配布済みフラグを戻す。
+    $lineUserId = (string) ($member['line_user_id'] ?? '');
+    if ($lineUserId !== '') {
+        db()->prepare('UPDATE line_contacts SET credentials_sent = 0 WHERE line_user_id = ?')->execute([$lineUserId]);
+    }
+    audit_log('credentials.resent', ['member' => $memberId]);
+    $fresh = find_member_by_id($memberId);
+    return $fresh !== null && deliver_member_credentials($fresh, (string) $fresh['login_id'], $temp);
+}
+
+/**
  * 無料フェーズの入会：LINE連絡先を承認し、決済なしで会員資格を発行する（冪等）。
  * すでに会員紐付け済みなら再発行しない。発行した資格情報は LINE/メールで配布する。
  *
@@ -506,8 +559,15 @@ function provision_free_member_from_contact(string $userId): array
     if ($c === null) {
         return ['status' => 'ignored', 'member_id' => null, 'issued' => false];
     }
-    // すでに会員が紐付いていれば発行しない（冪等）。
+    // すでに会員が紐付いていれば新規発行はしない（冪等）。
+    // ただしログイン情報が届いていない可能性があるので、送り直せるなら送る。
+    // 友だちを解除して再追加した場合など、line_contacts の行は残ったままなので、
+    // ここで何もしないと「登録ありがとう」だけが届いてID/PWが来ない。
     if (!empty($c['member_id'])) {
+        $linked = find_member_by_id((string) $c['member_id']);
+        if ($linked !== null) {
+            deliver_credentials_if_never_used($linked);
+        }
         return ['status' => 'linked', 'member_id' => (string) $c['member_id'], 'issued' => false];
     }
     // メール一致の既存会員があれば紐付けのみ（重複アカウント防止）。
@@ -517,6 +577,10 @@ function provision_free_member_from_contact(string $userId): array
         activate_member((string) $existing['id'], null, $userId);
         link_line_contact_member($userId, (string) $existing['id']);
         set_line_contact_state($userId, 'paid');
+        $fresh = find_member_by_id((string) $existing['id']);
+        if ($fresh !== null) {
+            deliver_credentials_if_never_used($fresh);
+        }
         return ['status' => 'linked', 'member_id' => (string) $existing['id'], 'issued' => false];
     }
 
