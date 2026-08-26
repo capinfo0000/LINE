@@ -81,6 +81,7 @@ require __DIR__ . '/_header.php';
             ※ご紹介先ご自身が紹介特典で無料になった場合も、ご契約は続いているので人数に含まれます。
         </p>
     <?php endif; ?>
+    <p style="margin:.6rem 0 0;"><a href="/pricing">料金と紹介特典の詳しい説明 ›</a></p>
 </div>
 
 <div class="card">

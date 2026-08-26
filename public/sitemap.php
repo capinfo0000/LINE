@@ -21,6 +21,7 @@ $base = rtrim(base_url(), '/');
 $pages = [
     ['/',           'weekly',  '1.0'],
     ['/about',      'monthly', '0.9'],
+    ['/pricing',    'monthly', '0.8'],
     ['/terms',      'yearly',  '0.3'],
     ['/privacy',    'yearly',  '0.3'],
     ['/policy',     'yearly',  '0.3'],
@@ -32,6 +33,7 @@ $pages = [
 $fileOf = [
     '/'          => __DIR__ . '/member/login.php',
     '/about'     => __DIR__ . '/about.php',
+    '/pricing'   => __DIR__ . '/pricing.php',
     '/terms'     => __DIR__ . '/terms.php',
     '/privacy'   => __DIR__ . '/privacy.php',
     '/policy'    => __DIR__ . '/policy.php',

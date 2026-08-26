@@ -63,6 +63,7 @@ require __DIR__ . '/_header.php';
     <a href="/member/intro">自己紹介ひな形（LINE用）<span class="chev">›</span></a>
     <a href="/member/points">ポイント<?= referral_program_open() ? '・紹介' : '' ?><span class="chev">›</span></a>
     <a href="/member/billing">お支払い・解約<span class="chev">›</span></a>
+    <a href="/pricing">料金と紹介特典について<span class="chev">›</span></a>
     <a href="/member/account">ログインID・パスワード<span class="chev">›</span></a>
     <?php if ((string) (env('STRIPE_PRICE_ID_ADFREE', '') ?? '') !== '' || member_ads_free($member)): ?>
         <a href="/member/adfree">広告の非表示<span class="chev">›</span></a>

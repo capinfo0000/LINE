@@ -857,6 +857,101 @@ function evaluate_referral_waiver(): array
     return ['scanned' => $scanned, 'earned' => $earned, 'applied' => $applied, 'removed' => $removed, 'errors' => $errors, 'mode' => $mode];
 }
 
+/**
+ * 猶予期間中の申込で、初回請求を課金開始日（翌月1日）まで先送りできるか。
+ *
+ * Stripe は trial_end が「およそ48時間より先」でないと受け付けないため、
+ * 月末ぎりぎりに到達して猶予が短いときは null を返す（＝先送りせず即課金）。
+ */
+function subscription_trial_end(): ?int
+{
+    $startsAt = billing_starts_at();
+    if ($startsAt === null || $startsAt <= time() + 172800) {
+        return null;
+    }
+    return $startsAt;
+}
+
+/**
+ * 月額会費の Checkout セッションを作り、その決済URLを返す。
+ *
+ * 会員自身の申込（member/subscribe.php）と、運営が代理でリンクを発行する場合
+ * （admin/member_detail.php）の両方から使う。条件の付け方が2か所に分かれて
+ * 食い違わないよう、組み立てはここに1本化する。
+ *
+ * ※ 返る URL は Stripe の仕様で発行から24時間で失効する。
+ *
+ * @throws \RuntimeException 価格ID未設定
+ * @throws \Throwable        Stripe 側のエラー
+ */
+function create_subscription_checkout(array $member, string $successUrl, string $cancelUrl): string
+{
+    $priceId = (string) (env('STRIPE_PRICE_ID') ?? '');
+    if ($priceId === '') {
+        throw new \RuntimeException('月額のPrice ID（STRIPE_PRICE_ID）が設定されていません。');
+    }
+    init_stripe();
+
+    $metadata = ['purpose' => 'subscription', 'member_id' => (string) $member['id']];
+    $email = (string) ($member['email'] ?? '');
+    if ($email !== '') {
+        $metadata['email'] = $email;
+    }
+
+    $subscriptionData = ['metadata' => $metadata];
+    // 猶予期間中に申し込んだ人から先に請求しないよう、初回請求日を課金開始日に揃える。
+    // これが無いと「猶予期間は無料」と案内しながら、早く決めた人ほど多く払うことになる。
+    $trialEnd = subscription_trial_end();
+    if ($trialEnd !== null) {
+        $subscriptionData['trial_end'] = $trialEnd;
+    }
+
+    $params = [
+        'mode'              => 'subscription',
+        'line_items'        => [['quantity' => 1, 'price' => $priceId]],
+        'metadata'          => $metadata,
+        'subscription_data' => $subscriptionData,
+        'success_url'       => $successUrl,
+        'cancel_url'        => $cancelUrl,
+    ];
+    // 紹介の条件を満たしていれば、最初の請求から無料にする。
+    // ここで割引を付けないと、定期実行の判定が回るまでの1か月分だけ請求されてしまう。
+    if (member_qualifies_for_waiver($member)) {
+        $params['discounts'] = [['coupon' => waiver_coupon_id()]];
+    }
+    if ($email !== '') {
+        $params['customer_email'] = $email;
+    }
+    if (!empty($member['stripe_customer_id'])) {
+        $params['customer'] = (string) $member['stripe_customer_id'];
+        unset($params['customer_email']); // customer と customer_email は併用できない
+    }
+
+    $session = \Stripe\Checkout\Session::create($params);
+    return (string) $session->url;
+}
+
+/**
+ * 運営が紹介特典の無料を剥奪する（不正な紹介が判明したときなど）。
+ * クーポンを外し、永久無料の資格も取り消す。
+ *
+ * 定期実行からは呼ばない。cron は人数で通常の無料を付け外しするだけで、
+ * 永久無料の資格には触れない。
+ *
+ * @return bool 何かしら取り消したら true
+ */
+function revoke_member_waiver(array $member): bool
+{
+    $memberId = (string) $member['id'];
+    $hadEarned = member_waiver_earned($member);
+    $removed = remove_subscription_waiver($member);
+    if ($hadEarned) {
+        db()->prepare('UPDATE members SET waiver_earned_at = NULL WHERE id = ?')->execute([$memberId]);
+        audit_log('waiver.revoked', ['member' => $memberId]);
+    }
+    return $removed || $hadEarned;
+}
+
 /* ============================ サブスク（月額会費） ============================ */
 
 /** Stripe 顧客IDから会員を引く。 */

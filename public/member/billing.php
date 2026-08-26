@@ -115,5 +115,6 @@ require __DIR__ . '/_header.php';
 </div>
 <?php endif; ?>
 
+<p class="muted" style="margin-top:10px;"><a href="/pricing">料金と紹介特典の詳しい説明 ›</a></p>
 <p class="muted" style="margin-top:10px;"><a href="/member/dashboard">← 会員トップへ戻る</a></p>
 <?php require __DIR__ . '/_footer.php'; ?>

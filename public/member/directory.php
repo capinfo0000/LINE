@@ -305,7 +305,7 @@ if ($showRail) {
     <!-- キャンペーンバー -->
     <?php if (billing_started()): ?>
         <!-- 課金フェーズ：紹介で月額を無料にできるので、キャンペーンを出す。 -->
-        <a class="tp-coupon" href="/member/points">
+        <a class="tp-coupon" href="/pricing">
             <span class="tp-cbadge">紹介</span>
             <span class="tp-ctext"><b>ご紹介した<?= (int) referral_waiver_min() ?>人が会費を登録すると月額0円</b>／その<?= (int) referral_waiver_min() ?>人も<?= (int) referral_waiver_min() ?>人紹介すると以後ずっと無料</span>
             <span class="tp-chelp" aria-hidden="true">?</span>
@@ -319,7 +319,7 @@ if ($showRail) {
             <span class="tp-ctext"><b><?= e(billing_grace_notice()) ?></b><?php if (member_can_subscribe_now($member)): ?>／いま登録しても<b>最初のご請求は課金開始日から</b><?php endif; ?></span>
             <span class="tp-chelp" aria-hidden="true">?</span>
         </a>
-        <a class="tp-coupon" href="/member/points">
+        <a class="tp-coupon" href="/pricing">
             <span class="tp-cbadge">紹介</span>
             <span class="tp-ctext"><b>ご紹介した<?= (int) referral_waiver_min() ?>人が会費を登録すると、あなたの月額は0円</b>／その<?= (int) referral_waiver_min() ?>人も<?= (int) referral_waiver_min() ?>人紹介すると以後ずっと無料</span>
             <span class="tp-chelp" aria-hidden="true">?</span>

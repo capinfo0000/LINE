@@ -120,7 +120,7 @@ require __DIR__ . '/_header.php';
         <?php $__min = (int) referral_waiver_min(); ?>
         <p class="muted" style="margin:0;">ご紹介いただいた方が<strong><?= $__min ?>名</strong>会費のご登録をされると、あなたの月額会費は<strong>無料</strong>になります（<?= $__min ?>名を下回ると翌月から通常額に戻ります）。
             さらにその<?= $__min ?>名が<strong>それぞれ<?= $__min ?>名ずつ</strong>ご紹介くださると、<strong>以後ずっと無料</strong>です。詳しくは
-            <a href="/member/points">ポイント・紹介</a> をご覧ください。</p>
+            <a href="/pricing">料金と紹介特典の詳しい説明</a> をご覧ください。</p>
     <?php endif; ?>
 </div>
 
