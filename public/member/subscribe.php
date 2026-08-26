@@ -42,6 +42,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'line_items' => [['quantity' => 1, 'price' => $priceId]],
                 'metadata' => $metadata,
                 'subscription_data' => ['metadata' => $metadata],
+            ];
+            // 紹介の条件を満たしていれば、最初の請求から無料にする。
+            // ここで割引を付けないと、定期実行の判定が回るまでの1か月分だけ
+            // 請求されてしまう（「5人紹介したら無料」と案内しているのに、
+            // 初月だけ取られる形になる）。
+            $waiverCoupon = member_qualifies_for_waiver($member) ? waiver_coupon_id() : '';
+            if ($waiverCoupon !== '') {
+                $params['discounts'] = [['coupon' => $waiverCoupon]];
+            }
+            $params += [
                 'success_url' => base_url() . '/member/dashboard?msg=' . rawurlencode('月額登録が完了しました。') . '&type=ok',
                 'cancel_url' => base_url() . '/member/subscribe',
             ];

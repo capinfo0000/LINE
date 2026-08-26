@@ -447,7 +447,7 @@ function billing_grace_notice(): string
 function member_requires_subscription(array $member): bool
 {
     if (!billing_started()) {
-        return false; // 無料フェーズは全員アクセス可
+        return false; // 無料フェーズと猶予期間は全員アクセス可
     }
     return (string) ($member['subscription_status'] ?? '') !== 'active';
 }
@@ -545,8 +545,11 @@ function referral_waiver_min(): int
  */
 function referral_waiver_mode(): string
 {
-    $m = strtoupper((string) app_setting_get('referral_waiver_mode', 'A'));
-    return $m === 'B' ? 'B' : 'A';
+    // 既定はB案。「紹介した5人が課金してくれたら無料」という条件に合わせる。
+    // A案（無料化された紹介先も数える）だと、無料の会員が無料の会員を
+    // 紹介し合うだけで無料が連鎖し、会費を払う人が増えないまま広がる。
+    $m = strtoupper((string) app_setting_get('referral_waiver_mode', 'B'));
+    return $m === 'A' ? 'A' : 'B';
 }
 
 /**
@@ -644,6 +647,25 @@ function remove_subscription_waiver(array $member): bool
     db()->prepare('UPDATE members SET subscription_waived = 0 WHERE id = ?')->execute([$member['id']]);
     audit_log('waiver.removed', ['member' => $member['id']]);
     return true;
+}
+
+/**
+ * 紹介特典の判定に使う人数。
+ *
+ * 数えるのは「紹介した相手のうち、実際に会費を払っている人」。
+ * 登録しただけの人は数えない（無料の会員を5人集めれば自分も無料、だと
+ * 会費を払う人が一人も増えないまま無料が広がってしまうため）。
+ * この線引きは referral_waiver_mode() で切り替えられる。
+ */
+function referral_waiver_count(string $memberId): int
+{
+    return count_active_referrals($memberId, referral_waiver_mode() === 'B');
+}
+
+/** 紹介の人数が条件に達しているか（＝月額を無料にできるか）。 */
+function member_qualifies_for_waiver(array $member): bool
+{
+    return referral_waiver_count((string) $member['id']) >= referral_waiver_min();
 }
 
 /**

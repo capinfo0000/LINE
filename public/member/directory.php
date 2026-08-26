@@ -307,14 +307,21 @@ if ($showRail) {
         <!-- 課金フェーズ：紹介で月額を無料にできるので、キャンペーンを出す。 -->
         <a class="tp-coupon" href="/member/points">
             <span class="tp-cbadge">紹介</span>
-            <span class="tp-ctext"><b>5人ご紹介で翌月の月額が0円</b>／紹介はずっと有効</span>
+            <span class="tp-ctext"><b>ご紹介した<?= (int) referral_waiver_min() ?>人がご入会されると月額0円</b>／紹介はずっと有効</span>
             <span class="tp-chelp" aria-hidden="true">?</span>
         </a>
     <?php elseif (billing_grace_active()): ?>
-        <!-- 猶予期間：いつから有料になるかを先に伝える。 -->
+        <?php /* 猶予期間：いつから有料になるかを先に伝え、あわせて紹介特典も案内する。
+                 人数は出さない。数えるのは「紹介した相手が会費を払ったら」なので、
+                 まだ誰も払っていないこの時期は必ず0人になり、見せると逆効果になる。 */ ?>
         <a class="tp-coupon tp-coupon--notice" href="/member/billing">
             <span class="tp-cbadge">お知らせ</span>
             <span class="tp-ctext"><b><?= e(billing_grace_notice()) ?></b></span>
+            <span class="tp-chelp" aria-hidden="true">?</span>
+        </a>
+        <a class="tp-coupon" href="/member/points">
+            <span class="tp-cbadge">紹介</span>
+            <span class="tp-ctext"><b>ご紹介した<?= (int) referral_waiver_min() ?>人がご入会されると、あなたの月額は0円</b></span>
             <span class="tp-chelp" aria-hidden="true">?</span>
         </a>
     <?php else: ?>
