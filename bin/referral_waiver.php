@@ -22,9 +22,10 @@ if (PHP_SAPI !== 'cli') {
 
 require_once dirname(__DIR__) . '/src/bootstrap.php';
 
-// 課金フェーズでなければ無料化対象は存在しないので即終了（無駄な Stripe 呼び出しを避ける）。
-if (!billing_started()) {
-    fwrite(STDOUT, sprintf("[%s] 無料フェーズのためスキップ\n", date('c')));
+// 課金制度そのものが始まっていなければ対象は存在しないので即終了（無駄な Stripe 呼び出しを避ける）。
+// 猶予期間は対象に含める。ここで判定しないと、猶予期間に条件を達成した人が初回請求に間に合わない。
+if (billing_reached_at() === null) {
+    fwrite(STDOUT, sprintf("[%s] まだ課金制度が始まっていないためスキップ\n", date('c')));
     exit(0);
 }
 
@@ -39,9 +40,10 @@ try {
     init_stripe();
     $r = evaluate_referral_waiver();
     fwrite(STDOUT, sprintf(
-        "[%s] 紹介特典判定(mode=%s): scanned=%d applied=%d removed=%d errors=%d\n",
+        "[%s] 紹介特典判定(mode=%s): earned=%d scanned=%d applied=%d removed=%d errors=%d\n",
         date('c'),
         $r['mode'],
+        $r['earned'],
         $r['scanned'],
         $r['applied'],
         $r['removed'],

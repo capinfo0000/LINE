@@ -16,8 +16,9 @@ $msgType = 'ok';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
     if ((string) ($_POST['action'] ?? '') === 'referral') {
-        // 紹介制度は課金開始後のみ受付（未公開フェーズの前倒し実行を防ぐ）。
-        if (!billing_started()) {
+        // 紹介制度は猶予期間から受付。猶予期間は「有料にするか会員が選ぶ時期」であり、
+        // ここで紹介を積めないと「5人紹介したら無料」が誰にも成立しないまま課金が始まる。
+        if (!referral_program_open()) {
             $msg = '紹介制度は現在準備中です。制度開始までお待ちください。';
             $msgType = 'ng';
         } else {
@@ -53,7 +54,7 @@ require __DIR__ . '/_header.php';
     <p class="muted">受けた評価 <?= (int) $myPraise ?> 件／紹介した人数 <?= (int) $myRefCount ?> 名</p>
 </div>
 
-<?php if (billing_started()): ?>
+<?php if (referral_program_open()): ?>
 <div class="card">
     <div class="card__title">紹介であなたのコードを共有</div>
     <p>友人が入会時にあなたのコードを入力すると、<strong>あなたに<?= points_amount('referrer') ?>pt・相手に<?= points_amount('joiner') ?>pt</strong>が入ります。</p>
@@ -74,13 +75,13 @@ require __DIR__ . '/_header.php';
                 <input type="text" name="referrer_code" placeholder="例: 8F3KQ9MN" maxlength="16" style="max-width:220px;text-transform:uppercase;"></div>
             <div><button type="submit" class="btn">登録する</button></div>
         </form>
-        <p class="muted" style="margin-top:6px;">※登録は1回だけ・あとから変更できません。</p>
+        <p class="muted" style="margin-top:6px;">※<strong>登録は1回だけです。あとから変更・取り消しはできません</strong>ので、コードをよくご確認ください。</p>
     <?php endif; ?>
 </div>
 <?php else: ?>
 <div class="card">
     <div class="card__title">紹介制度について</div>
-    <p class="muted" style="margin:0;">紹介コード・紹介特典は、<strong>本サービスの制度開始（課金開始）時に公開</strong>予定です。今しばらくお待ちください。</p>
+    <p class="muted" style="margin:0;">紹介コード・紹介特典は、<strong>会員数が上限に達した時点で公開</strong>予定です。今しばらくお待ちください。</p>
 </div>
 <?php endif; ?>
 

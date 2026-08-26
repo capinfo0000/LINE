@@ -99,15 +99,19 @@ try {
     } elseif ($job === 'recommend') {
         $out = 'recommend total=' . rebuild_all_recommendations();
     } elseif ($job === 'waiver') {
-        // 紹介特典（月額無料化）の判定。active サブスク会員ごとに「アクティブな紹介先」を数え、
-        // しきい値(既定5)以上で100%OFFクーポンを適用、割り込んだら解除。冪等。
-        // 無料フェーズ（サブスク自体が無い期間）は Stripe を叩かずスキップ。
-        if (!billing_started()) {
-            $out = 'waiver skipped (free phase)';
+        // 紹介特典（月額無料化）の判定。「アクティブな紹介先」がしきい値(既定5)以上なら
+        // 資格を記録し、サブスクを持っている人には100%OFFクーポンを適用する。冪等。
+        // 一度得た資格は自動では失われない（剥奪は運営が管理画面から行う）。
+        // 猶予期間からも走らせる。ここで判定しておかないと、猶予期間に条件を達成した人が
+        // 課金開始日の初回請求に間に合わない。
+        // ※ billing_reached_at() は読み取り時に到達を確定させる（app_settings に書く）。
+        //    cron が最初の到達者になることがあるが、それは意図した挙動。
+        if (billing_reached_at() === null) {
+            $out = 'waiver skipped (billing not reached)';
         } else {
             init_stripe();
             $r = evaluate_referral_waiver();
-            $out = "waiver mode={$r['mode']} scanned={$r['scanned']} applied={$r['applied']} removed={$r['removed']} errors={$r['errors']}";
+            $out = "waiver mode={$r['mode']} earned={$r['earned']} scanned={$r['scanned']} applied={$r['applied']} removed={$r['removed']} errors={$r['errors']}";
         }
     } elseif ($job === 'seed') {
         // 開発用サンプル会員を投入（冪等）。確認後は unseed で削除する。

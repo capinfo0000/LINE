@@ -12,13 +12,14 @@ declare(strict_types=1);
 /**
  * 「有料会員か」の判定（SQL断片）。members を m として参照する。
  *
- * 月額を実際に払っている人だけを有料とみなす。紹介特典で無料化中（subscription_waived=1）は
- * 支払いが発生していないので含めない。無料フェーズ中は誰も該当しないため、
- * 実質ポイント順になる。
+ * 月額会費を契約している会員を有料とみなす。紹介特典で無料化中（subscription_waived=1）も
+ * 含める——契約自体はしており、しかも5名を紹介してくれた人だから。
+ * ここで無料化を外すと「早く5人紹介して達成した人ほど一覧で埋もれる」という
+ * 逆向きの動機になってしまう。無料フェーズ中は誰も該当しないため、実質ポイント順になる。
  */
 function directory_paid_sql(): string
 {
-    return "(m.subscription_status = 'active' AND COALESCE(m.subscription_waived, 0) = 0)";
+    return "(m.subscription_status = 'active')";
 }
 
 /**

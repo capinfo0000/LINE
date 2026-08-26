@@ -138,13 +138,13 @@ switch ($cmd) {
 
     case 'eval-waiver':
         // 紹介特典（月額無料化）の判定を手動実行する（cron と同じ処理）。
-        if (!billing_started()) {
-            echo "無料フェーズのため判定対象はありません。\n";
+        if (billing_reached_at() === null) {
+            echo "まだ課金制度が始まっていないため判定対象はありません。\n";
             break;
         }
         init_stripe();
         $r = evaluate_referral_waiver();
-        echo "紹介特典判定(mode={$r['mode']}): scanned={$r['scanned']} applied={$r['applied']} removed={$r['removed']} errors={$r['errors']}\n";
+        echo "紹介特典判定(mode={$r['mode']}): earned={$r['earned']} scanned={$r['scanned']} applied={$r['applied']} removed={$r['removed']} errors={$r['errors']}\n";
         break;
 
     default:

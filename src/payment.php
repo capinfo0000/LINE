@@ -141,6 +141,15 @@ function provision_member_from_checkout_session(array $s): array
     // サブスクなら subscription ID と状態(active)を保存。
     $subId = (string) ($s['subscription'] ?? '');
     if (($member['id'] ?? '') !== '' && $subId !== '') {
+        // 別のサブスクに変わったら（解約→再登録）、無料化フラグを一度倒す。
+        // このフラグは「いま Stripe 側にクーポンが付いているか」を表しており、
+        // 新しいサブスクには当然まだ付いていない。1 のまま残すと
+        // apply_subscription_waiver() の冪等ガードに弾かれて永久にクーポンが付かず、
+        // 「無料と表示されているのに毎月請求される」状態になる。
+        $prevSubId = (string) ($member['stripe_subscription_id'] ?? '');
+        if ($prevSubId !== '' && $prevSubId !== $subId) {
+            db()->prepare('UPDATE members SET subscription_waived = 0 WHERE id = ?')->execute([$member['id']]);
+        }
         db()->prepare("UPDATE members SET stripe_subscription_id = ?, subscription_status = 'active' WHERE id = ?")
             ->execute([$subId, $member['id']]);
     }
@@ -413,6 +422,18 @@ function billing_grace_active(): bool
 }
 
 /**
+ * 紹介制度（紹介コードの発行・入力）を受け付けているか。
+ *
+ * 猶予期間から開ける。猶予期間は「有料にするかどうかを会員が選ぶ時期」であり、
+ * ここで紹介を積めないと、課金開始の時点で全員の紹介数が0のままになり
+ * 「5人紹介したら無料」が誰にも成立しない。
+ */
+function referral_program_open(): bool
+{
+    return billing_reached_at() !== null;
+}
+
+/**
  * 先着枠の進捗（さがす上部の進捗バー用）。
  *
  * @return array{count:int, limit:int, remaining:int, percent:int}
@@ -450,6 +471,24 @@ function member_requires_subscription(array $member): bool
         return false; // 無料フェーズと猶予期間は全員アクセス可
     }
     return (string) ($member['subscription_status'] ?? '') !== 'active';
+}
+
+/**
+ * この会員が、いま自分から月額会費に登録できるか。
+ *
+ * member_requires_subscription()（＝「さがす」をロックするか）とは別物なので関数を分ける。
+ * 猶予期間は「有料にするかどうかを会員が選ぶ時期」なので、ロックはしないが登録はできる。
+ * 100名に到達する前（完全な無料フェーズ）は、まだ制度が始まっていないので登録させない。
+ */
+function member_can_subscribe_now(array $member): bool
+{
+    if (billing_reached_at() === null) {
+        return false; // まだ無料フェーズ。課金制度そのものが始まっていない
+    }
+    if ((string) ($member['status'] ?? '') !== 'active') {
+        return false; // 停止中の会員は登録させない
+    }
+    return (string) ($member['subscription_status'] ?? '') !== 'active'; // 登録済みなら不要
 }
 
 /* ============================ 無料入会（無料フェーズ：LINE申込→承認発行） ============================ */
@@ -545,11 +584,11 @@ function referral_waiver_min(): int
  */
 function referral_waiver_mode(): string
 {
-    // 既定はB案。「紹介した5人が課金してくれたら無料」という条件に合わせる。
-    // A案（無料化された紹介先も数える）だと、無料の会員が無料の会員を
-    // 紹介し合うだけで無料が連鎖し、会費を払う人が増えないまま広がる。
-    $m = strtoupper((string) app_setting_get('referral_waiver_mode', 'B'));
-    return $m === 'A' ? 'A' : 'B';
+    // 既定はA案。「紹介した5人が課金したら無料」に加えて、
+    // 無料になった人がさらに5人紹介すれば、その人も無料になる（連鎖する）運用のため。
+    // 無料が増えすぎたら運営ダッシュボードから B に切り替えられる。
+    $m = strtoupper((string) app_setting_get('referral_waiver_mode', 'A'));
+    return $m === 'B' ? 'B' : 'A';
 }
 
 /**
@@ -628,24 +667,32 @@ function apply_subscription_waiver(array $member): bool
 }
 
 /**
- * 会員のサブスクからクーポンを外して通常額に戻す（冪等）。
- * すでに通常額(subscription_waived=0)なら何もしない。
+ * 会員のサブスクからクーポンを外して通常額に戻し、紹介特典の資格も取り消す。
  *
- * @return bool 新たに解除したら true
+ * 定期実行からは呼ばない（一度得た資格は自動では失われない運用）。
+ * 不正な紹介が判明したときなどに、運営が管理画面から手動で剥奪するための関数。
+ *
+ * @return bool 何かしら取り消したら true
  */
 function remove_subscription_waiver(array $member): bool
 {
+    $memberId = (string) $member['id'];
     $subId = (string) ($member['stripe_subscription_id'] ?? '');
-    if ($subId === '' || (int) ($member['subscription_waived'] ?? 0) === 0) {
+    $wasWaived = (int) ($member['subscription_waived'] ?? 0) === 1;
+    $wasEarned = member_waiver_earned($member);
+    if (!$wasWaived && !$wasEarned) {
         return false;
     }
-    try {
-        \Stripe\Subscription::deleteDiscount($subId);
-    } catch (\Throwable $e) {
-        // すでに割引が無い場合などは無視（フラグだけ戻す）。
+    if ($wasWaived && $subId !== '') {
+        try {
+            \Stripe\Subscription::deleteDiscount($subId);
+        } catch (\Throwable $e) {
+            // すでに割引が無い場合などは無視（フラグだけ戻す）。
+        }
     }
-    db()->prepare('UPDATE members SET subscription_waived = 0 WHERE id = ?')->execute([$member['id']]);
-    audit_log('waiver.removed', ['member' => $member['id']]);
+    db()->prepare('UPDATE members SET subscription_waived = 0, waiver_earned_at = NULL WHERE id = ?')
+        ->execute([$memberId]);
+    audit_log('waiver.removed', ['member' => $memberId]);
     return true;
 }
 
@@ -662,48 +709,114 @@ function referral_waiver_count(string $memberId): int
     return count_active_referrals($memberId, referral_waiver_mode() === 'B');
 }
 
-/** 紹介の人数が条件に達しているか（＝月額を無料にできるか）。 */
+/**
+ * 紹介特典の「資格」を既に得ているか。
+ *
+ * 一度条件を満たしたら、あとで紹介先が減っても無料のまま——という運用なので、
+ * 「いま何人か」ではなく「一度でも達したか」をこの列で覚えておく。
+ */
+function member_waiver_earned(array $member): bool
+{
+    return (int) ($member['waiver_earned_at'] ?? 0) > 0;
+}
+
+/**
+ * 紹介特典の資格を記録する（初回だけ true）。
+ *
+ * 「まだ資格が無い行だけを更新する」という条件付き UPDATE の rowCount で判定するので、
+ * 同時に2回走っても二重にはならない（record_stripe_event_once() と同じ claim-first の流儀）。
+ */
+function claim_waiver_earned(string $memberId): bool
+{
+    $stmt = db()->prepare(
+        'UPDATE members SET waiver_earned_at = ?
+          WHERE id = ? AND (waiver_earned_at IS NULL OR waiver_earned_at = 0)'
+    );
+    $stmt->execute([time(), $memberId]);
+    if ($stmt->rowCount() === 0) {
+        return false; // 既に資格あり
+    }
+    audit_log('waiver.earned', ['member' => $memberId]);
+    return true;
+}
+
+/**
+ * 月額を無料にできるか。
+ *
+ * 「一度でも資格を得ている」か「いまの人数が条件に達している」かのどちらかで true。
+ * 前者を見ることで、解約したあとに再登録しても初回から無料になる。
+ */
 function member_qualifies_for_waiver(array $member): bool
 {
+    if (member_waiver_earned($member)) {
+        return true;
+    }
     return referral_waiver_count((string) $member['id']) >= referral_waiver_min();
 }
 
 /**
- * 全 active サブスク会員について、紹介特典（月額無料化）の付け外しを判定・反映する。
- * cron（bin/referral_waiver.php）から定期実行する。Stripe を叩くので冪等ガード付き。
+ * 紹介特典（月額無料化）を判定・反映する。cron から定期実行する。
  *
- * @return array{scanned:int, applied:int, removed:int, errors:int, mode:string}
+ * 2段構えにしている。
+ *  第1段：資格の記録（Stripe を叩かない）。サブスク未登録の会員も対象にする。
+ *         こうしておくと、猶予期間に5人達成した人が後から登録したとき、
+ *         初回の請求から無料になる（subscribe.php がこの資格を見る）。
+ *  第2段：既にサブスクを持っている会員にだけ、実際にクーポンを適用する。
+ *
+ * 資格の自動取り消しは行わない（一度達成したらずっと無料）。剥奪は運営が手動で行う。
+ * 戻り値の removed は 0 固定だが、呼び出し元（cron.php / bin/*.php）が参照するのでキーは残す。
+ *
+ * @return array{scanned:int, earned:int, applied:int, removed:int, errors:int, mode:string}
  */
 function evaluate_referral_waiver(): array
 {
     $mode = referral_waiver_mode();
     $payingOnly = ($mode === 'B');
     $min = referral_waiver_min();
-    $scanned = $applied = $removed = $errors = 0;
+    $scanned = $earned = $applied = $errors = 0;
 
-    // 課金フェーズでのみ意味を持つ（無料フェーズはサブスク自体が無い）。
-    $rows = db()->query("SELECT * FROM members WHERE subscription_status = 'active' AND stripe_subscription_id IS NOT NULL AND stripe_subscription_id <> ''")->fetchAll();
+    // ---- 第1段：資格の記録（Stripe を叩かない） ----
+    // 紹介した実績がある会員だけを見る（全会員をなめる必要はない）。
+    $candidates = db()->query(
+        "SELECT DISTINCT m.* FROM members m
+           JOIN referrals r ON r.referrer_id = m.id
+          WHERE m.status = 'active'
+            AND (m.waiver_earned_at IS NULL OR m.waiver_earned_at = 0)"
+    )->fetchAll();
+    foreach ($candidates as $m) {
+        try {
+            if (count_active_referrals((string) $m['id'], $payingOnly) >= $min) {
+                if (claim_waiver_earned((string) $m['id'])) {
+                    $earned++;
+                }
+            }
+        } catch (\Throwable $e) {
+            $errors++;
+            error_log('waiver earn error member=' . ($m['id'] ?? '-') . ': ' . $e->getMessage());
+        }
+    }
+
+    // ---- 第2段：サブスクを持っている会員にクーポンを適用 ----
+    // サブスクを持たない会員を Stripe に問い合わせないよう、対象をここで絞る。
+    $rows = db()->query(
+        "SELECT * FROM members
+          WHERE subscription_status = 'active'
+            AND stripe_subscription_id IS NOT NULL AND stripe_subscription_id <> ''
+            AND COALESCE(subscription_waived, 0) = 0
+            AND waiver_earned_at IS NOT NULL AND waiver_earned_at > 0"
+    )->fetchAll();
     foreach ($rows as $m) {
         $scanned++;
         try {
-            $count = count_active_referrals((string) $m['id'], $payingOnly);
-            $shouldBeFree = $count >= $min;
-            $isFree = (int) ($m['subscription_waived'] ?? 0) === 1;
-            if ($shouldBeFree && !$isFree) {
-                if (apply_subscription_waiver($m)) {
-                    $applied++;
-                }
-            } elseif (!$shouldBeFree && $isFree) {
-                if (remove_subscription_waiver($m)) {
-                    $removed++;
-                }
+            if (apply_subscription_waiver($m)) {
+                $applied++;
             }
         } catch (\Throwable $e) {
             $errors++;
             error_log('waiver eval error member=' . ($m['id'] ?? '-') . ': ' . $e->getMessage());
         }
     }
-    return ['scanned' => $scanned, 'applied' => $applied, 'removed' => $removed, 'errors' => $errors, 'mode' => $mode];
+    return ['scanned' => $scanned, 'earned' => $earned, 'applied' => $applied, 'removed' => 0, 'errors' => $errors, 'mode' => $mode];
 }
 
 /* ============================ サブスク（月額会費） ============================ */
@@ -775,12 +888,21 @@ function award_monthly_referral(string $joinerId, string $invoiceId): void
  * サブスクの状態変更を会員へ反映する。
  * - canceled/unpaid → 会員を停止（suspended）。
  * - past_due → subscription_status のみ更新（猶予・停止はしない）。
+ * - trialing → 'active' として保存する（下記）。
  */
 function handle_subscription_status(string $customerId, string $subStatus, string $subscriptionId = ''): void
 {
     $member = find_member_by_customer($customerId);
     if ($member === null) {
         return;
+    }
+    // 猶予期間中の申込には trial_end（初回請求を課金開始日に合わせる）を付けるため、
+    // Stripe は 'trialing' を返してくる。だがアプリ側は「有効な契約か」を
+    // subscription_status === 'active' で判定している箇所が多く（ロック判定・紹介の
+    // カウント・プラン・一覧の並び）、trialing を持ち込むと全部が「未契約」に倒れる。
+    // 実態は「契約済みで、初回請求がまだ先」なので active として保存する。
+    if ($subStatus === 'trialing') {
+        $subStatus = 'active';
     }
     $memberId = (string) $member['id'];
     if (in_array($subStatus, ['canceled', 'unpaid', 'incomplete_expired'], true)) {

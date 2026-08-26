@@ -14,6 +14,8 @@ $member = require_member(false, true); // 無料フェーズ/未サブスクで�
 $customerId = (string) ($member['stripe_customer_id'] ?? '');
 $subStatus = (string) ($member['subscription_status'] ?? '');
 $waived = (int) ($member['subscription_waived'] ?? 0) === 1;
+$earned = member_waiver_earned($member);      // 紹介特典の資格（一度達成したら消えない）
+$canSubscribe = member_can_subscribe_now($member); // 猶予期間・課金フェーズで、まだ未登録なら true
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -73,8 +75,9 @@ require __DIR__ . '/_header.php';
     <?php if (billing_started() && $curPlan !== 'premium'): ?>
         <p class="muted" style="font-size:.85rem;margin-top:8px;">プレミアムにすると、おすすめの表示数無制限・全条件での検索・一覧での優先表示などがご利用いただけます。アップグレードをご希望の場合は運営までご連絡ください。</p>
     <?php endif; ?>
-    <?php if ($waived): ?>
-        <p class="muted" style="margin:.3rem 0;">アクティブな紹介先を5名以上維持いただいているため、現在の月額会費は<strong>無料</strong>です。紹介先が5名未満になると通常額に戻ります。</p>
+    <?php if ($waived || $earned): ?>
+        <p class="muted" style="margin:.3rem 0;">ご紹介の条件（<?= (int) referral_waiver_min() ?>名）を達成いただいたため、月額会費は<strong>無料</strong>です。
+            一度条件を満たすと、<strong>その後はずっと無料</strong>のままです（あとでご紹介先が減っても通常額には戻りません）。</p>
     <?php endif; ?>
 </div>
 
@@ -88,7 +91,19 @@ require __DIR__ . '/_header.php';
     </form>
     <p class="muted" style="margin-top:12px;font-size:.85rem;">解約すると、次回以降の請求が停止します（現在の請求期間の終了まではご利用いただけます）。</p>
 </div>
-<?php else: ?>
+<?php endif; ?>
+
+<?php if ($canSubscribe): ?>
+<div class="card">
+    <div class="card__title">月額会費のご登録</div>
+    <?php if (billing_grace_active()): ?>
+        <p style="margin:.3rem 0;"><?= e(billing_grace_notice()) ?>いまお申し込みいただいても、<strong>最初のご請求は課金開始日から</strong>です。</p>
+    <?php else: ?>
+        <p style="margin:.3rem 0;">現在、月額会費のご登録はありません。ご登録いただくと「さがす」がご利用いただけます。</p>
+    <?php endif; ?>
+    <p style="margin-top:12px;"><a class="btn" href="/member/subscribe">月額会費を登録する</a></p>
+</div>
+<?php elseif ($customerId === ''): ?>
 <div class="card">
     <p class="muted" style="margin:0;">現在、月額会費のご登録はありません。</p>
 </div>
