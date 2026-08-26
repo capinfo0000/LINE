@@ -466,6 +466,13 @@ div.tp-pslide{ cursor:default; }
 .tp-field__v{ flex:1; text-align:right; font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .tp-field__v.is-empty{ color:var(--faint); }
 .tp-field__c{ flex:none; color:var(--faint); font-size:1.15rem; line-height:1; }
+/* 全文表示の行：ラベルの下に本文を段落として置く（ひとことPR・自己紹介）。
+   右端に1行で収める既定の形だと、長い文章が「…」で切れて本人が確認できない。 */
+.tp-field--stack{ display:grid; grid-template-columns:1fr auto; align-items:start; row-gap:6px; }
+.tp-field--stack .tp-field__l{ grid-column:1; grid-row:1; }
+.tp-field--stack .tp-field__c{ grid-column:2; grid-row:1; align-self:center; }
+.tp-field--stack .tp-field__v{ grid-column:1 / -1; grid-row:2; text-align:left; line-height:1.65;
+  white-space:pre-wrap; overflow-wrap:anywhere; overflow:visible; text-overflow:clip; color:var(--muted); }
 
 /* プロフィール詳細：インスタ風ヘッダー（カバー＋丸アイコン重ね） */
 .tp-ig{ margin:-16px -16px 0; }

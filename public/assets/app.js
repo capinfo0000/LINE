@@ -179,17 +179,20 @@
       var input = document.querySelector('[data-field="' + key + '"]');
       if (!input) { return; }
       var val = (input.value || '').trim();
-      var text, empty = (val === '');
+      var short, full, empty = (val === '');
       if (input.hasAttribute('data-field-age')) {
         var a = val ? ageFromDate(val) : null;
-        text = (a !== null) ? (a + '歳') : '未設定';
+        short = full = (a !== null) ? (a + '歳') : '未設定';
         empty = (a === null);
       } else {
-        text = empty ? '未設定' : val.replace(/\s+/g, ' ');
-        if (text.length > 24) { text = text.slice(0, 24) + '…'; }
+        // 既定は1行に収める要約。data-fieldval-full が付いた行だけ全文を出す
+        // （ひとことPR・自己紹介。改行もそのまま残す）。
+        full = empty ? '未設定' : val;
+        short = empty ? '未設定' : val.replace(/\s+/g, ' ');
+        if (short.length > 24) { short = short.slice(0, 24) + '…'; }
       }
       document.querySelectorAll('[data-fieldval="' + key + '"]').forEach(function (el) {
-        el.textContent = text;
+        el.textContent = el.hasAttribute('data-fieldval-full') ? full : short;
         el.classList.toggle('is-empty', empty);
       });
     }

@@ -255,16 +255,16 @@ $renderPicker = function (string $modalId, string $rowLabel, array $tags, string
 };
 
 /** テキスト/日付の「行タップ→ポップアップ編集」フィールド。$isAge=true は日付入力で行に年齢を表示。 */
-$renderField = function (string $modalId, string $label, string $key, string $name, string $rawValue, string $displayValue, string $inputType = 'text', string $placeholder = '', bool $isAge = false, array $attrs = []) {
+$renderField = function (string $modalId, string $label, string $key, string $name, string $rawValue, string $displayValue, string $inputType = 'text', string $placeholder = '', bool $isAge = false, array $attrs = [], bool $full = false) {
     $empty = $displayValue === '';
     $extra = '';
     foreach ($attrs as $k => $v) {
         $extra .= ' ' . $k . '="' . e((string) $v) . '"';
     }
     ?>
-    <button type="button" class="tp-field" data-modal-open="<?= e($modalId) ?>">
+    <button type="button" class="tp-field<?= $full ? ' tp-field--stack' : '' ?>" data-modal-open="<?= e($modalId) ?>">
         <span class="tp-field__l"><?= e($label) ?></span>
-        <span class="tp-field__v<?= $empty ? ' is-empty' : '' ?>" data-fieldval="<?= e($key) ?>"><?= $empty ? '未設定' : e($displayValue) ?></span>
+        <span class="tp-field__v<?= $empty ? ' is-empty' : '' ?>" data-fieldval="<?= e($key) ?>"<?= $full ? ' data-fieldval-full' : '' ?>><?= $empty ? '未設定' : e($displayValue) ?></span>
         <span class="tp-field__c">›</span>
     </button>
     <div class="modal" id="<?= e($modalId) ?>">
@@ -278,14 +278,20 @@ $renderField = function (string $modalId, string $label, string $key, string $na
     <?php
 };
 
-/** テキストエリア（自己紹介など）の「行タップ→ポップアップ編集」フィールド。 */
-$renderTextareaField = function (string $modalId, string $label, string $key, string $name, string $value, string $placeholder = '') {
+/**
+ * テキストエリア（自己紹介など）の「行タップ→ポップアップ編集」フィールド。
+ *
+ * $full=true にすると、行に全文を折り返して表示する（ラベルの下に段落として置く）。
+ * 24文字で切ると、書いた本人が編集画面で自分の文章を確認できないため。
+ */
+$renderTextareaField = function (string $modalId, string $label, string $key, string $name, string $value, string $placeholder = '', bool $full = false) {
     $empty = trim($value) === '';
-    $preview = $empty ? '' : mb_substr(preg_replace('/\s+/u', ' ', $value), 0, 24);
+    // 全文表示のときは改行も残す（CSS 側で pre-wrap にしている）。
+    $preview = $empty ? '' : ($full ? $value : mb_substr(preg_replace('/\s+/u', ' ', $value), 0, 24));
     ?>
-    <button type="button" class="tp-field" data-modal-open="<?= e($modalId) ?>">
+    <button type="button" class="tp-field<?= $full ? ' tp-field--stack' : '' ?>" data-modal-open="<?= e($modalId) ?>">
         <span class="tp-field__l"><?= e($label) ?></span>
-        <span class="tp-field__v<?= $empty ? ' is-empty' : '' ?>" data-fieldval="<?= e($key) ?>"><?= $empty ? '未設定' : e($preview) ?></span>
+        <span class="tp-field__v<?= $empty ? ' is-empty' : '' ?>" data-fieldval="<?= e($key) ?>"<?= $full ? ' data-fieldval-full' : '' ?>><?= $empty ? '未設定' : e($preview) ?></span>
         <span class="tp-field__c">›</span>
     </button>
     <div class="modal" id="<?= e($modalId) ?>">
@@ -358,8 +364,8 @@ $renderLinkRow = function (array $lk = ['kind' => 'other', 'label' => '', 'url' 
             <?php $renderField('m-name', '名前', 'f-name', 'name_text', (string) $profile['name_text'], (string) $profile['name_text'], 'text', '例: 田中 由紀', false, ['maxlength' => '100']); ?>
             <?php $renderField('m-birth', '生年月日（年齢のみ公開）', 'f-birth', 'birthdate', $birthdate, $currentAge !== null ? $currentAge . '歳' : '', 'date', '', true, ['min' => '1900-01-01', 'max' => date('Y-m-d', strtotime('-' . member_min_age() . ' years'))]); ?>
             <?php $renderField('m-occ', '職業', 'f-occ', 'occupation', (string) ($profile['occupation'] ?? ''), (string) ($profile['occupation'] ?? ''), 'text', '例: 税理士 / Webエンジニア / 飲食店オーナー', false, ['maxlength' => '80']); ?>
-            <?php $renderField('m-headline', 'ひとことPR', 'f-headline', 'headline', (string) $profile['headline'], (string) $profile['headline'], 'text', '例: 補助金・資金繰りが専門です', false, ['maxlength' => '120']); ?>
-            <?php $renderTextareaField('m-bio', '自己紹介', 'f-bio', 'bio', (string) $profile['bio'], '経歴・得意なこと・どんな方とつながりたいか など'); ?>
+            <?php $renderField('m-headline', 'ひとことPR', 'f-headline', 'headline', (string) $profile['headline'], (string) $profile['headline'], 'text', '例: 補助金・資金繰りが専門です', false, ['maxlength' => '120'], true); ?>
+            <?php $renderTextareaField('m-bio', '自己紹介', 'f-bio', 'bio', (string) $profile['bio'], '経歴・得意なこと・どんな方とつながりたいか など', true); ?>
             <?php $renderPicker('m-area', '場所', $grouped['area'] ?? [], 'tags', $myTagIds, 'gt-area'); ?>
             <?php $renderPicker('m-job', '仕事ジャンル', $grouped['job'] ?? [], 'tags', $myTagIds, 'gt-job'); ?>
             <?php $renderPicker('m-purpose', '目的（求めること）', $grouped['purpose'] ?? [], 'tags', $myTagIds, 'gt-purpose'); ?>
