@@ -7,8 +7,15 @@
   --navy: #1b2a4a;
   --navy-2: #16223d;
   --navy-hover: #243a63;
-  --accent: #2563eb;
-  --accent-d: #1d4ed8;
+  /* ロゴのオレンジ（#f69f00）を基準にした系統。
+     ロゴ色そのものは白文字に対するコントラストが足りない（約2.1:1）ため、
+     文字が載る面には1〜2段暗い色を使い分ける。
+       --brand   ロゴ色。文字を載せない飾り・グラデーションの明るい側に使う
+       --accent  白文字を載せるボタン・チップ（白との比 約3.2:1／従来2.8:1より改善）
+       --accent-d  白地に置く文字色とホバー（白との比 約4.9:1＝本文サイズでも読める） */
+  --brand: #f69f00;
+  --accent: #d97706;
+  --accent-d: #b45309;
   --bg: #f1f5f9;
   --surface: #ffffff;
   --border: #e5e7eb;
@@ -17,6 +24,7 @@
   --ok-bg: #dcfce7;   --ok-fg: #166534;
   --warn-bg: #fef9c3; --warn-fg: #854d0e;
   --dng: #dc2626;     --dng-bg: #fee2e2; --dng-fg: #991b1b;
+  --info-bg: #fef3c7; --info-fg: #92400e;   /* アクセント（オレンジ）系の淡いバッジ */
   --radius: 14px;
   --radius-sm: 9px;
   --shadow: 0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
@@ -27,6 +35,12 @@
 * { box-sizing: border-box; }
 
 html, body { margin: 0; padding: 0; }
+
+/* 会員が入力した文章に長いURLなど区切りの無い文字列が入ると、それ1語で
+   ページ全体が横に伸びてレイアウトが崩れる（自己紹介にURLを貼った場合など）。
+   入りきらない語だけを折り返す安全網を全体にかけておく。
+   white-space:nowrap を指定した表やピッカーの行には影響しない。 */
+body { overflow-wrap: break-word; }
 
 body {
   font-family: var(--font);
@@ -40,7 +54,9 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 /* ---------- 管理画面シェル（サイドバー） ---------- */
-.app { display: flex; min-height: 100vh; }
+/* シェル（サイドバー＋上部バー）は固定し、コンテンツ領域だけを内部スクロールさせる。
+   これで画面を切り替えてもヘッダーは動かず、縦位置が毎回先頭へ飛ぶ現象を防ぐ。 */
+.app { display: flex; height: 100vh; overflow: hidden; }
 
 .sidebar {
   width: 240px; flex: 0 0 240px;
@@ -70,16 +86,16 @@ a:hover { text-decoration: underline; }
 .nav .nav__sep { height: 1px; background: rgba(255,255,255,.08); margin: 8px 6px; }
 .sidebar__foot { padding: 14px 16px; font-size: .78rem; color: #94a3b8; border-top: 1px solid rgba(255,255,255,.08); }
 
-.content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.content { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 .topbar {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   background: var(--surface); border-bottom: 1px solid var(--border);
-  padding: 16px 28px; position: sticky; top: 0; z-index: 5;
+  padding: 16px 28px; flex: 0 0 auto; z-index: 5;
 }
 .topbar__title { font-size: 1.25rem; font-weight: 800; margin: 0; }
 .topbar__sub { font-size: .82rem; color: var(--muted); margin: 2px 0 0; }
 .topbar__actions { display: flex; align-items: center; gap: 10px; }
-.page { padding: 28px; max-width: 1100px; width: 100%; }
+.page { padding: 28px; max-width: 1100px; width: 100%; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
 /* ---------- 参加者・認証ページ（中央寄せ） ---------- */
 .container { max-width: 680px; margin: 0 auto; padding: 28px 20px; }
@@ -132,6 +148,9 @@ h2 { font-size: 1.15rem; font-weight: 700; }
 .btn--ghost:hover { background: #f8fafc; border-color: var(--accent); }
 .btn--danger { background: var(--dng); border-color: var(--dng); }
 .btn--danger:hover { background: #b91c1c; border-color: #b91c1c; }
+/* 公式LINEへ渡すボタン。LINEのブランド色に合わせる（見た目で行き先が分かるように）。 */
+.btn--line { background: #06c755; border-color: #06c755; }
+.btn--line:hover { background: #05b34c; border-color: #05b34c; }
 .btn:disabled, .btn[disabled] { background: #9ca3af; border-color: #9ca3af; cursor: not-allowed; }
 .btn:disabled:hover { background: #9ca3af; }
 
@@ -142,7 +161,7 @@ input, select, textarea {
   width: 100%; font-size: 1rem; font-family: inherit; color: var(--text);
   padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff;
 }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(217,119,6,.18); }
 input[readonly] { background: #f3f4f6; color: var(--muted); }
 textarea { min-height: 72px; resize: vertical; }
 .req { color: var(--dng); font-size: .78rem; font-weight: 700; margin-left: 4px; }
@@ -152,6 +171,9 @@ textarea { min-height: 72px; resize: vertical; }
 
 /* ---------- テーブル ---------- */
 .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); }
+/* 枠内の表は折り返さず、狭い画面では横スクロールで読ませる。
+   これが無いと「山/田/太/郎」のように1文字ずつ縦に潰れて読めなくなる。 */
+.table-wrap th, .table-wrap td { white-space: nowrap; }
 table { border-collapse: collapse; width: 100%; background: var(--surface); }
 th, td { border-bottom: 1px solid var(--border); padding: 11px 14px; text-align: left; font-size: .88rem; vertical-align: middle; }
 th { background: #f8fafc; font-size: .76rem; letter-spacing: .03em; text-transform: none; color: var(--muted); font-weight: 700; }
@@ -163,12 +185,14 @@ tbody tr:hover { background: #fafbfc; }
 .badge--ok { background: var(--ok-bg); color: var(--ok-fg); }
 .badge--warn { background: var(--warn-bg); color: var(--warn-fg); }
 .badge--danger { background: var(--dng-bg); color: var(--dng-fg); }
+.badge--info { background: var(--info-bg); color: var(--info-fg); }
+.badge--mute { background: #f1f5f9; color: #475569; }
 
 /* ---------- 通知・フラッシュ ---------- */
 .flash { padding: 12px 16px; border-radius: var(--radius-sm); margin: 0 0 16px; font-size: .92rem; }
 .flash--ok { background: var(--ok-bg); color: var(--ok-fg); }
 .flash--ng { background: var(--dng-bg); color: var(--dng-fg); }
-.notice { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; border-radius: var(--radius-sm); padding: 12px 16px; font-size: .9rem; }
+.notice { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 12px 16px; font-size: .9rem; }
 .err { background: var(--dng-bg); color: var(--dng-fg); padding: 14px 16px; border-radius: var(--radius-sm); }
 
 .muted { color: var(--muted); font-size: .85rem; }
@@ -176,15 +200,17 @@ tbody tr:hover { background: #fafbfc; }
 
 /* ---------- レスポンシブ ---------- */
 @media (max-width: 720px) {
-  .app { flex-direction: column; }
+  /* モバイルは固定シェルをやめ、通常のページ全体スクロールに戻す（横並びヘッダーが上に付く）。 */
+  .app { flex-direction: column; height: auto; overflow: visible; }
   .sidebar { width: 100%; flex: none; height: auto; position: static; flex-direction: row;
              align-items: center; overflow-x: auto; }
   .sidebar__brand { padding: 14px 16px; white-space: nowrap; }
   .nav { flex-direction: row; flex: 1; overflow-x: auto; padding: 8px; }
   .nav a { white-space: nowrap; }
   .nav .nav__sep, .sidebar__foot { display: none; }
-  .topbar { padding: 14px 18px; }
-  .page { padding: 18px; }
+  .content { height: auto; overflow: visible; }
+  .topbar { padding: 14px 18px; position: sticky; top: 0; }
+  .page { padding: 18px; overflow-y: visible; min-height: 0; }
 }
 
 /* ---------- モーダル（ポップアップ） ---------- */
@@ -210,7 +236,7 @@ tbody tr:hover { background: #fafbfc; }
 .guide__body p { margin: 3px 0; font-size: .9rem; }
 .guide__body .muted { font-size: .82rem; }
 .tpl { border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; margin: 6px 0; font-size: .88rem; }
-.tpl--on { border-color: var(--accent); background: #eff6ff; }
+.tpl--on { border-color: var(--accent); background: #fffbeb; }
 .tpl small { display: block; color: var(--muted); font-size: .78rem; }
 .perm { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 8px 0; }
 .perm__head { background: #f3f4f6; padding: 5px 12px; font-weight: 700; font-size: .8rem; }
@@ -219,6 +245,444 @@ tbody tr:hover { background: #fafbfc; }
 .perm__pills { display: flex; gap: 4px; flex: none; }
 .pill { border: 1px solid var(--border); border-radius: 6px; padding: 2px 9px; font-size: .76rem; color: var(--muted); background: #fff; }
 .pill--on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+/* ---------- チェックボックス/ラジオ（アクセント色） ---------- */
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+/* ---------- 小さめボタン ---------- */
+.btn--sm { padding: 4px 12px; font-size: .82rem; }
+
+/* ---------- 宛先リスト（LINE配信） ---------- */
+.recip-toolbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.recip-list { border: 1px solid var(--border); border-radius: 12px; max-height: 380px; overflow: auto; background: var(--surface); }
+.recip { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); cursor: pointer; margin: 0; font-weight: normal; }
+.recip:last-child { border-bottom: 0; }
+.recip:hover { background: #f8fafc; }
+.recip__name { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recip__meta { margin-left: auto; display: flex; gap: 6px; align-items: center; flex: none; }
+.chipmini { font-size: .72rem; padding: 2px 9px; border-radius: 999px; background: var(--info-bg); color: var(--info-fg); white-space: nowrap; }
+.chipmini--ok { background: var(--ok-bg); color: var(--ok-fg); font-weight: 700; }
+
+/* ---------- 称号バッジ ---------- */
+.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .8rem; font-weight: 700; line-height: 1.5; }
+.badge--title { background: linear-gradient(135deg, var(--accent), var(--accent-d)); color: #fff; }
+
+/* ---------- タグ選択（チップ / ピル型トグル） ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; align-items: center; margin: 0;
+  padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--border); background: #fff;
+  color: var(--text); font-size: .88rem; font-weight: 600; line-height: 1.2;
+  cursor: pointer; user-select: none;
+  transition: background .12s, border-color .12s, color .12s, box-shadow .12s;
+}
+.chip:hover { border-color: var(--accent); }
+/* ネイティブのチェックボックスは視覚的に隠す（機能は従来どおり） */
+.chip input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.chip span { display: inline-flex; align-items: center; }
+/* 選択時：アクセント色で塗り、先頭にチェック印を出す */
+.chip:has(input:checked) { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip:has(input:checked) span::before { content: "\2713"; margin-right: 5px; font-weight: 800; }
+/* キーボード操作のフォーカス可視化 */
+.chip:focus-within { box-shadow: 0 0 0 3px rgba(37, 99, 235, .25); }
 .mockfield { display: flex; gap: 6px; align-items: center; margin: 6px 0; }
 .mockfield input { flex: 1; margin: 0; }
 .mockfield .btn { white-space: nowrap; }
+
+/* ============================ タップル風「さがす」/「プロフィール」（コーラル） ============================ */
+/* さがす／プロフィール専用のアクセントトークン（メインカラー＝オレンジ） */
+:root{ --coral:#d97706; --coral-d:#b45309; --coral-soft:#fef3c7; --match:#10b981; --match-soft:#dcfaef;
+  --gold:#b8860b; --gold-soft:#fbf1d8; --like:#b45309; --faint:#a8a29e; }
+
+/* --- さがす：検索バー・チップ --- */
+.tp-search{ display:flex; align-items:center; gap:8px; background:#f7f8fa; border:1px solid var(--border);
+  border-radius:14px; padding:11px 13px; }
+.tp-search svg{ color:var(--faint); flex:none; }
+.tp-search input{ border:0; background:transparent; outline:none; font:inherit; font-size:.95rem; width:100%; color:var(--text); margin:0; }
+.tp-fchip{ display:inline-flex; align-items:center; gap:5px; padding:8px 14px; border-radius:999px; border:1px solid var(--border);
+  background:var(--surface); font-size:.85rem; font-weight:700; color:var(--muted); cursor:pointer; white-space:nowrap; list-style:none; width:max-content; }
+.tp-count{ font-size:.85rem; color:var(--muted); margin:10px 2px; }
+.tp-count b{ color:var(--text); }
+
+/* --- さがす：トップバー（検索＋絞り込みドロップダウン） --- */
+.tp-topbar{ display:flex; align-items:center; gap:8px; margin:2px 0 12px; position:relative; }
+.tp-topbar .tp-search{ flex:1; min-width:0; }
+.tp-filterbox{ position:relative; flex:none; }
+.tp-filtericon{ list-style:none; cursor:pointer; width:44px; height:44px; border-radius:13px; border:1px solid var(--border);
+  background:var(--surface); display:grid; place-items:center; color:var(--coral-d); }
+.tp-filtericon::-webkit-details-marker{ display:none; }
+.tp-filtericon svg{ width:20px; height:20px; }
+.tp-filterbox[open] .tp-filtericon{ background:var(--coral); color:#fff; border-color:var(--coral); }
+.tp-filterpanel{ position:absolute; right:0; top:calc(100% + 8px); z-index:60; width:min(90vw,340px);
+  max-height:min(72vh,560px); overflow-y:auto; -webkit-overflow-scrolling:touch;
+  background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow-md); padding:14px; }
+/* 「この条件で検索」を常に見える位置に固定（長いチェックリストでも押せる）。 */
+.tp-filteractions{ position:sticky; bottom:-14px; margin:14px -14px -14px; padding:12px 14px;
+  background:var(--surface); border-top:1px solid var(--border); display:flex; gap:8px; }
+.tp-filteractions .btn{ flex:1; }
+
+/* --- さがす：カテゴリタブ（横スクロール） --- */
+.tp-cat{ display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; margin:0 -4px 4px; padding:2px 4px; -webkit-overflow-scrolling:touch; }
+.tp-cat::-webkit-scrollbar{ display:none; }
+.tp-cattab{ flex:none; padding:8px 15px; border-radius:999px; font-size:.9rem; font-weight:700; text-decoration:none;
+  color:var(--muted); background:#f4eeee; white-space:nowrap; }
+.tp-cattab.on{ background:var(--coral); color:#fff; box-shadow:0 4px 12px rgba(180,83,9,.30); }
+
+/* --- さがす：ヒーローカルーセル（1枚ずつ・全幅） ---
+   1枚を幅いっぱいに出し、自動送り・スワイプ・下の点で切り替える。
+   前後のスライドは覗かせない（両隣を見せる形は取りやめ）。 */
+/* 幅は 100%。左右に余白を作らないので、% でも縮み合いは起きない
+   （以前は左右の余白を % で取っていたため、「余白が広がる→内容幅が縮む→
+   % で決まるスライドも縮む」と互いに縮み合い、実測194pxまで縮んだ）。 */
+.tp-promo{ display:flex; gap:10px; overflow-x:auto;
+  scroll-snap-type:x mandatory; scrollbar-width:none;
+  margin:12px 0 8px; -webkit-overflow-scrolling:touch; }
+.tp-promo::-webkit-scrollbar{ display:none; }
+.tp-pslide{ scroll-snap-align:center; flex:0 0 100%; border-radius:18px; padding:22px 20px; color:#fff; text-decoration:none;
+  display:flex; flex-direction:column; justify-content:center; min-height:118px; position:relative; overflow:hidden; box-shadow:var(--shadow-md); }
+.tp-pslide .tp-slabel{ font-size:.7rem; font-weight:800; letter-spacing:.14em; opacity:.9; }
+.tp-pslide b{ font-size:1.28rem; font-weight:800; margin:3px 0 2px; line-height:1.25; }
+.tp-pslide .tp-ssub{ font-size:.82rem; opacity:.95; }
+.tp-pslide--brand{ background:linear-gradient(120deg,#3a2b4d,#1f2937); }
+.tp-pslide--ref{ background:linear-gradient(120deg,var(--brand),#c2760a); }
+.tp-pslide--rank{ background:linear-gradient(120deg,#f0b429,#b8860b); }
+.tp-dots{ display:flex; gap:0; justify-content:center; align-items:center; margin:2px 0 6px; }
+/* 表示中のスライドを .on で示す（JSが付け外しする）。自動送りに合わせて動く。
+   点は見た目7pxのまま、透明な枠でタップできる範囲を15pxに広げている
+   （見た目どおりの7pxだと指で押しにくい）。全体で box-sizing:border-box に
+   しているので、width を中身の寸法として扱うため content-box に戻す。 */
+.tp-dots span{ box-sizing:content-box; width:7px; height:7px; border-radius:50%;
+  background:#d1d5db; cursor:pointer; border:4px solid transparent; background-clip:padding-box;
+  transition:background .2s; }
+.tp-dots span.on{ background:var(--coral); }
+/* リンクの無いお知らせも同じ見た目にする（div で出力されるため）。 */
+div.tp-pslide{ cursor:default; }
+
+/* --- さがす：キャンペーンバー --- */
+.tp-coupon{ display:flex; align-items:center; gap:10px; margin:10px 0 4px; padding:11px 14px; border-radius:14px;
+  background:linear-gradient(120deg,var(--brand),var(--accent-d)); color:#fff; text-decoration:none; box-shadow:var(--shadow-sm); }
+.tp-cbadge{ flex:none; background:rgba(255,255,255,.22); border-radius:8px; padding:3px 9px; font-size:.72rem; font-weight:800; }
+.tp-ctext{ flex:1; min-width:0; font-size:.82rem; line-height:1.3; }
+.tp-ctext b{ font-weight:800; }
+.tp-chelp{ flex:none; width:22px; height:22px; border-radius:50%; border:1.5px solid rgba(255,255,255,.7);
+  display:grid; place-items:center; font-size:.8rem; font-weight:700; }
+
+/* 猶予期間のお知らせバー（キャンペーンバーと同じ形で色だけ落ち着かせる）。 */
+.tp-coupon--notice{ background:linear-gradient(120deg,#475569,#1f2937); }
+
+/* --- さがす：先着枠の進捗バー（無料フェーズ中だけ出す） --- */
+.tp-progress{ margin:10px 0 4px; padding:12px 14px; border-radius:14px;
+  background:linear-gradient(120deg,var(--brand),var(--accent-d)); color:#fff; box-shadow:var(--shadow-sm); }
+.tp-progress__top{ display:flex; align-items:center; gap:10px; }
+.tp-progress__top b{ font-size:.86rem; font-weight:800; line-height:1.3; }
+.tp-progress__bar{ margin:9px 0 6px; height:7px; border-radius:999px; background:rgba(255,255,255,.28); overflow:hidden; }
+.tp-progress__bar span{ display:block; height:100%; border-radius:999px; background:#fff; transition:width .4s; }
+.tp-progress__foot{ display:flex; justify-content:space-between; gap:10px; font-size:.76rem; opacity:.95; }
+.tp-progress__foot b{ font-size:.9rem; font-weight:800; }
+
+/* --- さがす：ランキング順位バッジ --- */
+.tp-rankno{ position:absolute; top:8px; right:8px; z-index:2; min-width:24px; height:24px; padding:0 6px; border-radius:8px;
+  background:rgba(17,24,39,.72); color:#fff; font-weight:800; font-size:.82rem; display:grid; place-items:center; }
+.tp-rankno.top{ background:linear-gradient(135deg,#f0b429,#b8860b); }
+
+/* --- さがす：縦カードグリッド（写真前面・情報オーバーレイ） --- */
+.tp-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:6px; }
+.tp-card{ position:relative; border-radius:18px; overflow:hidden; aspect-ratio:3/4.1; box-shadow:var(--shadow-sm); color:#fff; }
+.tp-card img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; }
+.tp-card::after{ content:""; position:absolute; inset:0; z-index:0; background:linear-gradient(180deg,transparent 44%,rgba(0,0,0,.6)); pointer-events:none; }
+.tp-ini{ position:absolute; inset:0; z-index:0; display:grid; place-items:center; font-size:3rem; font-weight:800; color:rgba(255,255,255,.9); }
+.tp-cardlink{ position:absolute; inset:0; z-index:1; text-decoration:none; }
+.tp-crank{ position:absolute; left:10px; top:10px; z-index:2; pointer-events:none; font-size:.68rem; font-weight:800;
+  padding:3px 9px; border-radius:999px; background:rgba(255,255,255,.92); color:var(--coral-d); }
+.tp-crank.rank--gold{ color:#b8860b; } .tp-crank.rank--plat{ color:#7c3aed; }
+.tp-crank.rank--reg{ color:var(--accent-d); } .tp-crank.rank--rookie{ color:#64748b; }
+.tp-cinfo{ position:absolute; left:11px; right:11px; bottom:11px; z-index:2; pointer-events:none; }
+.tp-cinfo .aa{ font-size:.8rem; opacity:.95; }
+.tp-cinfo .nm{ font-size:1rem; font-weight:800; margin:1px 0 6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tp-ptags{ display:flex; flex-wrap:wrap; gap:5px; }
+.tp-ptag{ font-size:.71rem; font-weight:700; padding:3px 9px; border-radius:999px; background:rgba(255,255,255,.28); color:#fff; }
+.tp-ptag--on{ background:var(--coral); }
+.tp-clike{ position:absolute; right:10px; bottom:12px; z-index:3; width:40px; height:40px; border-radius:50%; border:0;
+  cursor:pointer; background:#fff; display:grid; place-items:center; box-shadow:0 3px 10px rgba(0,0,0,.28); }
+/* しおりの線はここで色を決める（HTML側は currentColor にしてある）。 */
+.tp-clike svg{ width:22px; height:22px; }
+.tp-clike{ color:var(--coral); }
+.tp-clike.on{ background:linear-gradient(145deg,var(--brand),var(--accent-d)); }
+.tp-clike.on svg path{ fill:#fff; stroke:#fff; }
+
+/* ランクバッジ（プロフィール実績など） */
+.rank{ font-size:.7rem; font-weight:800; padding:2px 8px; border-radius:999px; }
+.rank--gold{ background:var(--gold-soft); color:var(--gold); }
+.rank--reg{ background:#fffbeb; color:var(--accent-d); }
+.rank--plat{ background:#ede9fe; color:#7c3aed; }
+.rank--rookie{ background:#f1f5f9; color:#64748b; }
+
+/* --- プロフィール --- */
+/* ※ カバー＋顔写真のエディタは下の「インスタ風エディタ」ブロックにまとめている
+      （以前ここに同じ定義が重複していた）。 */
+.tp-cardedit{ display:block; position:relative; margin-top:4px; border:1px dashed var(--border); border-radius:12px;
+  overflow:hidden; cursor:pointer; min-height:88px; background:#f7f8fa; }
+.tp-cardedit img{ width:100%; display:block; }
+.tp-cardedit__ph{ display:flex; align-items:center; justify-content:center; gap:6px; min-height:88px; color:var(--faint); font-size:.85rem; font-weight:600; }
+.tp-cardedit__ph svg{ width:18px; height:18px; }
+
+/* プロフィール編集：カバー＋顔写真のインスタ風エディタ */
+.tp-editcover{ position:relative; margin:0 0 52px; }
+/* カバーと顔写真は <button>（押すと選択画面が開く）。
+   ボタンの既定スタイルを打ち消して、見た目は画像だけにする。 */
+.tp-cov, .tp-avedit{ padding:0; font:inherit; color:inherit; text-align:left; -webkit-appearance:none; appearance:none; }
+.tp-cov{ display:block; width:100%; position:relative; height:150px; border-radius:16px; overflow:hidden; cursor:pointer;
+  background:linear-gradient(120deg,#f3f4f6,#e9ebef); border:1px solid var(--border); }
+.tp-cov img{ width:100%; height:100%; object-fit:cover; display:block; }
+.tp-cam{ position:absolute; right:10px; bottom:10px; background:rgba(15,18,28,.55); color:#fff; font-size:.76rem; font-weight:700;
+  padding:6px 12px; border-radius:999px; display:inline-flex; gap:5px; align-items:center; }
+.tp-cam svg{ width:15px; height:15px; }
+.tp-avedit{ position:absolute; left:16px; bottom:-38px; width:92px; height:92px; border-radius:50%; overflow:hidden; cursor:pointer;
+  border:4px solid var(--surface); background:#eef0f3; display:grid; place-items:center; box-shadow:var(--shadow-sm); }
+.tp-avedit img{ width:100%; height:100%; object-fit:cover; }
+.tp-avedit__ph{ color:var(--faint); display:grid; place-items:center; }
+.tp-avedit__ph svg{ width:26px; height:26px; }
+/* 画像を選んだ直後の「未保存」表示（保存前だと分かるように） */
+.tp-unsaved{ position:absolute; top:8px; left:8px; z-index:6; background:var(--dng); color:#fff; white-space:nowrap;
+  font-size:.7rem; font-weight:800; padding:3px 9px; border-radius:999px; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+/* 未保存の画像は枠線で強調（丸い顔写真はバッジを出さず枠線のみ） */
+.tp-cov.is-unsaved, .tp-cardedit.is-unsaved{ outline:3px solid var(--dng); outline-offset:2px; }
+.tp-avedit.is-unsaved{ border-color:var(--dng); }
+.tp-cardedit{ display:block; position:relative; margin-top:4px; border:1px dashed var(--border); border-radius:12px; overflow:hidden;
+  cursor:pointer; min-height:96px; background:#f7f8fa; }
+.tp-cardedit img{ width:100%; display:block; }
+.tp-cardedit__ph{ position:absolute; inset:0; display:flex; gap:6px; align-items:center; justify-content:center; color:var(--faint); font-size:.9rem; font-weight:700; }
+.tp-cardedit__ph svg{ width:18px; height:18px; }
+
+/* プロフィール編集：tapple風の行＋ポップアップ選択 */
+.tp-fields{ border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-top:6px; }
+.tp-fields__h{ margin:16px 0 4px; font-weight:700; font-size:.85rem; color:var(--muted); }
+.tp-field{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:var(--surface);
+  border:0; border-bottom:1px solid var(--border); padding:14px; font:inherit; color:var(--text); cursor:pointer; }
+.tp-field:last-child{ border-bottom:0; }
+.tp-field:hover{ background:#f7f8fa; }
+.tp-field__l{ font-weight:700; font-size:.92rem; flex:none; }
+.tp-field__v{ flex:1; text-align:right; font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tp-field__v.is-empty{ color:var(--faint); }
+.tp-field__c{ flex:none; color:var(--faint); font-size:1.15rem; line-height:1; }
+/* 全文表示の行：ラベルの下に本文を段落として置く（ひとことPR・自己紹介）。
+   右端に1行で収める既定の形だと、長い文章が「…」で切れて本人が確認できない。 */
+.tp-field--stack{ display:grid; grid-template-columns:1fr auto; align-items:start; row-gap:6px; }
+.tp-field--stack .tp-field__l{ grid-column:1; grid-row:1; }
+.tp-field--stack .tp-field__c{ grid-column:2; grid-row:1; align-self:center; }
+.tp-field--stack .tp-field__v{ grid-column:1 / -1; grid-row:2; text-align:left; line-height:1.65;
+  white-space:pre-wrap; overflow-wrap:anywhere; overflow:visible; text-overflow:clip; color:var(--muted); }
+
+/* プロフィール詳細：インスタ風ヘッダー（カバー＋丸アイコン重ね） */
+.tp-ig{ margin:-16px -16px 0; }
+.tp-ig-cover{ position:relative; height:170px; overflow:hidden; background:#eef0f3; }
+.tp-ig-cover img{ width:100%; height:100%; object-fit:cover; display:block; }
+.tp-ig-head{ padding:0 18px 6px; }
+.tp-ig-av{ width:96px; height:96px; border-radius:50%; overflow:hidden; margin-top:-48px; position:relative; z-index:2;
+  border:4px solid var(--surface); background:#e5e7eb; box-shadow:var(--shadow-sm); display:grid; place-items:center; }
+.tp-ig-av img{ width:100%; height:100%; object-fit:cover; }
+.tp-ig-av span{ font-size:2.4rem; font-weight:800; color:rgba(255,255,255,.95); }
+.tp-ig-name{ margin-top:10px; font-size:1.35rem; font-weight:800; display:flex; align-items:baseline; gap:8px; }
+.tp-ig-name .age{ font-size:.95rem; font-weight:600; color:var(--muted); }
+.tp-ig-pills{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+/* インスタ風ヘッダーの戻るボタンはカバー左上に重ねる（tp-hback 既存スタイルを流用）。 */
+.tp-ig-cover .tp-hback{ position:absolute; top:12px; left:12px; z-index:5; }
+.tp-hero{ position:relative; aspect-ratio:4/5; max-height:72vh; display:grid; place-items:center; overflow:hidden; }
+.tp-hero img{ width:100%; height:100%; object-fit:cover; }
+.tp-hero::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,.28) 0%,transparent 24%,transparent 55%,rgba(0,0,0,.62) 100%); }
+.tp-hini{ font-size:5rem; font-weight:800; color:rgba(255,255,255,.92); z-index:1; }
+.tp-hback{ position:absolute; top:12px; left:12px; z-index:5; width:38px; height:38px; border-radius:50%;
+  background:rgba(12,16,28,.42); color:#fff; display:grid; place-items:center; text-decoration:none; }
+.tp-hinfo{ position:absolute; left:18px; right:18px; bottom:16px; z-index:3; color:#fff; }
+.tp-hname{ display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+.tp-hname b{ font-size:1.6rem; font-weight:800; }
+.tp-hname .age{ font-size:1rem; font-weight:600; opacity:.95; }
+.tp-hsub{ display:flex; gap:8px; margin-top:9px; flex-wrap:wrap; }
+.tp-pill{ display:inline-flex; align-items:center; gap:4px; font-size:.8rem; font-weight:700; padding:5px 11px;
+  border-radius:999px; background:#f1ecec; color:#4b4351; }
+.tp-pill--gold{ background:var(--gold-soft); color:var(--gold); }
+
+.tp-sec{ padding:16px 2px; border-bottom:1px solid var(--border); }
+.tp-sec:last-of-type{ border-bottom:0; }
+.tp-sec__t{ font-size:.78rem; font-weight:800; letter-spacing:.03em; color:var(--coral-d); margin:0 0 10px; }
+.tp-lead{ font-size:1.05rem; font-weight:700; margin:0; line-height:1.5; }
+/* 自己紹介は長くなりやすく、どこで終わるのかが分かりにくかった
+   （見出しと本文が地の色に溶けていて、次の「タグ」との境目が読み取れない）。
+   淡い面で囲って範囲を示す。 */
+.tp-bio{ margin:0; white-space:pre-wrap; line-height:1.75;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; padding:14px 16px; }
+.tp-kv{ display:grid; grid-template-columns:auto 1fr; gap:9px 14px; margin:0; }
+.tp-kv dt{ color:var(--muted); font-size:.9rem; font-weight:600; white-space:nowrap; }
+.tp-kv dd{ margin:0; font-weight:600; }
+.tp-grp{ margin-bottom:12px; } .tp-grp:last-child{ margin-bottom:0; }
+.tp-grp__l{ font-size:.76rem; color:var(--faint); font-weight:700; margin:0 0 6px; }
+.tp-tagwrap{ display:flex; flex-wrap:wrap; gap:7px; }
+.tp-t{ font-size:.83rem; font-weight:700; padding:6px 12px; border-radius:999px; background:#f0eef1; color:#7c7484; }
+.tp-t--want{ color:#fff; background:var(--coral); }
+.tp-t--offer{ color:var(--coral-d); background:var(--coral-soft); }
+.tp-linkrow{ display:flex; align-items:center; gap:8px; margin:8px 0; flex-wrap:wrap; }
+.tp-linetag{ background:#06c755; color:#fff; border-radius:8px; padding:2px 9px; font-size:.8rem; font-weight:700; }
+
+/* プロフィール下部の固定アクションバー */
+.tp-actions{ position:sticky; bottom:0; z-index:20; display:flex; align-items:center; justify-content:center; gap:20px;
+  margin:8px -16px 0; padding:12px 16px calc(14px + env(safe-area-inset-bottom)); background:linear-gradient(0deg,var(--surface) 76%,transparent); }
+.tp-fabwrap{ display:flex; flex-direction:column; align-items:center; gap:4px; }
+.tp-fablbl{ font-size:.68rem; font-weight:700; color:var(--muted); }
+.tp-fab{ border:0; border-radius:50%; display:grid; place-items:center; cursor:pointer; background:var(--surface); box-shadow:var(--shadow-md); }
+.tp-fab:active{ transform:scale(.92); }
+.tp-fab--sm{ width:54px; height:54px; border:1px solid var(--border); color:var(--muted); }
+.tp-fab--line{ width:54px; height:54px; background:#06c755; color:#fff; text-decoration:none; }
+.tp-fab--like{ width:68px; height:68px; background:linear-gradient(145deg,var(--brand),var(--accent)); color:#fff; box-shadow:0 8px 22px rgba(180,83,9,.35); }
+.tp-fab--like.on{ background:linear-gradient(145deg,var(--accent),#92400e); }
+
+/* --- 会員サイトの下部2タブバー（さがす／プロフィール） ---
+   広告帯（.ad-bar）と一緒に、1つの固定コンテナ（.tp-bottom）の中に入れている。
+   こうすると広告の高さが変わってもタブバーとの位置関係がずれない
+   （タブバー側の bottom を数値で決め打ちしなくて済む）。 */
+.tp-bottom{ position:fixed; bottom:0; left:0; right:0; z-index:40; }
+/* 背景は不透明にする。以前は半透明＋backdrop-filter で下の内容をぼかしていたが、
+   広告帯を上に置いたことで、その色がタブバーに透けて出るようになった
+   （backdrop-filter は同じ固定コンテナの中で先に描かれたものも拾う）。
+   タブバーの上は広告帯か本文の切れ目なので、すりガラスにする必要もない。 */
+.tp-tabbar{ display:flex; justify-content:center; background:var(--surface);
+  border-top:1px solid var(--border); padding:8px 0 calc(8px + env(safe-area-inset-bottom)); }
+.tp-tabbar__inner{ display:flex; width:100%; max-width:460px; }
+.tp-tabbar a{ flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:.68rem;
+  font-weight:700; color:var(--muted); text-decoration:none; padding:2px 0; }
+.tp-tabbar a:hover{ text-decoration:none; }
+.tp-tabbar a.on{ color:var(--coral); }
+.tp-tabbar svg{ width:24px; height:24px; }
+.tp-tabspacer{ height:72px; }
+/* 広告帯があるぶん、本文の下に空ける高さを増やす（最後のカードが隠れないように）。 */
+.tp-tabspacer--ad{ height:136px; }
+
+
+/* --- さがす：横スクロールのカルーセル（本日のおすすめ等） --- */
+.tp-secttl{ display:flex; align-items:center; gap:7px; font-weight:800; margin:18px 2px 8px; font-size:1.02rem; }
+.tp-secttl svg{ width:18px; height:18px; color:var(--coral); }
+.tp-secttl .more{ margin-left:auto; font-size:.8rem; color:var(--faint); font-weight:700; text-decoration:none; }
+.tp-rail{ display:flex; gap:12px; overflow-x:auto; scrollbar-width:none; margin:0 -16px; padding:2px 16px 6px; }
+.tp-rail::-webkit-scrollbar{ display:none; }
+.tp-rail .tp-card{ flex:0 0 148px; }
+.tp-pickup{ margin:12px 0 4px; border-radius:18px; padding:16px 18px; color:#fff; position:relative; overflow:hidden;
+  background:linear-gradient(120deg,var(--brand),#c2760a); }
+.tp-pickup b{ display:block; font-size:1.15rem; font-weight:800; }
+.tp-pickup span{ font-size:.82rem; opacity:.95; }
+
+/* --- マイページ（プロフィールタブ＝ホーム統合） --- */
+.tp-mp-head{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; padding:12px 0 4px; }
+.tp-mp-av{ width:100px; height:100px; border-radius:50%; overflow:hidden; display:grid; place-items:center; color:#fff;
+  font-size:2.6rem; font-weight:800; box-shadow:var(--shadow-md); }
+.tp-mp-av img{ width:100%; height:100%; object-fit:cover; }
+.tp-mp-name{ font-size:1.3rem; font-weight:800; }
+.tp-mp-sub{ color:var(--muted); font-size:.9rem; }
+.tp-mp-plan{ display:inline-block; border:1px solid var(--border); border-radius:999px; padding:5px 14px; font-weight:700; font-size:.85rem; background:var(--surface); }
+/* 実績タイルは、スマホでもPCでも横一列に並べる（2段組みにしない）。 */
+.tp-tiles{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:16px 0; }
+.tp-tiles--4{ grid-template-columns:repeat(4,1fr); }
+.tp-tile{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px 4px; text-align:center; text-decoration:none; color:inherit; display:block; min-width:0; }
+.tp-tile b{ display:block; font-size:1.25rem; font-weight:800; color:var(--text); line-height:1.3; }
+.tp-tile span{ display:block; font-size:.68rem; color:var(--muted); line-height:1.3; }
+/* 4列だと狭くなるぶん、小さい画面では文字を少し詰める。 */
+@media (max-width: 400px){
+  .tp-tiles{ gap:6px; }
+  .tp-tiles--4 .tp-tile{ padding:11px 2px; }
+  .tp-tiles--4 .tp-tile b{ font-size:1.05rem; }
+  .tp-tiles--4 .tp-tile span{ font-size:.62rem; letter-spacing:-.02em; }
+}
+.tp-menu{ background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin:0 0 16px; }
+.tp-menu a{ display:flex; align-items:center; gap:10px; padding:14px 16px; color:var(--text); text-decoration:none;
+  border-bottom:1px solid var(--border); font-weight:600; }
+.tp-menu a:last-child{ border-bottom:0; }
+.tp-menu a:hover{ background:#f7f8fa; text-decoration:none; }
+.tp-menu a .chev{ margin-left:auto; color:var(--faint); }
+
+/* =====================================================================
+ * さがす（tp-*）レスポンシブ：スマホ2列 → タブレット/PCで多列・広幅
+ * ===================================================================== */
+/* PC時にさがすページを広く使う（一覧が主役）。他ページは従来の中央狭幅のまま。 */
+.container--app{ max-width: 1120px; }
+
+/* 画面が広いほど左右の覗きが大きくなる（PCでは3枚が並んで中央が主役）。 */
+
+/* 画面幅ごとの列数（カード最小幅を保ちながら増やす）。 */
+@media (min-width: 560px){
+  .tp-grid{ grid-template-columns:repeat(3,1fr); }
+}
+@media (min-width: 800px){
+  .tp-grid{ grid-template-columns:repeat(4,1fr); gap:14px; }
+  .tp-rail .tp-card{ flex:0 0 168px; }
+}
+@media (min-width: 1000px){
+  .tp-grid{ grid-template-columns:repeat(5,1fr); }
+}
+@media (min-width: 1200px){
+  .tp-grid{ grid-template-columns:repeat(6,1fr); }
+}
+
+/* 広幅時、下部タブバーは中央のコンテンツ幅に合わせて内容を中央寄せ（画面全幅に固定のまま）。 */
+@media (min-width: 720px){
+  .tp-tabbar{ padding-left: max(16px, calc((100vw - 1120px)/2)); padding-right: max(16px, calc((100vw - 1120px)/2)); }
+}
+
+/* --- プロフィール編集：共有URL --- */
+/* URLは途中で切れると何を送っているのか分からなくなるので、入力欄ではなく
+   折り返す文字として全文を出す（コピーボタンは中身をそのままコピーする）。 */
+.tp-share{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.tp-share__url{ flex:1 1 200px; min-width:0; padding:9px 12px; border:1px solid var(--border); border-radius:10px;
+  background:var(--bg); font-size:.84rem; line-height:1.5; word-break:break-all; user-select:all; }
+/* .container--narrow .btn の width:100% を上書きするため、同じ強さの指定にする。 */
+.tp-share .btn{ width:auto; flex:0 0 auto; white-space:nowrap; padding:9px 20px; }
+
+/* --- 広告枠 -------------------------------------------------------------
+   自前の画像＋リンクだけを出す（外部の配信は使わないので CSP は変えていない）。
+
+   PC の左右（.ad-rail）は、一覧（1120px）の外側に固定で置く。
+   出すのは 1520px 以上のときだけ。それより狭いと一覧に重なる：
+   1120 + (160 + 24)×2 = 1488px が必要な幅で、余白16pxを足して1520pxを境目にした。
+   1280〜1440px のノートPCでは出ない（一覧の見やすさを優先する判断）。 */
+.ad-rail{ display:none; }
+@media (min-width: 1520px){
+  .ad-rail{ display:block; position:fixed; top:50%; transform:translateY(-50%); width:160px; z-index:5; }
+  /* 560px = 一覧の幅1120pxの半分。そこから間隔24pxと広告の幅160pxを足した位置に置く。 */
+  .ad-rail--l{ left:calc(50% - 560px - 184px); }
+  .ad-rail--r{ left:calc(50% + 560px + 24px); }
+}
+/* 画面の高さが足りないと縦型がはみ出すので、そのときは出さない。 */
+@media (max-height: 680px){ .ad-rail{ display:none; } }
+
+/* 一覧の中に挟む枠。カード2列（スマホ）でも3〜5列（PC）でも、横いっぱいに広げる。 */
+.ad-feed{ grid-column:1 / -1; }
+/* PCでは一覧が1120pxあるので、そのまま伸ばすと広告が一列まるごと占める。
+   横幅に上限を付けて中央に置く（スマホは幅いっぱいのまま）。 */
+@media (min-width: 900px){
+  .ad-feed .ad{ max-width:720px; margin-inline:auto; }
+}
+
+.ad{ position:relative; display:block; border-radius:14px; overflow:hidden; background:var(--surface);
+  border:1px solid var(--border); box-shadow:var(--shadow); line-height:0; }
+.ad img{ display:block; width:100%; height:auto; }
+/* 「広告」の印。会員の投稿と見分けられるように必ず出す。 */
+.ad__tag{ position:absolute; top:6px; right:6px; z-index:1; padding:2px 7px; border-radius:999px;
+  background:rgba(17,24,39,.62); color:#fff; font-size:.66rem; font-weight:700; line-height:1.5;
+  letter-spacing:.04em; pointer-events:none; }
+.ad--side{ width:160px; }
+
+/* --- 一番下の広告帯（タブバーの上） ---
+   高さを固定した細長い帯。2件以上あると横に流れる（お知らせと同じ自動送りの仕組み）。
+
+   ※ この塊は、上の汎用ルール（.ad / .ad img）より後ろに置くこと。
+     .ad--bar img と .ad img は詳細度が同じなので、先に書くと
+     .ad img{ height:auto } に負けて高さの指定が効かない（実際に効かず、
+     帯が105pxになって最後のカードが隠れた）。 */
+.ad-bar{ background:var(--surface); border-top:1px solid var(--border); }
+.ad-bar__rail{ display:flex; gap:0; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none;
+  max-width:720px; margin:0 auto; -webkit-overflow-scrolling:touch; }
+.ad-bar__rail::-webkit-scrollbar{ display:none; }
+.ad--bar{ scroll-snap-align:center; flex:0 0 100%; border:0; border-radius:0; box-shadow:none; background:transparent; }
+/* 高さを揃える。推奨比（横7：縦1）どおりの画像なら切れない。
+   ずれた比の画像を入れても崩れないよう cover にしている（中央が残る）。 */
+.ad--bar img{ height:56px; width:100%; object-fit:cover; }
+.ad--bar .ad__tag{ top:4px; right:8px; font-size:.6rem; padding:1px 6px; }

@@ -6,7 +6,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/bootstrap.php';
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -14,6 +14,9 @@ require dirname(__DIR__) . '/src/bootstrap.php';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>お支払いの中断 - Enlink</title>
+    <?php echo page_meta_tags(['title' => 'お支払いの中断', 'noindex' => true]); ?>
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
+    <link rel="apple-touch-icon" href="/assets/icon-180.png">
     <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
@@ -22,7 +25,8 @@ require dirname(__DIR__) . '/src/bootstrap.php';
     <h1>お支払いは完了していません</h1>
     <div class="card">
         <p>お支払いがキャンセルされました。もう一度お手続きいただけます。</p>
-        <p style="margin-top:16px;"><a class="btn" href="checkout.php">入会金のお支払いへ戻る</a></p>
+        <p style="margin-top:16px;"><a class="btn" href="/member/subscribe">月額会費のお申し込みへ戻る</a></p>
+        <p class="muted" style="margin-top:12px;"><a href="/member/dashboard">← 会員トップへ</a></p>
     </div>
 </div>
 </body>

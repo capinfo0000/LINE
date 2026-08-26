@@ -12,21 +12,33 @@ declare(strict_types=1);
 $pageTitle = $pageTitle ?? '';
 $pageSub   = $pageSub ?? '';
 $topActions = $topActions ?? '';
-$current = basename($_SERVER['SCRIPT_NAME'] ?? '');
+// URL は拡張子なし（members など）で出しているが、SCRIPT_NAME には実体の .php が
+// 入るので、比較のためにここで落としておく（どちらの形でも一致する）。
+$current = preg_replace('/\.php$/', '', basename($_SERVER['SCRIPT_NAME'] ?? ''));
 
 /** ナビ項目（active 判定用に対象スクリプト名の配列を持つ）。 */
 $navItems = [
-    ['dashboard.php', '', 'ダッシュボード', ['dashboard.php']],
-    ['members.php',   '', '会員管理',       ['members.php', 'member_detail.php']],
-    ['photos.php',    '', '写真承認',       ['photos.php']],
-    ['slots.php',     '', '予約枠',         ['slots.php']],
-    ['broadcast.php', '', '一斉配信',       ['broadcast.php']],
-    ['openchat.php',  '', 'オープンチャット', ['openchat.php']],
-    ['tags.php',      '', 'タグ管理',       ['tags.php']],
-    ['account.php',   '', 'アカウント設定', ['account.php']],
+    ['dashboard',     '', 'ダッシュボード', ['dashboard']],
+    ['members',       '', '会員管理',       ['members', 'member_detail']],
+    ['slots',         '', '説明会',         ['slots']],
+    ['line_send',     '', 'LINE配信',       ['line_send']],
+    ['contacts',      '', '申し込み者',     ['contacts']],
+    ['openchat',      '', 'オープンチャット', ['openchat']],
+    ['tags',          '', 'タグ管理',       ['tags']],
+    ['announcements', '', 'お知らせ',       ['announcements']],
+    ['ads',           '', '広告',           ['ads']],
+    ['feedback',      '', '意見箱' . (feedback_open_count() > 0 ? '（' . feedback_open_count() . '）' : ''), ['feedback']],
+    ['account',       '', 'アカウント設定', ['account']],
 ];
 if ((int) ($tenant['is_admin'] ?? 0) === 1) {
-    $navItems[] = ['invites.php', '', '運営者を招待', ['invites.php']];
+    // 公開される法的文書（規約・ポリシー・特商法の表記）に関わる設定は管理者のみ。
+    $navItems[] = ['settings_site', '', '各種設定', ['settings_site']];
+    $navItems[] = ['settings_legal', '', '規約・ポリシー', ['settings_legal']];
+    $navItems[] = ['invites', '', '運営者を招待', ['invites']];
+    // 初期設定ページは存在する間だけ表示（自己削除後は自動的に消える）。
+    if (is_file(__DIR__ . '/settings_env.php')) {
+        $navItems[] = ['settings_env', '', '初期設定', ['settings_env']];
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -35,6 +47,9 @@ if ((int) ($tenant['is_admin'] ?? 0) === 1) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($pageTitle !== '' ? $pageTitle . ' - ' : '') ?>Enlink 運営</title>
+    <?php echo page_meta_tags(['title' => $pageTitle, 'noindex' => true]); ?>
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
+    <link rel="apple-touch-icon" href="/assets/icon-180.png">
     <link rel="stylesheet" href="/assets/app.css">
     <script src="/assets/app.js" defer></script>
 </head>
@@ -49,7 +64,7 @@ if ((int) ($tenant['is_admin'] ?? 0) === 1) {
                 </a>
             <?php endforeach; ?>
             <div class="nav__sep"></div>
-            <a href="logout.php">ログアウト</a>
+            <a href="logout">ログアウト</a>
         </nav>
         <div class="sidebar__foot"><?= e($tenant['display_name'] ?? '') ?><br><?= e($tenant['email'] ?? '') ?></div>
     </aside>
@@ -64,7 +79,7 @@ if ((int) ($tenant['is_admin'] ?? 0) === 1) {
         <main class="page">
         <?php foreach (security_warnings() as $__w): ?>
             <div class="flash flash--ng">
-                <strong><?= $__w['level'] === 'critical' ? '🔴 重大なセキュリティ警告' : '⚠️ セキュリティ警告' ?>:</strong>
+                <strong><?= $__w['level'] === 'critical' ? '重大なセキュリティ警告' : 'セキュリティ警告' ?>:</strong>
                 <?= e($__w['msg']) ?>
             </div>
         <?php endforeach; ?>

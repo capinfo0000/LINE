@@ -15,6 +15,14 @@ declare(strict_types=1);
  */
 function send_mail(string $to, string $subject, string $body): bool
 {
+    // 宛先・件名に改行が混ざるとメールヘッダを追加注入できてしまうため、ここで必ず落とす。
+    // 現状の呼び出し元は既存アカウントのアドレスのみだが、将来の呼び出しで穴が開かないようにする。
+    $to = trim((string) preg_replace("/[\\r\\n\\0]+/", '', $to));
+    $subject = (string) preg_replace("/[\\r\\n\\0]+/", ' ', $subject);
+    if ($to === '' || filter_var($to, FILTER_VALIDATE_EMAIL) === false) {
+        return false;
+    }
+
     $fromAddr = env('MAIL_FROM', 'no-reply@' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
     $fromName = env('MAIL_FROM_NAME', 'Enlink');
 

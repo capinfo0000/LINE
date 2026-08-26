@@ -6,7 +6,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $tenant = require_tenant();
 $msg = '';
@@ -29,10 +29,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($action === 'toggle') {
         $gid = (string) ($_POST['id'] ?? '');
-        $active = (int) ($_POST['active'] ?? 0);
+        $active = (int) ($_POST['active'] ?? 0) === 1 ? 1 : 0;
         $stmt = db()->prepare('UPDATE groups SET is_active = ? WHERE id = ?');
         $stmt->execute([$active, $gid]);
-        $msg = '状態を変更しました。';
+        if ($stmt->rowCount() > 0) {
+            $msg = $active === 1 ? '有効にしました。' : '無効にしました。';
+        } else {
+            $msg = '対象が見つかりませんでした。画面を開き直してもう一度お試しください。';
+            $msgType = 'ng';
+        }
     }
 }
 

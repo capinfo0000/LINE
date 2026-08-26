@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $error = '';
 
@@ -28,9 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 初回PW強制変更が必要なら変更ページへ、そうでなければダッシュボードへ。
         $m = current_member();
         if ($m !== null && (int) ($m['must_change_pw'] ?? 0) === 1) {
-            header('Location: /member/change_password.php');
+            header('Location: /member/change_password');
         } else {
-            header('Location: /member/dashboard.php');
+            // 共有URLから来た場合はその画面へ戻す。無ければ会員トップ。
+            $back = take_login_return_path();
+            header('Location: ' . ($back !== '' ? $back : '/member/dashboard'));
         }
         exit;
     } else {
@@ -40,27 +42,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// すでにログイン済みなら会員トップへ
+// すでにログイン済みなら会員トップ（共有URLから来ていればその画面）へ
 if (current_member() !== null) {
-    header('Location: /member/dashboard.php');
+    $back = take_login_return_path();
+    header('Location: ' . ($back !== '' ? $back : '/member/dashboard'));
     exit;
 }
 
 $token = csrf_token();
+// 公式LINEのトークURL：管理画面「各種設定」優先、無ければ .env をフォールバック。
+// ID・仮パスワードはこのトークで配っているので、分からなくなった人の戻り先になる。
+$officialUrl = site_setting('line_official_url');
+if ($officialUrl === '') {
+    $officialUrl = (string) (env('LINE_OFFICIAL_URL', '') ?? '');
+}
 $pageTitle = '会員ログイン';
 require __DIR__ . '/_header.php';
 ?>
 <h1>会員ログイン</h1>
-<?php if ($error !== ''): ?><p class="err"><?= e($error) ?></p><?php endif; ?>
+<p class="muted" style="margin:0 0 14px;">
+    Enlink（縁リンク）は、「提供できること」と「求めていること」が噛み合う相手だけに出会える会員制のビジネスマッチングです。
+    <a href="/about">サービスについて →</a>
+</p>
+<?php if ($error !== ''): ?>
+    <div class="flash flash--ng">
+        <?= e($error) ?>
+        <div style="font-size:.82rem;margin-top:6px;font-weight:400;">
+            分からない場合は <a href="/member/forgot">パスワードを忘れた場合</a> から再設定できます。
+        </div>
+    </div>
+<?php endif; ?>
 <form method="post" class="card">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
     <label>ログインID</label>
-    <input type="text" name="login_id" required autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="例: el8f3k9q2m">
+    <input type="text" name="login_id" required autocomplete="username" autocapitalize="none" spellcheck="false">
     <label>パスワード</label>
     <input type="password" name="password" required autocomplete="current-password">
     <?= captcha_widget_html() ?>
     <p style="margin-top:16px;"><button type="submit" class="btn">ログイン</button></p>
 </form>
-<p class="muted"><a href="/member/forgot.php">パスワードを忘れた場合</a></p>
-<p class="muted">ログインID・パスワードは入会手続き完了時にお渡ししています。</p>
+<p class="muted"><a href="/member/forgot">パスワードを忘れた場合</a></p>
+<p class="muted" style="margin-bottom:8px;"><?= e(ops_credentials_description()) ?></p>
+<?php if ($officialUrl !== ''): ?>
+    <p style="margin:0 0 4px;">
+        <a class="btn btn--line" href="<?= e($officialUrl) ?>" target="_blank" rel="noopener">公式LINEのトークを開く →</a>
+    </p>
+<?php endif; ?>
+<p class="muted" style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px;font-size:.82rem;">
+    <a href="/about">サービスについて</a> ／
+    <a href="/tokushoho">特定商取引法に基づく表記</a> ／
+    <a href="/policy">キャンセル・返金ポリシー</a> ／
+    <a href="/terms">利用規約</a> ／
+    <a href="/privacy">プライバシーポリシー</a>
+</p>
 <?php require __DIR__ . '/_footer.php'; ?>

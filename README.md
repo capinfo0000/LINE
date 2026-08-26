@@ -21,7 +21,7 @@
 | 入会金決済 | Stripe Checkout（mode=payment・¥2,000買い切り）＋Webhook＋照合cron（取りこぼし救済） |
 | 会員サイト | 発行ID/PWログイン（初回PW強制変更）、プロフィール編集（タグ/自由記述/リンク/顔写真/求める条件） |
 | 検索・おすすめ | 条件検索（一方向）＋双方向マッチのおすすめ（お互いの希望が合致した相手のみ） |
-| 運営コンソール | 会員管理・写真承認・予約枠・一斉配信（通数見積り）・OpenChat URL・タグ管理・統計 |
+| 運営コンソール | 会員管理・予約枠・一斉配信（通数見積り）・OpenChat URL・タグ管理・統計 |
 
 ## ディレクトリ構成
 
@@ -47,8 +47,8 @@ cp .env.example .env    # 各種キーを設定（下記）
 php bin/console.php init
 php bin/console.php create-admin you@example.com あなたのパスワード
 php -S localhost:8000 -t public
-# 運営: http://localhost:8000/admin/login.php
-# 会員: http://localhost:8000/member/login.php（IDは入金 or `make-member` で発行）
+# 運営: http://localhost:8000/admin/login
+# 会員: http://localhost:8000/member/login（IDは入金 or `make-member` で発行）
 ```
 
 ### 主な .env（詳細は `.env.example`）
@@ -58,7 +58,7 @@ php -S localhost:8000 -t public
 - `LINE_CHANNEL_SECRET` / `LINE_CHANNEL_ACCESS_TOKEN` … 公式LINE Bot（Webhook: `/line_webhook.php`）
 - `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET` … Zoom S2S（未設定なら手動URLにフォールバック）
 - `APP_BASE_URL` … 公開URL（success/cancel/webhook 生成に使用）
-- `ALLOW_SIGNUP` … 運営者のオープン登録可否（単一運営は 0＝招待制）
+- `ALLOW_SIGNUP` … 運営者のオープン登録可否（既定 0＝閉。開けるときだけ 1 を明示）
 
 ## 運用CLI
 

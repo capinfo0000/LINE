@@ -1,10 +1,11 @@
 <?php
 
 /**
- * 入会金決済の照合cron（Webhook取りこぼしの救済）。
+ * 決済の照合cron（Webhook取りこぼしの救済）。
  *
- * Stripe から直近の完了 Checkout セッション（mode=payment / paid / metadata.purpose=join_fee）を取得し、
- * まだ payments に記録の無いものを provision する。処理は冪等（claim-first）なので Webhook と競合しても安全。
+ * Stripe から直近の完了 Checkout セッション（mode=payment/subscription・paid・
+ * metadata.purpose=join_fee/subscription）を取得し、まだ payments に記録の無いものを provision する。
+ * 処理は冪等（claim-first）なので Webhook と競合しても安全。
  *
  * cron 例（php85cli・10分おき）:
  *   （分の欄に「10分間隔」を指定）  php85cli /home/<acct>/enlink/bin/reconcile.php >> /home/<acct>/private/reconcile.log 2>&1
@@ -16,7 +17,7 @@ if (PHP_SAPI !== 'cli') {
     exit("CLI からのみ実行できます。\n");
 }
 
-require dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 // 多重起動ロック（前回が長引いても二重処理を避ける。処理自体は冪等だが無駄を減らす）。
 $lockPath = dirname(current_db_path()) . '/reconcile.lock';
@@ -39,13 +40,15 @@ try {
     ];
     foreach (\Stripe\Checkout\Session::all($params)->autoPagingIterator() as $session) {
         $scanned++;
-        if (($session->mode ?? '') !== 'payment') {
+        // 買い切り(payment・旧) と 月額サブスク(subscription) の両方を救済対象にする。
+        $mode = (string) ($session->mode ?? '');
+        if ($mode !== 'payment' && $mode !== 'subscription') {
             continue;
         }
         if (($session->payment_status ?? '') !== 'paid') {
             continue;
         }
-        if ((string) ($session->metadata->purpose ?? '') !== 'join_fee') {
+        if (!in_array((string) ($session->metadata->purpose ?? ''), ['join_fee', 'subscription'], true)) {
             continue;
         }
         if (find_payment_by_session((string) $session->id) !== null) {

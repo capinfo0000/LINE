@@ -6,6 +6,20 @@
 
 declare(strict_types=1);
 
+/** 画像処理パイプラインの版数。どのコードが動いているかを本番で切り分けるための目印。 */
+if (!defined('PHOTO_PIPELINE_VERSION')) {
+    define('PHOTO_PIPELINE_VERSION', 'square384-webp-exif-2026-07');
+}
+
+/** 稼働中の画像処理の版数と利用可能拡張を返す（プロフィール画面のHTMLコメントで表示）。 */
+function photo_pipeline_tag(): string
+{
+    return PHOTO_PIPELINE_VERSION
+        . ';gd=' . (function_exists('imagecreatefromstring') ? 1 : 0)
+        . ';webp=' . (function_exists('imagewebp') ? 1 : 0)
+        . ';exif=' . (function_exists('exif_read_data') ? 1 : 0);
+}
+
 /** 顔写真の保存ディレクトリ（公開領域外）。 */
 function uploads_dir(): string
 {
@@ -29,6 +43,8 @@ function get_profile(string $memberId): array
             'member_id' => $memberId,
             'name_text' => '', 'age_text' => '', 'company_title' => '',
             'headline' => '', 'bio' => '', 'photo_path' => null, 'photo_status' => 'none',
+            'birthdate' => '', 'cover_path' => null, 'card_path' => null, 'intro_text' => '',
+            'occupation' => '', 'job_title' => '',
             'visibility_flags' => '{}', 'updated_at' => null,
         ];
     }
@@ -60,25 +76,177 @@ function save_profile(string $memberId, array $d): void
         'line_url'  => !empty($vis['line_url']),
     ], JSON_UNESCAPED_UNICODE);
 
+    // 生年月日（YYYY-MM-DD）。指定があれば検証し、表示用の年齢(age_text)を自動算出する。
+    // 生年月日そのものは公開しない（表示は年齢のみ）。
+    $birthdate = array_key_exists('birthdate', $d)
+        ? normalize_birthdate((string) $d['birthdate'])
+        : (string) ($existing['birthdate'] ?? '');
+    // 最低年齢に満たない生年月日は保存しない。画面側でも弾いているが、POSTを直接
+    // 組み立てれば入力チェックは迂回できるため、保存の直前でも必ず確認する。
+    if ($birthdate !== '' && array_key_exists('birthdate', $d) && !is_eligible_birthdate($birthdate)) {
+        $birthdate = (string) ($existing['birthdate'] ?? '');
+    }
+    $ageText = (string) ($d['age_text'] ?? $existing['age_text']);
+    if ($birthdate !== '') {
+        $age = compute_age($birthdate);
+        if ($age !== null) {
+            $ageText = (string) $age; // 生年月日から年齢を上書き（常に最新）
+        }
+    }
+
     $fields = [
-        'name_text'     => mb_substr(trim((string) ($d['name_text'] ?? $existing['name_text'])), 0, 100),
-        'age_text'      => mb_substr(trim((string) ($d['age_text'] ?? $existing['age_text'])), 0, 40),
-        'company_title' => mb_substr(trim((string) ($d['company_title'] ?? $existing['company_title'])), 0, 120),
-        'headline'      => mb_substr(trim((string) ($d['headline'] ?? $existing['headline'])), 0, 120),
-        'bio'           => mb_substr(trim((string) ($d['bio'] ?? $existing['bio'])), 0, 2000),
+        'name_text'     => mb_substr(clean_line_text((string) ($d['name_text'] ?? $existing['name_text'])), 0, 100),
+        'age_text'      => mb_substr(clean_line_text($ageText), 0, 40),
+        'occupation'    => mb_substr(clean_line_text((string) ($d['occupation'] ?? $existing['occupation'] ?? '')), 0, 80),
+        'job_title'     => mb_substr(clean_line_text((string) ($d['job_title'] ?? $existing['job_title'] ?? '')), 0, 80),
+        'company_title' => mb_substr(clean_line_text((string) ($d['company_title'] ?? $existing['company_title'])), 0, 120),
+        'headline'      => mb_substr(clean_line_text((string) ($d['headline'] ?? $existing['headline'])), 0, 120),
+        'bio'           => mb_substr(clean_multiline_text((string) ($d['bio'] ?? $existing['bio'])), 0, 2000),
     ];
 
     $stmt = db()->prepare(
-        'INSERT INTO profiles (member_id, name_text, age_text, company_title, headline, bio, visibility_flags, updated_at)
-         VALUES (:m,:n,:a,:c,:h,:b,:v,:t)
+        'INSERT INTO profiles (member_id, name_text, age_text, occupation, job_title, company_title, headline, bio, birthdate, visibility_flags, updated_at)
+         VALUES (:m,:n,:a,:oc,:jt,:c,:h,:b,:bd,:v,:t)
          ON CONFLICT(member_id) DO UPDATE SET
-            name_text=:n, age_text=:a, company_title=:c, headline=:h, bio=:b, visibility_flags=:v, updated_at=:t'
+            name_text=:n, age_text=:a, occupation=:oc, job_title=:jt, company_title=:c, headline=:h, bio=:b, birthdate=:bd, visibility_flags=:v, updated_at=:t'
     );
     $stmt->execute([
         ':m' => $memberId, ':n' => $fields['name_text'], ':a' => $fields['age_text'],
+        ':oc' => $fields['occupation'], ':jt' => $fields['job_title'],
         ':c' => $fields['company_title'], ':h' => $fields['headline'], ':b' => $fields['bio'],
-        ':v' => $visJson, ':t' => time(),
+        ':bd' => $birthdate, ':v' => $visJson, ':t' => time(),
     ]);
+}
+
+/** 自己紹介ひな形（オープンチャット投稿用の編集済み文面）を保存する。 */
+function save_intro_text(string $memberId, string $text): void
+{
+    $text = mb_substr(clean_multiline_text($text), 0, 3000);
+    save_profile($memberId, []); // 行の存在を保証
+    $stmt = db()->prepare('UPDATE profiles SET intro_text = ?, updated_at = ? WHERE member_id = ?');
+    $stmt->execute([$text, time(), $memberId]);
+}
+
+/** 生年月日文字列を YYYY-MM-DD に正規化（不正・空は ''）。 */
+function normalize_birthdate(string $raw): string
+{
+    $raw = trim($raw);
+    if ($raw === '') {
+        return '';
+    }
+    // YYYY-MM-DD / YYYY/MM/DD を受理。
+    if (!preg_match('/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/', $raw, $m)) {
+        return '';
+    }
+    [$y, $mo, $da] = [(int) $m[1], (int) $m[2], (int) $m[3]];
+    if (!checkdate($mo, $da, $y) || $y < 1900) {
+        return '';
+    }
+    $norm = sprintf('%04d-%02d-%02d', $y, $mo, $da);
+    // 未来日は不可（当年内の未来日も含めて弾く）。
+    if ($norm > date('Y-m-d')) {
+        return '';
+    }
+    return $norm;
+}
+
+/** 入会できる最低年齢（満年齢）。規約の文面もこの値を差し込んでいる。 */
+const MEMBER_MIN_AGE = 18;
+
+/** 入会できる最低年齢。 */
+function member_min_age(): int
+{
+    return MEMBER_MIN_AGE;
+}
+
+/**
+ * この生年月日で入会できるか（形式が正しく、かつ最低年齢以上）。
+ *
+ * 形式の判定は normalize_birthdate() に任せて、ここは年齢だけを見る。
+ * 混ぜてしまうと画面のエラーが「実在する日付を選び直してください」になり、
+ * 何が理由で弾かれたのか会員に伝わらなくなるため。
+ */
+function is_eligible_birthdate(string $birthdate): bool
+{
+    $age = compute_age($birthdate);
+    return $age !== null && $age >= member_min_age();
+}
+
+/** 生年月日(YYYY-MM-DD)から満年齢を算出（不正なら null）。 */
+/**
+ * この会員の顔写真を表示してよいか。
+ * photo_status だけを見ると、画像ファイルが失われていても「あり」と判定され、
+ * 頭文字のプレースホルダーに落ちずに画像切れが出る。ファイルの実体も確認する。
+ *
+ * @param array<string,mixed> $profile profiles の行
+ */
+function profile_has_photo(array $profile): bool
+{
+    if ((string) ($profile['photo_status'] ?? '') !== 'approved') {
+        return false;
+    }
+    return member_image_abs_path($profile, 'photo_path') !== null;
+}
+
+/**
+ * 1行入力用のテキストを整える（名前・ひとことPR・職業など）。
+ * 制御文字（NULバイト・改行・タブ等）を取り除く。画面では1行の入力欄でも、
+ * POSTを直接組み立てれば改行やNULバイトを送り込めるため、保存前にサーバ側で落とす。
+ */
+function clean_line_text(string $s): string
+{
+    $s = str_replace(["\r\n", "\r", "\n", "\t"], ' ', $s);
+    $s = (string) preg_replace('/[\x00-\x1F\x7F]/u', '', $s);
+    $s = (string) preg_replace('/\s{2,}/u', ' ', $s);
+    return trim($s);
+}
+
+/**
+ * 複数行入力用のテキストを整える（自己紹介など）。
+ * 改行は残しつつ、それ以外の制御文字とNULバイトを取り除く。
+ */
+function clean_multiline_text(string $s): string
+{
+    $s = str_replace(["\r\n", "\r"], "\n", $s);
+    $s = (string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $s);
+    return trim($s);
+}
+
+/**
+ * 表示用の年齢文字列（「36歳」）を返す。無ければ空文字。
+ *
+ * 年齢は保存時に age_text へ書き込まれるが、それだけだと誕生日を過ぎても
+ * 本人が再保存するまで増えない。そのため表示のたびに生年月日から計算し直し、
+ * 生年月日が無い会員（旧データ・サンプル）だけ age_text にフォールバックする。
+ *
+ * @param array<string,mixed> $row profiles の行（birthdate / age_text を含む）
+ */
+function profile_age_text(array $row): string
+{
+    $age = compute_age((string) ($row['birthdate'] ?? ''));
+    if ($age !== null) {
+        return $age . '歳';
+    }
+    $fallback = trim((string) ($row['age_text'] ?? ''));
+    if ($fallback === '') {
+        return '';
+    }
+    return ctype_digit($fallback) ? $fallback . '歳' : $fallback;
+}
+
+function compute_age(string $birthdate): ?int
+{
+    $bd = normalize_birthdate($birthdate);
+    if ($bd === '') {
+        return null;
+    }
+    [$y, $mo, $da] = array_map('intval', explode('-', $bd));
+    $today = getdate();
+    $age = $today['year'] - $y;
+    if ($today['mon'] < $mo || ($today['mon'] === $mo && $today['mday'] < $da)) {
+        $age--;
+    }
+    return max(0, $age);
 }
 
 /* ------------------------- タグ ------------------------- */
@@ -250,25 +418,86 @@ function save_preferences(string $memberId, array $seekArea, array $seekJob, arr
 /* ------------------------- 顔写真 ------------------------- */
 
 /**
+ * JPEG の EXIF Orientation に従って GD 画像を正しい向きに補正して返す。
+ * スマホ写真は撮影向きが EXIF にだけ入っていることが多く、補正しないと横倒しで保存される。
+ *
+ * @param \GdImage|resource $img
+ * @return \GdImage|resource 補正後の画像（回転で新インスタンスになる場合あり）
+ */
+function gd_apply_exif_orientation($img, string $tmp, string $mime)
+{
+    if ($mime !== 'image/jpeg' || !function_exists('exif_read_data')) {
+        return $img;
+    }
+    $exif = @exif_read_data($tmp);
+    $orientation = (int) ($exif['Orientation'] ?? 0);
+    if ($orientation <= 1) {
+        return $img; // 補正不要
+    }
+    // imagerotate は反時計回り。向き 6/8 のスマホ縦写真を想定して補正する。
+    switch ($orientation) {
+        case 2:
+            imageflip($img, IMG_FLIP_HORIZONTAL);
+            break;
+        case 3:
+            $img = imagerotate($img, 180, 0);
+            break;
+        case 4:
+            imageflip($img, IMG_FLIP_VERTICAL);
+            break;
+        case 5:
+            $img = imagerotate($img, -90, 0);
+            imageflip($img, IMG_FLIP_HORIZONTAL);
+            break;
+        case 6:
+            $img = imagerotate($img, -90, 0);
+            break;
+        case 7:
+            $img = imagerotate($img, 90, 0);
+            imageflip($img, IMG_FLIP_HORIZONTAL);
+            break;
+        case 8:
+            $img = imagerotate($img, 90, 0);
+            break;
+    }
+    return $img;
+}
+
+/**
  * アップロードされた顔写真を検証して保存する。成功で true。
- * - 画像形式（jpeg/png/webp）・サイズ（<= 4MB）を検証。
- * - 可能なら GD で再エンコードして埋め込みメタデータ/ペイロードを除去。
- * - 保存は公開領域外（data/uploads/）。photo_status は 'pending'（運営モデレーション）。
+ * 巨大な原本を受け取ってよい（サーバの upload_max_filesize は .user.ini で引き上げ）。
+ * その上でサーバ側が以下の処理を行い、できるだけ小さくした1ファイルだけを残す：
+ * - 画像形式（jpeg/png/webp）と極端なサイズ上限（<= 20MB）を検証。
+ * - GD がある場合：EXIF の向きを補正 → 中央を正方形にクロップ → 512px に縮小 →
+ *   WebP に統一し、目標サイズ以下になるよう品質を段階的に下げて圧縮（imagewebp が
+ *   無ければ JPEG）。再エンコードで埋め込みメタデータ/ペイロードも除去。
+ *   GD が無い場合のみ、検証済みの元ファイルをそのまま保存（変換不可のフォールバック）。
+ * - 保存は公開領域外（data/uploads/）。会員あたり常に1ファイルのみで、原本は保存しない
+ *   （旧拡張子ファイルも削除）。photo_status は 'approved'（承認フローは廃止・即公開）。
  *
  * @param array{tmp_name?:string,size?:int,error?:int} $file $_FILES のエントリ
  */
-function save_member_photo(string $memberId, array $file, string &$error = ''): bool
+function save_member_photo(string $memberId, array $file, string &$error = '', bool $fromUpload = true): bool
 {
-    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-        $error = '画像のアップロードに失敗しました。';
+    $errCode = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+    if ($errCode !== UPLOAD_ERR_OK) {
+        // サーバの upload_max_filesize / post_max_size を超えて弾かれた場合の案内。
+        // 上限は public/.user.ini で引き上げ済み。反映されていない可能性も添える。
+        if ($errCode === UPLOAD_ERR_INI_SIZE || $errCode === UPLOAD_ERR_FORM_SIZE) {
+            $error = '画像の容量が大きすぎてアップロードできませんでした（サーバ上限未反映の可能性）。時間をおくか、少し小さい画像でお試しください。';
+        } else {
+            $error = '画像のアップロードに失敗しました。';
+        }
         return false;
     }
-    if (($file['size'] ?? 0) > 4 * 1024 * 1024) {
-        $error = '画像サイズが大きすぎます（4MBまで）。';
+    if (($file['size'] ?? 0) > 10 * 1024 * 1024) {
+        $error = '画像サイズが大きすぎます（10MBまで）。';
         return false;
     }
     $tmp = (string) ($file['tmp_name'] ?? '');
-    if ($tmp === '' || !is_readable($tmp)) {
+    // is_uploaded_file: 実際にHTTPでアップロードされた一時ファイル以外を掴まされないための多層防御。
+    // サンプル会員の写真投入のようにサーバ内のファイルを直接渡す場合は $fromUpload=false で明示する。
+    if ($tmp === '' || ($fromUpload && !is_uploaded_file($tmp)) || !is_readable($tmp)) {
         $error = '画像を読み取れませんでした。';
         return false;
     }
@@ -283,48 +512,92 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
         $error = '対応していない画像形式です（JPEG/PNG/WebP のみ）。';
         return false;
     }
-    $ext = $extMap[$mime];
+    $fallbackExt = $extMap[$mime]; // GD 不可時に元形式で保存するための拡張子
     $dir = uploads_dir();
-    $filename = $memberId . '.' . $ext;
-    $dest = $dir . '/' . $filename;
+    $targetPx = 384; // 出力の一辺（正方形）。表示は最大160px程度なので384で十分・容量減。
 
-    $saved = false;
-    // GD があれば再エンコードでメタデータ/埋め込みを除去。
+    $processed = false;
+    $outExt = null;
+    $dest = null;
+
+    // GD があれば：EXIF回転補正 → 中央正方形クロップ → 512px → WebP（無ければ JPEG）で保存。
     if (function_exists('imagecreatefromstring')) {
-        $img = @imagecreatefromstring((string) file_get_contents($tmp));
-        if ($img !== false) {
-            if ($mime === 'image/png') {
-                $saved = imagepng($img, $dest);
-            } elseif ($mime === 'image/webp' && function_exists('imagewebp')) {
-                $saved = imagewebp($img, $dest);
+        $src = @imagecreatefromstring((string) file_get_contents($tmp));
+        if ($src !== false) {
+            $src = gd_apply_exif_orientation($src, $tmp, $mime); // スマホ写真の横倒しを補正
+            $w = imagesx($src);
+            $h = imagesy($src);
+            $side = max(1, min($w, $h));            // 短辺に合わせて正方形に
+            $sx = (int) (($w - $side) / 2);         // 中央基準の切り出し原点
+            $sy = (int) (($h - $side) / 2);
+
+            $dst = imagecreatetruecolor($targetPx, $targetPx);
+            $useWebp = function_exists('imagewebp');
+            if ($useWebp) {
+                // WebP は透過を保持できるので、背景を透明で初期化。
+                imagealphablending($dst, false);
+                imagesavealpha($dst, true);
+                $bg = imagecolorallocatealpha($dst, 0, 0, 0, 127);
             } else {
-                $saved = imagejpeg($img, $dest, 85);
+                // JPEG は透過不可 → 白背景で平坦化。
+                $bg = imagecolorallocate($dst, 255, 255, 255);
             }
-            imagedestroy($img);
+            imagefilledrectangle($dst, 0, 0, $targetPx, $targetPx, $bg);
+            imagecopyresampled($dst, $src, 0, 0, $sx, $sy, $targetPx, $targetPx, $side, $side);
+
+            // (B) 縮小で甘くなった輪郭を軽くシャープ化。低品質でも見栄えを保ち、結果として小さくできる。
+            // 係数の合計＝除数(1.0)。顔アバター用途向けの控えめな強さ。
+            if (function_exists('imageconvolution')) {
+                @imageconvolution($dst, [[0.0, -0.18, 0.0], [-0.18, 1.72, -0.18], [0.0, -0.18, 0.0]], 1.0, 0);
+            }
+
+            if (!$useWebp) {
+                imageinterlace($dst, true); // JPEG フォールバックはプログレッシブで軽量＆表示良化
+            }
+            $outExt = $useWebp ? 'webp' : 'jpg';
+            $dest = $dir . '/' . $memberId . '.' . $outExt;
+            // (C)「できるだけ小さく」：目標(30KB)以下になるまで品質を段階的に下げて再エンコード。
+            // 384px の顔写真なら通常は上位の品質で目標を満たす。品質は下限で打ち止め（画質保護）。
+            $targetBytes = 30 * 1024;
+            $qualities = $useWebp ? [72, 64, 56, 48, 40, 32] : [80, 72, 64, 56, 48, 40];
+            foreach ($qualities as $q) {
+                $processed = $useWebp ? imagewebp($dst, $dest, $q) : imagejpeg($dst, $dest, $q);
+                if (!$processed) {
+                    break;
+                }
+                clearstatcache(true, $dest);
+                if (filesize($dest) <= $targetBytes) {
+                    break; // 目標達成
+                }
+            }
+            imagedestroy($dst);
+            imagedestroy($src);
         }
     }
-    if (!$saved) {
-        // GD 不可の場合はそのまま保存（形式は検証済み）。
-        $saved = @copy($tmp, $dest);
-    }
-    if (!$saved) {
-        $error = '画像の保存に失敗しました。';
-        return false;
+
+    if (!$processed) {
+        // GD 不可：検証済みの元ファイルをそのまま保存（トリミング/変換なし）。
+        $outExt = $fallbackExt;
+        $dest = $dir . '/' . $memberId . '.' . $outExt;
+        if (!@copy($tmp, $dest)) {
+            $error = '画像の保存に失敗しました。';
+            return false;
+        }
     }
     @chmod($dest, 0600);
 
     // 既存の別拡張子ファイルを掃除。
     foreach (['jpg', 'png', 'webp'] as $e2) {
-        if ($e2 !== $ext) {
+        if ($e2 !== $outExt) {
             @unlink($dir . '/' . $memberId . '.' . $e2);
         }
     }
 
-    $rel = 'uploads/' . $filename;
+    $rel = 'uploads/' . $memberId . '.' . $outExt;
     $stmt = db()->prepare(
         "INSERT INTO profiles (member_id, photo_path, photo_status, updated_at)
-         VALUES (:m,:p,'pending',:t)
-         ON CONFLICT(member_id) DO UPDATE SET photo_path=:p, photo_status='pending', updated_at=:t"
+         VALUES (:m,:p,'approved',:t)
+         ON CONFLICT(member_id) DO UPDATE SET photo_path=:p, photo_status='approved', updated_at=:t"
     );
     $stmt->execute([':m' => $memberId, ':p' => $rel, ':t' => time()]);
     return true;
@@ -333,12 +606,140 @@ function save_member_photo(string $memberId, array $file, string &$error = ''): 
 /** 顔写真の絶対パス（無ければ null）。 */
 function member_photo_abs_path(array $profile): ?string
 {
-    $rel = (string) ($profile['photo_path'] ?? '');
+    return member_image_abs_path($profile, 'photo_path');
+}
+
+/** 任意の画像列（photo_path/cover_path/card_path）の絶対パス（無ければ null）。 */
+function member_image_abs_path(array $profile, string $column): ?string
+{
+    $rel = (string) ($profile[$column] ?? '');
     if ($rel === '') {
         return null;
     }
     $abs = dirname(current_db_path()) . '/' . $rel;
     return is_file($abs) ? $abs : null;
+}
+
+/**
+ * カバー画像・名刺画像などの付随画像を保存する（正方形化せず、最大幅に縮小）。
+ * $column は profiles の列名（cover_path / card_path）。$kind は保存ファイル名の接尾辞。
+ *
+ * @param array{tmp_name?:string,size?:int,error?:int} $file
+ */
+/**
+ * アップロードの失敗理由を日本語にする。
+ *
+ * これまで $_FILES の error を見ずに「OK以外は何もしない」実装だったため、
+ * サーバの上限を超えた画像が黙って捨てられ、しかも「保存しました」と
+ * 出ていた（利用者からは原因が分からない）。必ず理由を返す。
+ */
+function upload_error_message(int $code): string
+{
+    switch ($code) {
+        case UPLOAD_ERR_INI_SIZE:
+        case UPLOAD_ERR_FORM_SIZE:
+            return 'ファイルが大きすぎます（このサーバの上限は ' . ini_get('upload_max_filesize')
+                . '）。もう少し小さい画像でお試しください。';
+        case UPLOAD_ERR_PARTIAL:
+            return 'アップロードが途中で終わりました。通信状況を確認して、もう一度お試しください。';
+        case UPLOAD_ERR_NO_TMP_DIR:
+        case UPLOAD_ERR_CANT_WRITE:
+            return 'サーバ側で一時保存に失敗しました。少し時間をおいてお試しください。';
+        case UPLOAD_ERR_EXTENSION:
+            return 'サーバの設定でアップロードが拒否されました。';
+        default:
+            return 'アップロードに失敗しました（コード ' . $code . '）。';
+    }
+}
+
+function save_member_image(string $memberId, string $column, string $kind, array $file, int $maxW, string &$error = '', bool $fromUpload = true): bool
+{
+    $errCode = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+    if ($errCode !== UPLOAD_ERR_OK) {
+        $error = '画像のアップロードに失敗しました。';
+        return false;
+    }
+    if (($file['size'] ?? 0) > 10 * 1024 * 1024) {
+        $error = '画像サイズが大きすぎます（10MBまで）。';
+        return false;
+    }
+    $tmp = (string) ($file['tmp_name'] ?? '');
+    // is_uploaded_file: 実際にHTTPでアップロードされた一時ファイル以外を掴まされないための多層防御。
+    // サンプル会員の写真投入のようにサーバ内のファイルを直接渡す場合は $fromUpload=false で明示する。
+    if ($tmp === '' || ($fromUpload && !is_uploaded_file($tmp)) || !is_readable($tmp)) {
+        $error = '画像を読み取れませんでした。';
+        return false;
+    }
+    $info = @getimagesize($tmp);
+    if ($info === false) {
+        $error = '画像ファイルとして認識できませんでした。';
+        return false;
+    }
+    $extMap = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+    $mime = $info['mime'] ?? '';
+    if (!isset($extMap[$mime])) {
+        $error = '対応していない画像形式です（JPEG/PNG/WebP のみ）。';
+        return false;
+    }
+    $dir = uploads_dir();
+    $processed = false;
+    $outExt = $extMap[$mime];
+    $dest = null;
+
+    if (function_exists('imagecreatefromstring')) {
+        $src = @imagecreatefromstring((string) file_get_contents($tmp));
+        if ($src !== false) {
+            $src = gd_apply_exif_orientation($src, $tmp, $mime);
+            $w = imagesx($src);
+            $h = imagesy($src);
+            $scale = $w > $maxW ? $maxW / $w : 1.0;
+            $nw = max(1, (int) round($w * $scale));
+            $nh = max(1, (int) round($h * $scale));
+            $dst = imagecreatetruecolor($nw, $nh);
+            $useWebp = function_exists('imagewebp');
+            if ($useWebp) {
+                imagealphablending($dst, false);
+                imagesavealpha($dst, true);
+            }
+            imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
+            $outExt = $useWebp ? 'webp' : 'jpg';
+            $dest = $dir . '/' . $memberId . '_' . $kind . '.' . $outExt;
+            $processed = $useWebp ? imagewebp($dst, $dest, 78) : imagejpeg($dst, $dest, 82);
+            imagedestroy($dst);
+            imagedestroy($src);
+        }
+    }
+    if (!$processed) {
+        $dest = $dir . '/' . $memberId . '_' . $kind . '.' . $outExt;
+        if (!@copy($tmp, $dest)) {
+            $error = '画像の保存に失敗しました。';
+            return false;
+        }
+    }
+    @chmod($dest, 0600);
+    foreach (['jpg', 'png', 'webp'] as $e2) {
+        if ($e2 !== $outExt) {
+            @unlink($dir . '/' . $memberId . '_' . $kind . '.' . $e2);
+        }
+    }
+    $rel = 'uploads/' . $memberId . '_' . $kind . '.' . $outExt;
+    // profiles 行が無い場合に備えて存在保証してから更新。
+    save_profile($memberId, []);
+    $stmt = db()->prepare("UPDATE profiles SET {$column} = ?, updated_at = ? WHERE member_id = ?");
+    $stmt->execute([$rel, time(), $memberId]);
+    return true;
+}
+
+/** 付随画像（cover_path/card_path）を削除する。 */
+function delete_member_image(string $memberId, string $column): void
+{
+    $profile = get_profile($memberId);
+    $abs = member_image_abs_path($profile, $column);
+    if ($abs !== null) {
+        @unlink($abs);
+    }
+    $stmt = db()->prepare("UPDATE profiles SET {$column} = NULL, updated_at = ? WHERE member_id = ?");
+    $stmt->execute([time(), $memberId]);
 }
 
 /** 顔写真を削除する。 */

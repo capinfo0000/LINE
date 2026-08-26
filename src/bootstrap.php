@@ -15,7 +15,15 @@ define('APP_ROOT', dirname(__DIR__));
 
 require APP_ROOT . '/vendor/autoload.php';
 
+// 表示・比較に使う既定のタイムゾーンを固定する。
+// これまで各所で date() に手で +9時間していたが、それはサーバの date.timezone が
+// UTC のときだけ正しく、Asia/Tokyo のサーバでは9時間ずれる（同じ枠の日時が
+// LINEのカードと通知本文で食い違う原因になっていた）。ここで一度だけ決めて、
+// 以降は素直に date() を使う。Zoom API に渡す UTC は gmdate() のままにする。
+date_default_timezone_set('Asia/Tokyo');
+
 // データ層・認証・メール・CAPTCHA・暗号のヘルパー。関数定義のみで、呼び出し時に env() を使う。
+require __DIR__ . '/announce.php';
 require __DIR__ . '/db.php';
 require __DIR__ . '/tenant.php';
 require __DIR__ . '/member.php';
@@ -23,10 +31,18 @@ require __DIR__ . '/profile.php';
 require __DIR__ . '/directory.php';
 require __DIR__ . '/match.php';
 require __DIR__ . '/payment.php';
+require __DIR__ . '/plan.php';
 require __DIR__ . '/zoom.php';
 require __DIR__ . '/booking.php';
+require __DIR__ . '/points.php';
+require __DIR__ . '/samples.php';
 require __DIR__ . '/line.php';
 require __DIR__ . '/admin.php';
+require __DIR__ . '/legal.php';
+require __DIR__ . '/meta.php';
+require __DIR__ . '/feedback.php';
+require __DIR__ . '/ads.php';
+require __DIR__ . '/legacy_import.php';
 require __DIR__ . '/mail.php';
 require __DIR__ . '/captcha.php';
 require __DIR__ . '/crypto.php';
@@ -107,7 +123,8 @@ function send_baseline_security_headers(): void
     // CAPTCHA(Turnstile)有効時は、そのウィジェット配信元を許可リストに加える。
     $captchaHost = captcha_enabled() ? ' https://challenges.cloudflare.com' : '';
     $nonce = "'nonce-" . csp_nonce() . "'";
-    header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; "
+    // img-src に blob: を許可：ファイル選択直後のプレビュー（URL.createObjectURL）を表示するため。
+    header("Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:; "
         . "style-src 'self' $nonce; style-src-attr 'unsafe-inline'; "
         . "script-src 'self' $nonce" . $captchaHost . "; "
         . "connect-src 'self'" . $captchaHost . "; "
@@ -299,6 +316,17 @@ function audit_log(string $event, array $ctx = []): void
     }
     $parts = [];
     foreach ($ctx as $k => $v) {
+        // 配列・真偽値・null をそのまま (string) すると警告が出て、
+        // その警告が呼び出し元の応答に混ざる（cron の出力が汚れる）。ここで潰しておく。
+        if (is_array($v)) {
+            $v = implode(',', array_map(static fn ($x) => is_scalar($x) ? (string) $x : gettype($x), $v));
+        } elseif (is_bool($v)) {
+            $v = $v ? '1' : '0';
+        } elseif ($v === null) {
+            $v = '-';
+        } elseif (!is_scalar($v)) {
+            $v = gettype($v);
+        }
         // 改行・空白を除去してログ1行を壊さない
         $parts[] = $k . '=' . preg_replace('/\s+/', '_', (string) $v);
     }
@@ -343,7 +371,26 @@ function csrf_verify(?string $token): void
     if ($expected === '' || !is_string($token) || !hash_equals($expected, $token)) {
         audit_log('csrf.fail', ['path' => $_SERVER['SCRIPT_NAME'] ?? '']);
         http_response_code(400);
-        exit('不正なリクエストです（CSRF トークン不一致）。画面を開き直してください。');
+        // 同一ホストの参照元にだけ「戻る」を許可（オープンリダイレクト対策）。
+        $back = (string) ($_SERVER['HTTP_REFERER'] ?? '');
+        $safe = '/';
+        // ポートを含む HTTP_HOST とホスト名のみの parse_url を揃えて比較（同一オリジンのみ許可）。
+        $host = parse_url('//' . (string) ($_SERVER['HTTP_HOST'] ?? ''), PHP_URL_HOST);
+        if ($back !== '' && parse_url($back, PHP_URL_HOST) === $host) {
+            $safe = $back;
+        }
+        header('Content-Type: text/html; charset=UTF-8');
+        exit('<!doctype html><html lang="ja"><head><meta charset="utf-8">'
+            . '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            . '<title>送信できませんでした</title><link rel="stylesheet" href="/assets/app.css"></head>'
+            . '<body><div class="container container--narrow" style="padding-top:40px;">'
+            . '<div class="flash flash--ng"><strong>送信できませんでした。</strong><br>'
+            . 'フォームを長い時間開いたままにしていた可能性があります。'
+            . 'また、アップロードした画像が大きすぎる場合にも起こることがあります。</div>'
+            . '<p class="muted" style="font-size:.85rem;">お手数ですが、画面を開き直してもう一度お試しください。'
+            . '画像を送る場合は、少し小さめの画像でお試しください。</p>'
+            . '<p><a class="btn" href="' . e($safe) . '">前の画面に戻る</a></p>'
+            . '</div></body></html>');
     }
 }
 

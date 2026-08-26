@@ -1,0 +1,191 @@
+<?php
+
+/**
+ * cron 用 Web エンドポイント（CLIが使いにくい共用ホスト向け）。
+ * トークン保護。CoreServer 等の cron から curl で叩く：
+ *   curl -s "https://<ドメイン>/cron.php?job=remind&token=<CRON_TOKEN>"
+ *   job = remind（予約リマインド）/ reconcile（Stripe照合）/ recommend（おすすめ再構築）
+ *       / waiver（紹介特典の月額無料化判定）
+ *       / legacy_scan・legacy_import（旧サイトに登録された会員を持ってくる。
+ *         data/legacy/members.json を置いてから scan → import の順で叩く。
+ *         既に居る会員のプロフィールが空のときは legacy_fill で空欄だけ埋める）
+ *
+ * ※ CLI 版（bin/reconcile.php 等）と同じ処理を Web から実行する。多重起動ロックあり・冪等。
+ */
+
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/src/bootstrap.php';
+
+header('Content-Type: text/plain; charset=UTF-8');
+
+// トークン照合（CRON_TOKEN 未設定 or 不一致は拒否）。
+$expected = (string) (env('CRON_TOKEN', '') ?? '');
+$given = (string) ($_GET['token'] ?? '');
+if ($expected === '' || !hash_equals($expected, $given)) {
+    http_response_code(403);
+    exit("forbidden\n");
+}
+
+$job = (string) ($_GET['job'] ?? '');
+if (!in_array($job, ['remind', 'reconcile', 'recommend', 'waiver', 'seed', 'unseed', 'samplephotos', 'diag', 'legacy_scan', 'legacy_import', 'legacy_fill'], true)) {
+    http_response_code(400);
+    exit("unknown job\n");
+}
+
+// 多重起動ロック（ジョブごと）。
+$lock = fopen(dirname(current_db_path()) . "/cron_{$job}.lock", 'c');
+if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
+    exit("locked (already running)\n");
+}
+
+// どのジョブのときも、期限切れのセッションファイルを掃除する。
+// PHP の自動掃除（session.gc_probability）が 0 の環境があり、そのままだと
+// 保存先に溜まり続ける。画面側でも確率で掃除しているが、アクセスが少ないと
+// なかなか走らないので、定期実行のここで確実に走らせる。
+$sessCleaned = session_files_cleanup(dirname(current_db_path()) . '/sessions', 2000);
+
+$out = '';
+try {
+    if ($job === 'remind') {
+        $window = (int) env('REMIND_WINDOW_SEC', '3600');
+        $sent = 0;
+        foreach (bookings_needing_reminder($window) as $b) {
+            if (empty($b['line_user_id'])) {
+                continue;
+            }
+            if (!claim_reminder((string) $b['id'])) {
+                continue;
+            }
+            $label = ($b['kind'] ?? '') === 'seminar' ? '説明会' : '個別面談';
+            $when = line_jst_label((int) $b['slot_start']);
+            $text = "まもなく{$label}のお時間です。\n日時：{$when}\n";
+            if (!empty($b['zoom_url'])) {
+                $text .= "参加URL：{$b['zoom_url']}\n";
+            }
+            $text .= "お待ちしております。";
+            if (line_push((string) $b['line_user_id'], [line_text($text)])) {
+                $sent++;
+            }
+        }
+        $out = "remind sent={$sent}";
+    } elseif ($job === 'reconcile') {
+        $since = time() - 3 * 86400;
+        $scanned = 0;
+        $provisioned = 0;
+        init_stripe();
+        foreach (\Stripe\Checkout\Session::all(['limit' => 100, 'created' => ['gte' => $since], 'expand' => ['data.customer_details']])->autoPagingIterator() as $session) {
+            $scanned++;
+            // 買い切り(payment・旧) と 月額サブスク(subscription) の両方を救済対象にする。
+            $mode = (string) ($session->mode ?? '');
+            if ($mode !== 'payment' && $mode !== 'subscription') {
+                continue;
+            }
+            if (($session->payment_status ?? '') !== 'paid') {
+                continue;
+            }
+            if (!in_array((string) ($session->metadata->purpose ?? ''), ['join_fee', 'subscription'], true)) {
+                continue;
+            }
+            if (find_payment_by_session((string) $session->id) !== null) {
+                continue;
+            }
+            $r = provision_member_from_checkout_session(normalize_checkout_session($session));
+            if (($r['status'] ?? '') === 'done') {
+                $provisioned++;
+            }
+        }
+        $out = "reconcile scanned={$scanned} provisioned={$provisioned}";
+    } elseif ($job === 'recommend') {
+        $out = 'recommend total=' . rebuild_all_recommendations();
+    } elseif ($job === 'waiver') {
+        // 紹介特典（月額無料化）の判定。「アクティブな紹介先」がしきい値(既定5)以上なら
+        // 資格を記録し、サブスクを持っている人には100%OFFクーポンを適用する。冪等。
+        // 一度得た資格は自動では失われない（剥奪は運営が管理画面から行う）。
+        // 猶予期間からも走らせる。ここで判定しておかないと、猶予期間に条件を達成した人が
+        // 課金開始日の初回請求に間に合わない。
+        // ※ billing_reached_at() は読み取り時に到達を確定させる（app_settings に書く）。
+        //    cron が最初の到達者になることがあるが、それは意図した挙動。
+        if (billing_reached_at() === null) {
+            $out = 'waiver skipped (billing not reached)';
+        } else {
+            init_stripe();
+            $r = evaluate_referral_waiver();
+            $out = "waiver mode={$r['mode']} earned={$r['earned']} scanned={$r['scanned']} applied={$r['applied']} removed={$r['removed']} notified={$r['notified']} errors={$r['errors']}";
+        }
+    } elseif ($job === 'seed') {
+        // 開発用サンプル会員を投入（冪等）。確認後は unseed で削除する。
+        $n = seed_sample_members();
+        $out = "seed created={$n} total=" . sample_member_count();
+    } elseif ($job === 'unseed') {
+        $n = delete_sample_members();
+        $out = "unseed deleted={$n}";
+    } elseif ($job === 'diag') {
+        // 運用診断（秘密情報は出力しない）。自己紹介ロック・LINE受信の状況を確認する。
+        $L = [];
+        $L[] = 'code_version=upload_fix_1';
+        $L[] = 'signup_mode=' . signup_mode();
+        $L[] = 'intro_gate=' . (intro_gate_enabled() ? 'ON' : 'OFF');
+        $L[] = 'line_token=' . (line_channel_token() !== null ? 'set' : 'MISSING');
+        $L[] = 'line_secret=' . (line_channel_secret() !== null ? 'set' : 'MISSING');
+        $q = static fn (string $sql): string => (string) db()->query($sql)->fetchColumn();
+        $L[] = 'contacts=' . $q('SELECT COUNT(*) FROM line_contacts');
+        $L[] = 'contacts_linked=' . $q('SELECT COUNT(*) FROM line_contacts WHERE member_id IS NOT NULL');
+        $L[] = 'members_total=' . $q('SELECT COUNT(*) FROM members');
+        $L[] = 'members_with_line=' . $q("SELECT COUNT(*) FROM members WHERE line_user_id IS NOT NULL AND line_user_id <> ''");
+        $L[] = 'intro_done=' . $q('SELECT COUNT(*) FROM members WHERE intro_submitted_at IS NOT NULL AND intro_submitted_at > 0');
+        $L[] = 'intro_exempt=' . $q('SELECT COUNT(*) FROM members WHERE intro_gate_exempt = 1');
+        // 共有URL（/u/<コード>）。未発行が残っていないかの確認用。
+        $L[] = 'share_code_missing=' . $q("SELECT COUNT(*) FROM members WHERE public_code IS NULL OR public_code = ''");
+        // 画像アップロードの上限。.user.ini が効いていないと既定値（2M/8M程度）のままで、
+        // スマホの写真が黙って捨てられる。効いていれば 10M/12M と出る。
+        $L[] = 'upload_max_filesize=' . ini_get('upload_max_filesize');
+        $L[] = 'post_max_size=' . ini_get('post_max_size');
+        $L[] = 'gd=' . (function_exists('imagecreatefromstring') ? 'yes' : 'MISSING')
+            . ' webp=' . (function_exists('imagewebp') ? 'yes' : 'no');
+        $L[] = 'uploads_writable=' . (is_writable(uploads_dir()) ? 'yes' : 'NO');
+        // 年齢制限を入れる前に登録された、最低年齢に満たない会員がいないかの確認用。
+        $L[] = 'min_age=' . member_min_age();
+        // 「先着◯名」に数えるのは自己紹介まで入った会員だけ。両方出して差を見る。
+        $L[] = 'members_counted=' . counted_member_count() . '/' . billing_free_limit();
+        $L[] = 'members_active=' . active_member_count();
+        $reachedAt = billing_reached_at();
+        $startsAt = billing_starts_at();
+        $L[] = 'billing_phase=' . (billing_started() ? 'billing' : ($reachedAt !== null ? 'grace' : 'free'));
+        $L[] = 'billing_reached_at=' . ($reachedAt !== null ? date('Y-m-d H:i', $reachedAt) : '-');
+        $L[] = 'billing_starts_at=' . ($startsAt !== null ? date('Y-m-d H:i', $startsAt) : '-');
+        $L[] = 'under_min_age=' . $q("SELECT COUNT(*) FROM profiles WHERE birthdate IS NOT NULL AND birthdate <> '' AND birthdate > '" . date('Y-m-d', strtotime('-' . member_min_age() . ' years')) . "'");
+        $L[] = 'gated_now=' . $q("SELECT COUNT(*) FROM members WHERE line_user_id IS NOT NULL AND line_user_id <> '' AND (intro_submitted_at IS NULL OR intro_submitted_at = 0) AND intro_gate_exempt = 0");
+        $L[] = 'inbound_24h=' . $q("SELECT COUNT(*) FROM line_messages WHERE direction = 'in' AND created_at > " . (time() - 86400));
+        $L[] = 'inbound_7d=' . $q("SELECT COUNT(*) FROM line_messages WHERE direction = 'in' AND created_at > " . (time() - 7 * 86400));
+        $last = $q("SELECT COALESCE(MAX(created_at), 0) FROM line_messages WHERE direction = 'in'");
+        $L[] = 'last_inbound=' . ((int) $last > 0 ? date('Y-m-d H:i', (int) $last) . ' JST' : 'none');
+        $out = implode("\n", $L);
+    } elseif ($job === 'legacy_scan') {
+        // 旧サイトから持ってきた受け渡しファイルの下見。書き込まない。
+        $out .= legacy_scan();
+    } elseif ($job === 'legacy_import') {
+        // 旧サイトの会員を取り込む。既に居る会員は飛ばすので、何度叩いても同じ結果になる。
+        $out .= legacy_import();
+    } elseif ($job === 'legacy_fill') {
+        // 既に新サイトに居る会員の、空いているところだけを埋める。上書きはしない。
+        $out .= legacy_fill();
+    } elseif ($job === 'samplephotos') {
+        // サンプル会員の顔写真を強制的に割り当て直す（既存会員にも反映）。
+        $n = attach_sample_photos(true);
+        $out = "samplephotos set={$n}";
+    }
+} catch (\Throwable $e) {
+    flock($lock, LOCK_UN);
+    fclose($lock);
+    http_response_code(500);
+    error_log('cron error job=' . $job . ' ' . $e->getMessage());
+    exit('error: ' . $e->getMessage() . "\n");
+}
+
+flock($lock, LOCK_UN);
+fclose($lock);
+echo '[' . date('c') . "] {$out}\n";
+if ($sessCleaned > 0) {
+    echo "期限切れのセッションファイルを {$sessCleaned} 件消しました\n";
+}

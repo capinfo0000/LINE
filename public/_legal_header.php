@@ -1,8 +1,14 @@
 <?php
 
-/** 法務ページ共通ヘッダ。$title を設定してから require する。 */
+/**
+ * 法務・案内ページ共通ヘッダ。$title を設定してから require する。
+ * 任意で $metaDescription（検索結果とSNSカードの説明文）と
+ * $extraJsonLd（FAQなどの構造化データ）を渡せる。
+ */
 declare(strict_types=1);
 $title = $title ?? '';
+$metaDescription = $metaDescription ?? '';
+$extraJsonLd = $extraJsonLd ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -10,6 +16,14 @@ $title = $title ?? '';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($title) ?></title>
+    <?php
+    echo page_meta_tags(['title' => $title, 'type' => 'article'] + ($metaDescription !== '' ? ['description' => $metaDescription] : []));
+    if ($extraJsonLd !== '') {
+        echo '    ' . $extraJsonLd;
+    }
+    ?>
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
+    <link rel="apple-touch-icon" href="/assets/icon-180.png">
     <link rel="stylesheet" href="/assets/app.css">
     <script src="/assets/app.js" defer></script>
     <style nonce="<?= e(csp_nonce()) ?>">
@@ -18,6 +32,10 @@ $title = $title ?? '';
         .legal th { white-space: nowrap; width: 30%; }
         .legal ol { padding-left: 1.2em; }
         .legal .back { margin-top: 24px; }
+        .legal .lead { font-size: 1.02rem; line-height: 1.9; }
+        .legal dl.feat { margin: 0; }
+        .legal dl.feat dt { font-weight: 700; margin-top: 14px; }
+        .legal dl.feat dd { margin: 4px 0 0; color: var(--muted); }
     </style>
 </head>
 <body>

@@ -13,6 +13,16 @@ declare(strict_types=1);
 const ZOOM_OAUTH_ENDPOINT = 'https://zoom.us/oauth/token';
 const ZOOM_API_BASE = 'https://api.zoom.us/v2';
 
+/**
+ * 会議作成時の自動録画設定。cloud（クラウド録画・Pro以上）/ local / none。
+ * .env の ZOOM_AUTO_RECORD で切替。未設定は cloud（＝自動録画ON）。無効値は none。
+ */
+function zoom_auto_record(): string
+{
+    $v = strtolower(trim((string) env('ZOOM_AUTO_RECORD', 'cloud')));
+    return in_array($v, ['cloud', 'local', 'none'], true) ? $v : 'none';
+}
+
 /** Zoom 連携に必要な資格情報が揃っているか。 */
 function zoom_enabled(): bool
 {
@@ -39,9 +49,9 @@ function zoom_access_token(): ?string
     if (!function_exists('curl_init')) {
         return null;
     }
-    $accountId = (string) env('ZOOM_ACCOUNT_ID');
-    $clientId = (string) env('ZOOM_CLIENT_ID');
-    $clientSecret = (string) env('ZOOM_CLIENT_SECRET');
+    $accountId = trim((string) env('ZOOM_ACCOUNT_ID'));
+    $clientId = trim((string) env('ZOOM_CLIENT_ID'));
+    $clientSecret = trim((string) env('ZOOM_CLIENT_SECRET'));
 
     $ch = curl_init(ZOOM_OAUTH_ENDPOINT . '?grant_type=account_credentials&account_id=' . urlencode($accountId));
     curl_setopt_array($ch, [
@@ -94,6 +104,7 @@ function zoom_create_meeting(string $topic, int $startAtTs, int $duration = 40):
             'join_before_host' => true,
             'waiting_room' => true,
             'approval_type' => 2,
+            'auto_recording' => zoom_auto_record(), // cloud=自動クラウド録画（Pro以上）
         ],
     ];
     $ch = curl_init(ZOOM_API_BASE . '/users/me/meetings');
@@ -122,4 +133,69 @@ function zoom_create_meeting(string $topic, int $startAtTs, int $duration = 40):
         return null;
     }
     return ['id' => (string) $id, 'join_url' => $joinUrl];
+}
+
+/**
+ * Zoom 接続診断。設定の有無 → トークン取得 → API 呼び出し の順に検証し、詰まった箇所と
+ * HTTP コード・理由・対処ヒントを返す。管理画面の「Zoom接続テスト」から呼ぶ。
+ *
+ * @return array{ok:bool, message:string}
+ */
+function zoom_diagnose(): array
+{
+    $missing = [];
+    foreach (['ZOOM_ACCOUNT_ID', 'ZOOM_CLIENT_ID', 'ZOOM_CLIENT_SECRET'] as $k) {
+        $v = env($k);
+        if ($v === null || $v === '') {
+            $missing[] = $k;
+        }
+    }
+    if ($missing !== []) {
+        return ['ok' => false, 'message' => '.env のZoom設定が不足しています: ' . implode(' / ', $missing) . '（3つとも必要です）'];
+    }
+    if (!function_exists('curl_init')) {
+        return ['ok' => false, 'message' => 'サーバに cURL 拡張がありません。ホスト側で有効化が必要です。'];
+    }
+
+    // 1) アクセストークン取得（キャッシュを使わず生で検証）。前後空白は除去。
+    $accountId = trim((string) env('ZOOM_ACCOUNT_ID'));
+    $clientId = trim((string) env('ZOOM_CLIENT_ID'));
+    $clientSecret = trim((string) env('ZOOM_CLIENT_SECRET'));
+    $ch = curl_init(ZOOM_OAUTH_ENDPOINT . '?grant_type=account_credentials&account_id=' . urlencode($accountId));
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_POST => true,
+        CURLOPT_USERPWD => $clientId . ':' . $clientSecret,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+        CURLOPT_POSTFIELDS => '',
+    ]);
+    $resp = curl_exec($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr = curl_error($ch);
+    curl_close($ch);
+
+    if ($resp === false) {
+        return ['ok' => false, 'message' => "Zoom(zoom.us)へ接続できません（ネットワーク/プロキシ）: {$curlErr}"];
+    }
+    $data = json_decode((string) $resp, true);
+    if ($code < 200 || $code >= 300 || !is_array($data) || !isset($data['access_token'])) {
+        $reason = is_array($data) ? (string) ($data['reason'] ?? $data['error'] ?? '') : '';
+        $hint = '';
+        if ($code === 400 || $code === 401) {
+            $hint = ' → アプリ種別が「Server-to-Server OAuth」であること、Account ID / Client ID / Client Secret が正しいことを確認してください。';
+        }
+        // 設定値の文字数を出して原因特定を助ける（正しい長さは概ね account=22 / client=22 / secret=32）。
+        $lenInfo = sprintf('（設定値の文字数: account=%d, client=%d, secret=%d）', strlen($accountId), strlen($clientId), strlen($clientSecret));
+        return ['ok' => false, 'message' => "トークン取得に失敗（HTTP {$code} {$reason}）。{$hint}{$lenInfo}"];
+    }
+
+    // 2) 会議作成に必要な meeting:write スコープが付与されているかをトークンの scope で確認する。
+    //    （実際の会議作成は POST /users/me/meetings + meeting:write のみで動作。user:read は不要。）
+    $scope = (string) ($data['scope'] ?? '');
+    if (strpos($scope, 'meeting:write') === false) {
+        return ['ok' => false, 'message' => '認証は成功しましたが、会議作成に必要な meeting:write スコープが付与されていません。Zoomアプリのスコープに meeting:write（meeting:write:meeting:admin 等）を追加して有効化してください。'];
+    }
+
+    return ['ok' => true, 'message' => 'Zoom接続OK。認証と会議作成スコープ(meeting:write)を確認しました。枠作成で会議URLが自動発行されます。'];
 }

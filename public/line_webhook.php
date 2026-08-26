@@ -10,7 +10,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 $body = file_get_contents('php://input');
 $signature = $_SERVER['HTTP_X_LINE_SIGNATURE'] ?? '';

@@ -352,8 +352,260 @@ function db_migrate(\PDO $pdo): void
     SQL);
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_reco_member ON recommendations(member_id, score);');
 
+    // ポイント台帳（増減を1行ずつ記録。残高は合計で求める）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS point_ledger (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            member_id     TEXT NOT NULL,
+            delta         INTEGER NOT NULL,
+            reason        TEXT NOT NULL,
+            ref_member_id TEXT,
+            note          TEXT NOT NULL DEFAULT '',
+            created_at    INTEGER NOT NULL,
+            FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_ledger_member ON point_ledger(member_id, id);');
+
+    // 紹介（1入会者につき紹介者は1人）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS referrals (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            referrer_id TEXT NOT NULL,
+            joiner_id   TEXT NOT NULL UNIQUE,
+            created_at  INTEGER NOT NULL,
+            FOREIGN KEY (referrer_id) REFERENCES members(id) ON DELETE CASCADE,
+            FOREIGN KEY (joiner_id)   REFERENCES members(id) ON DELETE CASCADE
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id);');
+
+    // 会員間の評価(praise)・通報(report)。同一ペア・同一種別は1回のみ。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS member_evaluations (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            rater_id   TEXT NOT NULL,
+            target_id  TEXT NOT NULL,
+            kind       TEXT NOT NULL,          -- praise / report
+            note       TEXT NOT NULL DEFAULT '',
+            handled    INTEGER NOT NULL DEFAULT 0, -- report のレビュー済みフラグ
+            created_at INTEGER NOT NULL,
+            UNIQUE (rater_id, target_id, kind),
+            FOREIGN KEY (rater_id)  REFERENCES members(id) ON DELETE CASCADE,
+            FOREIGN KEY (target_id) REFERENCES members(id) ON DELETE CASCADE
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_eval_target ON member_evaluations(target_id, kind);');
+
+    // サブスク（月額会費）用の会員カラム。
+    db_add_column_if_missing($pdo, 'members', 'stripe_subscription_id', 'TEXT');
+    db_add_column_if_missing($pdo, 'members', 'subscription_status', "TEXT NOT NULL DEFAULT ''"); // active/past_due/canceled
+    // 紹介特典で月額無料化（100%割引クーポン適用中）なら 1。cron が付け外しする。
+    // ＝「いま Stripe 側でクーポンが付いているか」を表す。Stripe の実態と1:1で対応させる。
+    db_add_column_if_missing($pdo, 'members', 'subscription_waived', 'INTEGER NOT NULL DEFAULT 0');
+    // 「永久無料」の資格を得た日時（第2段：紹介した min 人が、それぞれ min 人ずつ紹介した）。
+    // 一度これを満たすと、あとで下の人数が減っても無料のままになる。
+    // subscription_waived（＝いま Stripe 側にクーポンが付いているか）とは別の列にする。
+    // 混ぜると apply/remove_subscription_waiver() の冪等ガードが壊れる。
+    db_add_column_if_missing($pdo, 'members', 'waiver_earned_at', 'INTEGER');
+    // 「紹介先が減って無料が外れました」と本人へ通知した日時。
+    // cron は毎日回るので、これが無いと外れている限り毎日送ってしまう。
+    // 無料に戻ったら NULL に戻し、次に外れたときまた送れるようにする。
+    db_add_column_if_missing($pdo, 'members', 'waiver_lost_notified_at', 'INTEGER');
+
+    // サブスクのプラン種別（basic/premium）。無料フェーズ(〜100名)は判定側で全員 premium 相当に扱う。
+    db_add_column_if_missing($pdo, 'members', 'plan', "TEXT NOT NULL DEFAULT 'basic'");
+
+    // LINE連絡先の非表示フラグ（旧チャネル・不達の連絡先を配信一覧から隠す）。
+    db_add_column_if_missing($pdo, 'line_contacts', 'hidden', 'INTEGER NOT NULL DEFAULT 0');
+
+    // 「気になる」（片思いの興味表明・タップル風）。相互で成立→つながりは後続で拡張。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS member_interests (
+            from_id    TEXT NOT NULL,
+            to_id      TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            PRIMARY KEY (from_id, to_id)
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_interest_to ON member_interests(to_id);');
+
+    // 足あと（プロフィール閲覧履歴）。訪問者ごとに最終閲覧時刻を1件保持（重複はUPDATE）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS member_views (
+            from_id    TEXT NOT NULL,
+            to_id      TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            PRIMARY KEY (from_id, to_id)
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_view_to ON member_views(to_id, created_at);');
+
+    // 紹介専用コード（ログインIDとは別の推測されにくいコード）。共有・入力はこのコードで行う。
+    db_add_column_if_missing($pdo, 'members', 'referral_code', 'TEXT');
+    $pdo->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_members_refcode ON members(referral_code) WHERE referral_code IS NOT NULL AND referral_code <> ''");
+    backfill_referral_codes($pdo);
+
+    // 紹介者への月次ポイント配布の冪等記録（請求1件につき1回だけ付与）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS referral_payouts (
+            invoice_id  TEXT PRIMARY KEY,
+            referrer_id TEXT NOT NULL,
+            joiner_id   TEXT NOT NULL,
+            points      INTEGER NOT NULL,
+            created_at  INTEGER NOT NULL
+        );
+    SQL);
+
+    // 「さがす」上部のお知らせ（スライド）。運営が管理画面から出し入れする。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS announcements (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            label      TEXT NOT NULL DEFAULT '',   -- 小見出し（ENLINK 等）
+            title      TEXT NOT NULL DEFAULT '',   -- 見出し（大きく出る文言）
+            subtitle   TEXT NOT NULL DEFAULT '',   -- 補足の一行
+            url        TEXT NOT NULL DEFAULT '',   -- タップ先（空ならリンクなし）
+            theme      TEXT NOT NULL DEFAULT 'brand', -- 配色（brand/ref/rank）
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            is_active  INTEGER NOT NULL DEFAULT 1,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+    SQL);
+    // 初回のみ、これまで直書きしていた3枚を入れて見た目を維持する。
+    if ((int) $pdo->query('SELECT COUNT(*) FROM announcements')->fetchColumn() === 0) {
+        $ins = $pdo->prepare(
+            'INSERT INTO announcements (label, title, subtitle, url, theme, sort_order, is_active, created_at, updated_at)
+             VALUES (?,?,?,?,?,?,1,?,?)'
+        );
+        $now = time();
+        foreach (announcement_seed_rows() as $i => $r) {
+            $ins->execute([$r[0], $r[1], $r[2], $r[3], $r[4], $i, $now, $now]);
+        }
+    }
+    // URL から .php を出さない方針にしたので、既に入っているサイト内リンクからも落とす
+    // （リダイレクトで開けはするが、押した瞬間にアドレスバーが一度 .php になるため）。
+    // 対象はサイト内（/ 始まり）だけ。外部URLは触らない。件数は最大10件なので毎回見ても軽い。
+    $annUrls = $pdo->query("SELECT id, url FROM announcements WHERE url LIKE '/%.php%'")->fetchAll();
+    if ($annUrls !== []) {
+        $updAnn = $pdo->prepare('UPDATE announcements SET url = ? WHERE id = ?');
+        foreach ($annUrls as $a) {
+            $fixed = preg_replace('#\.php(?=$|[?\#])#', '', (string) $a['url'], 1);
+            if ($fixed !== null && $fixed !== (string) $a['url']) {
+                $updAnn->execute([$fixed, (int) $a['id']]);
+            }
+        }
+    }
+
+    // 意見箱。会員から運営への意見・要望・不具合報告。
+    // 会員を削除したら意見も消えるように CASCADE にする（本人の書いたものなので残さない）。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS feedbacks (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            member_id  TEXT NOT NULL,
+            kind       TEXT NOT NULL DEFAULT 'other',  -- improve/bug/feature/price/trouble/other
+            body       TEXT NOT NULL DEFAULT '',
+            handled    INTEGER NOT NULL DEFAULT 0,     -- 運営が対応済みにしたか
+            handled_at INTEGER,
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_feedbacks_open ON feedbacks(handled, id);');
+
+    // 広告枠。運営が画像とリンクを登録して会員画面に出す。
+    // 外部の広告配信は使わないので、ここに入るのは自前の画像だけ。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS ads (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            title       TEXT NOT NULL DEFAULT '',     -- 運営が見分けるための名前（会員には出さない）
+            slot        TEXT NOT NULL,                -- side（PCの左右・縦型）/ feed（さがすの一覧の中）
+            image_path  TEXT,                         -- data/ads/<id>.webp のような相対パス
+            url         TEXT NOT NULL DEFAULT '',     -- 遷移先。空なら押せない画像として出す
+            alt         TEXT NOT NULL DEFAULT '',     -- 画像の説明（読み上げ・画像が出ないとき用）
+            weight      INTEGER NOT NULL DEFAULT 1,   -- 同じ枠に複数あるときの出やすさ
+            starts_at   INTEGER,                      -- 掲載開始（null=すぐ）
+            ends_at     INTEGER,                      -- 掲載終了（null=無期限）
+            is_active   INTEGER NOT NULL DEFAULT 1,
+            impressions INTEGER NOT NULL DEFAULT 0,   -- 表示回数
+            clicks      INTEGER NOT NULL DEFAULT 0,   -- クリック回数
+            created_at  INTEGER NOT NULL,
+            updated_at  INTEGER NOT NULL
+        );
+    SQL);
+    // 表示のたびに引く条件（枠・有効・期間）で引けるようにする。
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_ads_live ON ads(slot, is_active, starts_at, ends_at);');
+
+    // 広告非表示（追加料金の期間券／運営からの付与）。この時刻まで広告を出さない。
+    db_add_column_if_missing($pdo, 'members', 'ads_free_until', 'INTEGER');
+
+    // アプリ全体の設定（キー・値）。料金フェーズ(billing_started)などを保持。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key        TEXT PRIMARY KEY,
+            value      TEXT NOT NULL DEFAULT '',
+            updated_at INTEGER NOT NULL
+        );
+    SQL);
+
+    // 未発行の枠を告知した相手を保留し、Zoom URL発行時に自動送信するためのキュー。
+    $pdo->exec(<<<'SQL'
+        CREATE TABLE IF NOT EXISTS slot_url_pending (
+            slot_id      TEXT NOT NULL,
+            line_user_id TEXT NOT NULL,
+            created_at   INTEGER NOT NULL,
+            PRIMARY KEY (slot_id, line_user_id)
+        );
+    SQL);
+
+    // 写真承認フロー廃止に伴う正規化（冪等）：承認待ちのまま残っている写真を公開状態にする。
+    // アップロードは即 'approved' になったため、既存の 'pending' のみを一度だけ引き上げる。
+    $pdo->exec("UPDATE profiles SET photo_status = 'approved' WHERE photo_status = 'pending'");
+
+    // 生年月日（YYYY-MM-DD）。年齢は表示時に算出。生年月日そのものは非公開。
+    db_add_column_if_missing($pdo, 'profiles', 'birthdate', 'TEXT');
+    // カバー画像（Instagram風の背景・全会員公開）と名刺画像（全会員公開）。
+    db_add_column_if_missing($pdo, 'profiles', 'cover_path', 'TEXT');
+    db_add_column_if_missing($pdo, 'profiles', 'card_path', 'TEXT');
+    // 自己紹介ひな形（公式LINEに送る文面。本人が編集・保存）。
+    db_add_column_if_missing($pdo, 'profiles', 'intro_text', 'TEXT');
+    // 公式LINEへ自己紹介を送信済みかの記録（さがすの閲覧ロック解除に使用）。
+    db_add_column_if_missing($pdo, 'members', 'intro_submitted_at', 'INTEGER');
+    // プロフィールの共有用の短いコード（/u/xxxxxxxx）。内部IDを見せずに共有するため。
+    db_add_column_if_missing($pdo, 'members', 'public_code', 'TEXT');
+    // 未発行の会員にはここで一度だけ配る（画面の描画中に書き込みが走らないように）。
+    $need = $pdo->query("SELECT id FROM members WHERE public_code IS NULL OR public_code = ''")->fetchAll(\PDO::FETCH_COLUMN);
+    if ($need !== []) {
+        $upd = $pdo->prepare('UPDATE members SET public_code = ? WHERE id = ?');
+        foreach ($need as $mid) {
+            do {
+                $code = random_safe_string(8);
+                $chk = $pdo->prepare('SELECT 1 FROM members WHERE public_code = ? LIMIT 1');
+                $chk->execute([$code]);
+            } while ($chk->fetchColumn());
+            $upd->execute([$code, $mid]);
+        }
+    }
+    // 列の追加と配布が済んでから一意制約を張る（既存DBでも順番が狂わないようにここに置く）。
+    $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_members_public_code ON members(public_code) WHERE public_code IS NOT NULL;');
+    // 称号の手動設定。空ならポイントから自動で決まる。
+    // 「システム管理者」「運用責任者」のようにポイントでは到達できない称号もここで持つ。
+    db_add_column_if_missing($pdo, 'members', 'title_override', 'TEXT');
+    // 自己紹介ロックの免除。ロックをOFFにした時点で在籍していた会員に立て、
+    // 再度ONに戻したときに巻き込んで再ロックしないようにする（未送信でも解除扱い）。
+    db_add_column_if_missing($pdo, 'members', 'intro_gate_exempt', 'INTEGER NOT NULL DEFAULT 0');
+    // 職業（occupation）と肩書き（job_title）を分離。旧 company_title は職業へ一度だけ移行。
+    db_add_column_if_missing($pdo, 'profiles', 'occupation', 'TEXT');
+    db_add_column_if_missing($pdo, 'profiles', 'job_title', 'TEXT');
+    $pdo->exec("UPDATE profiles SET occupation = company_title WHERE (occupation IS NULL OR occupation = '') AND company_title IS NOT NULL AND company_title <> ''");
+
     // タグマスタの初期投入（未投入時のみ）。
     seed_tag_master($pdo);
+
+    // 職業ジャンルを新しい24分類へ移行（冪等：リネーム＋追加＋並び替え）。
+    migrate_job_tags($pdo);
+    // 目的・提供できることの選択肢を拡充（冪等）。
+    migrate_value_tags($pdo);
 }
 
 /**
@@ -386,9 +638,9 @@ function seed_tag_master(\PDO $pdo): void
         '徳島', '香川', '愛媛', '高知',
         '福岡', '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島', '沖縄',
     ];
-    $jobs = ['IT・Web', '製造', '建設', '飲食', '小売', '医療・福祉', '士業', '金融', '不動産', '教育', 'クリエイティブ', '広告・マーケ', 'コンサル', 'その他'];
+    $jobs = job_genre_master();
     // purpose と offer は同じ価値ボキャブラリを共有（求めること↔提供できること の重なりでマッチ）
-    $values = ['協業', '顧客紹介', '販路開拓', '仕入・調達', '資金・出資', '採用・人材', '技術・開発', 'ノウハウ提供', '情報交換', '仲間づくり'];
+    $values = value_tag_master();
 
     $insTag = $pdo->prepare('INSERT OR IGNORE INTO tags (category_key, label, sort) VALUES (?,?,?)');
     $sort = 0;
@@ -405,6 +657,147 @@ function seed_tag_master(\PDO $pdo): void
         $insTag->execute(['offer', $v, $sort]);
         $sort++;
     }
+}
+
+/** 職業ジャンルの正式マスタ（24分類・表示順）。 */
+function job_genre_master(): array
+{
+    return [
+        'IT・Web・通信', '製造・メーカー', '建設・建築・設備', '飲食・食品', '小売・EC',
+        '医療・福祉', '士業', '金融・保険', '不動産・住宅', '教育・研修',
+        'クリエイティブ', '広告・マーケティング', 'コンサル', '人材・採用', '美容・健康',
+        'イベント・エンタメ・スポーツ', '旅行・宿泊・観光', '物流・運輸', '農林水産・畜産',
+        '商社・貿易', 'エネルギー・インフラ', '生活・各種サービス', '行政・自治体・団体・NPO', 'その他',
+    ];
+}
+
+/**
+ * 職業ジャンル(job)タグを新しい24分類へ移行する（冪等）。
+ * 旧ラベルはリネームでタグIDを保持（既存の会員タグ紐付けを壊さない）。
+ * 新規ラベルは追加、全体の並び順を新マスタ順に更新する。
+ */
+function migrate_job_tags(\PDO $pdo): void
+{
+    // 旧 → 新 のリネーム（該当タグがあれば label を更新。衝突時は IGNORE で温存）。
+    $rename = [
+        'IT・Web'   => 'IT・Web・通信',
+        '製造'      => '製造・メーカー',
+        '建設'      => '建設・建築・設備',
+        '飲食'      => '飲食・食品',
+        '小売'      => '小売・EC',
+        '金融'      => '金融・保険',
+        '不動産'    => '不動産・住宅',
+        '教育'      => '教育・研修',
+        '広告・マーケ' => '広告・マーケティング',
+    ];
+    foreach ($rename as $old => $new) {
+        // 新ラベルが既に存在する場合はリネームせず（UNIQUE衝突回避）、そのまま残す。
+        $exists = $pdo->prepare('SELECT 1 FROM tags WHERE category_key = ? AND label = ? LIMIT 1');
+        $exists->execute(['job', $new]);
+        if ($exists->fetchColumn()) {
+            continue;
+        }
+        $upd = $pdo->prepare('UPDATE tags SET label = ? WHERE category_key = ? AND label = ?');
+        $upd->execute([$new, 'job', $old]);
+    }
+
+    // 新マスタを INSERT OR IGNORE で補完し、並び順(sort)と有効フラグを更新。
+    $ins = $pdo->prepare('INSERT OR IGNORE INTO tags (category_key, label, sort, is_active) VALUES (?,?,?,1)');
+    $updSort = $pdo->prepare('UPDATE tags SET sort = ?, is_active = 1 WHERE category_key = ? AND label = ?');
+    $sort = 0;
+    foreach (job_genre_master() as $j) {
+        $ins->execute(['job', $j, $sort]);
+        $updSort->execute([$sort, 'job', $j]);
+        $sort++;
+    }
+}
+
+/** 目的・提供できることの共通ボキャブラリ（拡充版）。purpose と offer で共有。 */
+function value_tag_master(): array
+{
+    return [
+        '協業・業務提携', '共同開発', '顧客紹介', '販路開拓', '仕入・調達',
+        '資金・出資（受けたい）', '出資・投資（したい）', '補助金・助成金',
+        '採用・人材', '副業・複業', '外注・委託先探し', '技術・開発', 'ノウハウ提供',
+        'メンター・相談相手', 'イベント・セミナー共催', '講演・登壇', 'メディア・PR',
+        '事業承継・M&A', '情報交換', '仲間づくり', 'その他',
+    ];
+}
+
+/**
+ * 目的(purpose)・提供(offer)タグを拡充する（冪等）。
+ * 旧ラベルは新ラベルへリネームしてタグIDを保持（会員紐付けを壊さない）。
+ */
+function migrate_value_tags(\PDO $pdo): void
+{
+    $rename = [
+        '協業'       => '協業・業務提携',
+        '資金・出資' => '資金・出資（受けたい）',
+    ];
+    foreach (['purpose', 'offer'] as $cat) {
+        foreach ($rename as $old => $new) {
+            $exists = $pdo->prepare('SELECT 1 FROM tags WHERE category_key = ? AND label = ? LIMIT 1');
+            $exists->execute([$cat, $new]);
+            if ($exists->fetchColumn()) {
+                continue;
+            }
+            $upd = $pdo->prepare('UPDATE tags SET label = ? WHERE category_key = ? AND label = ?');
+            $upd->execute([$new, $cat, $old]);
+        }
+        $ins = $pdo->prepare('INSERT OR IGNORE INTO tags (category_key, label, sort, is_active) VALUES (?,?,?,1)');
+        $updSort = $pdo->prepare('UPDATE tags SET sort = ?, is_active = 1 WHERE category_key = ? AND label = ?');
+        $sort = 0;
+        foreach (value_tag_master() as $v) {
+            $ins->execute([$cat, $v, $sort]);
+            $updSort->execute([$sort, $cat, $v]);
+            $sort++;
+        }
+    }
+}
+
+/**
+ * 紹介コード未発行の会員に、推測されにくい8桁コードを一括付与する（冪等・自己完結）。
+ * 紛らわしい文字（0/O/1/I/L）を除いた英数字を使う。
+ */
+function backfill_referral_codes(\PDO $pdo): void
+{
+    $rows = $pdo->query("SELECT id FROM members WHERE referral_code IS NULL OR referral_code = ''")->fetchAll();
+    if ($rows === []) {
+        return;
+    }
+    $alpha = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    $len = strlen($alpha);
+    $upd = $pdo->prepare('UPDATE members SET referral_code = ? WHERE id = ?');
+    $chk = $pdo->prepare('SELECT 1 FROM members WHERE referral_code = ? LIMIT 1');
+    foreach ($rows as $r) {
+        do {
+            $code = '';
+            for ($i = 0; $i < 8; $i++) {
+                $code .= $alpha[random_int(0, $len - 1)];
+            }
+            $chk->execute([$code]);
+        } while ($chk->fetchColumn());
+        $upd->execute([$code, $r['id']]);
+    }
+}
+
+/** アプリ設定の取得（無ければ $default）。 */
+function app_setting_get(string $key, ?string $default = null): ?string
+{
+    $stmt = db()->prepare('SELECT value FROM app_settings WHERE key = ?');
+    $stmt->execute([$key]);
+    $v = $stmt->fetchColumn();
+    return $v === false ? $default : (string) $v;
+}
+
+/** アプリ設定の保存（upsert）。 */
+function app_setting_set(string $key, string $value): void
+{
+    $stmt = db()->prepare(
+        'INSERT INTO app_settings (key, value, updated_at) VALUES (?,?,?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'
+    );
+    $stmt->execute([$key, $value, time()]);
 }
 
 /**

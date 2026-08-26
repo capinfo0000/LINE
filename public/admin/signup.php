@@ -7,12 +7,18 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $error = '';
 
-// 新規登録の受付可否（単独運営に切り替える場合は .env で ALLOW_SIGNUP=0 にして閉じられる）。
-$signupOpen = env('ALLOW_SIGNUP', '1') !== '0';
+// 新規登録の受付可否。
+//
+// 既定は「閉じる」。この画面から作られたアカウントは運営画面に入れ、会員の氏名・
+// 連絡先・写真まで見られる。.env に ALLOW_SIGNUP の行が無い・消えた・書き間違えた
+// といったときに誰でも登録できてしまう状態になるのは危険なので、開けるには
+// ALLOW_SIGNUP=1 と明示的に書かせる（書いていなければ閉じる）。
+// 運営者を増やすときは招待（invites）か bin/console.php create-admin を使う。
+$signupOpen = env('ALLOW_SIGNUP', '0') === '1';
 
 if ($signupOpen && $_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
@@ -30,7 +36,7 @@ if ($signupOpen && $_SERVER['REQUEST_METHOD'] === 'POST') {
             create_tenant($email, $password, $name);
             audit_log('signup', ['email' => mask_email_for_log($email)]);
             login_tenant($email, $password);
-            header('Location: dashboard.php');
+            header('Location: dashboard');
             exit;
         } catch (\Throwable $e) {
             $error = $e->getMessage();
@@ -40,7 +46,7 @@ if ($signupOpen && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // すでにログイン済みならダッシュボードへ
 if (current_tenant() !== null) {
-    header('Location: dashboard.php');
+    header('Location: dashboard');
     exit;
 }
 
@@ -50,7 +56,7 @@ require __DIR__ . '/_auth_header.php';
 <h1>運営アカウント登録</h1>
 <?php if (!$signupOpen): ?>
     <div class="card"><p style="margin:0;">現在、新規登録の受付を停止しています。アカウントについては運営者へお問い合わせください。</p></div>
-    <p class="muted">すでにアカウントをお持ちですか？ <a href="login.php">ログイン</a></p>
+    <p class="muted">すでにアカウントをお持ちですか？ <a href="login">ログイン</a></p>
 <?php else: ?>
 <p class="muted">メールアドレスとパスワードを入力するだけで、すぐに始められます。</p>
 <?php if ($error !== ''): ?><p class="err"><?= e($error) ?></p><?php endif; ?>
@@ -65,6 +71,6 @@ require __DIR__ . '/_auth_header.php';
     <?= captcha_widget_html() ?>
     <p style="margin-top:16px;"><button type="submit" class="btn">登録してはじめる</button></p>
 </form>
-<p class="muted">すでにアカウントをお持ちですか？ <a href="login.php">ログイン</a></p>
+<p class="muted">すでにアカウントをお持ちですか？ <a href="login">ログイン</a></p>
 <?php endif; ?>
 <?php require __DIR__ . '/_auth_footer.php'; ?>

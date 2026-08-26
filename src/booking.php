@@ -20,7 +20,11 @@ function generate_booking_id(): string
     return 'bk_' . bin2hex(random_bytes(6));
 }
 
-/** 予約枠を作成する。 */
+/**
+ * 予約枠を作成する。Zoom 設定済みなら「枠作成の時点で」会議を発行して枠に保存する
+ * （予約者はブッキング時に即その URL を受け取れる＝手渡し）。未設定・失敗時は枠だけ作成し、
+ * book_slot 側でのフォールバック（予約時に再試行）に委ねる。
+ */
 function create_slot(string $kind, int $startAt, int $capacity = 1): string
 {
     $id = generate_slot_id();
@@ -28,7 +32,62 @@ function create_slot(string $kind, int $startAt, int $capacity = 1): string
         'INSERT INTO slots (id, kind, start_at, capacity, booked_count, is_open, created_at) VALUES (?,?,?,?,0,1,?)'
     );
     $stmt->execute([$id, $kind, $startAt, max(1, $capacity), time()]);
+
+    // 枠作成と同時に Zoom 会議を発行（設定済みのとき）。失敗は握りつぶし、予約時に再試行される。
+    $slot = find_slot($id);
+    if ($slot !== null) {
+        ensure_slot_zoom($slot);
+    }
     return $id;
+}
+
+/**
+ * 枠に紐づく Zoom 会議を用意する。未生成かつ Zoom 設定済みなら会議を作成して
+ * slots.zoom_meeting_id / zoom_url に保存し、その join_url を返す。
+ * 既に発行済みならその URL を、Zoom 未設定・作成失敗なら null を返す（フォールバック）。
+ */
+function ensure_slot_zoom(array $slot): ?string
+{
+    $zoomUrl = $slot['zoom_url'] ?? null;
+    if (is_string($zoomUrl) && $zoomUrl !== '') {
+        return $zoomUrl; // 既に発行済み（重複作成を防ぐ）
+    }
+    if (!zoom_enabled()) {
+        return null;
+    }
+    $slotId = (string) $slot['id'];
+
+    // 手元の $slot は古い可能性がある。DB の最新値を再確認し、他の予約が既に発行済みなら
+    // それを共有する（＝集団の説明会で申込者ごとに別会議が作られるのを防ぐ）。
+    $cur = db()->prepare('SELECT zoom_url FROM slots WHERE id = ?');
+    $cur->execute([$slotId]);
+    $existing = $cur->fetchColumn();
+    if (is_string($existing) && $existing !== '') {
+        return $existing;
+    }
+
+    $kind = (string) ($slot['kind'] ?? '');
+    $duration = $kind === 'seminar' ? 40 : 30;
+    $topic = $kind === 'seminar' ? 'Enlink 説明会' : 'Enlink 個別面談';
+    $meeting = zoom_create_meeting($topic, (int) ($slot['start_at'] ?? time()), $duration);
+    if ($meeting === null) {
+        return null;
+    }
+
+    // 未発行のときだけ確定する（同時実行で二重発行されても、先に確定した1つだけを全員で共有）。
+    $u = db()->prepare(
+        "UPDATE slots SET zoom_meeting_id = ?, zoom_url = ? WHERE id = ? AND (zoom_url IS NULL OR zoom_url = '')"
+    );
+    $u->execute([$meeting['id'], $meeting['join_url'], $slotId]);
+    if ($u->rowCount() === 0) {
+        // 競合で他が先に確定 → 確定済み URL を採用（自分が作った会議は使わず、集団で1つに統一）。
+        $cur->execute([$slotId]);
+        $winner = $cur->fetchColumn();
+        return is_string($winner) && $winner !== '' ? $winner : $meeting['join_url'];
+    }
+    // 新規に発行できた → 未発行時に告知していた宛先へ自動送信（保留キューを消化）。
+    flush_slot_url_pending($slotId, $meeting['join_url']);
+    return $meeting['join_url'];
 }
 
 function find_slot(string $slotId): ?array
@@ -56,13 +115,49 @@ function open_slots(string $kind, int $limit = 10): array
 }
 
 /**
+ * この人がこの枠を既に予約しているか。
+ * LINEの「はい、予約する」を続けて押したり、前に送られたカードをもう一度押すと、
+ * 同じ人の予約が何件も入って席を食い潰してしまうため、確保の前に確認する。
+ */
+function already_booked(string $slotId, ?string $lineUserId, ?string $memberId): bool
+{
+    if ($lineUserId === null && $memberId === null) {
+        return false;
+    }
+    $sql = 'SELECT 1 FROM bookings WHERE slot_id = ? AND status = \'booked\' AND (';
+    $params = [$slotId];
+    $cond = [];
+    if ($lineUserId !== null && $lineUserId !== '') {
+        $cond[] = 'line_user_id = ?';
+        $params[] = $lineUserId;
+    }
+    if ($memberId !== null && $memberId !== '') {
+        $cond[] = 'member_id = ?';
+        $params[] = $memberId;
+    }
+    if ($cond === []) {
+        return false;
+    }
+    $stmt = db()->prepare($sql . implode(' OR ', $cond) . ') LIMIT 1');
+    $stmt->execute($params);
+    return (bool) $stmt->fetchColumn();
+}
+
+/**
  * 枠を原子的に確保して予約を作成する。満席・無効なら null。
- * Zoom は枠単位で遅延生成（失敗時は枠だけ確定・zoom_url は null）。
+ * Zoom はここでは一切生成しない。枠作成時（create_slot）に発行済みの URL を
+ * そのまま予約者へ渡すだけ（説明会の申込ごとに個人会議が作られる事故を根絶）。
+ * 枠に URL が無ければ zoom_url = null のまま確定し、手動 URL 案内にフォールバックする。
  *
  * @return array{booking_id:string, zoom_url:?string}|null
  */
 function book_slot(string $slotId, string $kind, ?string $lineUserId, ?string $memberId): ?array
 {
+    // 同じ人の重複予約を先に弾く（席を二重に消費させない）。
+    if (already_booked($slotId, $lineUserId, $memberId)) {
+        return null;
+    }
+
     // 原子的な空き確保（capacity 超過・クローズを排除）。
     $claim = db()->prepare(
         'UPDATE slots SET booked_count = booked_count + 1
@@ -75,32 +170,187 @@ function book_slot(string $slotId, string $kind, ?string $lineUserId, ?string $m
 
     $slot = find_slot($slotId);
 
-    // Zoom 会議を枠単位で遅延生成（未生成かつ設定済みのとき）。失敗はフォールバック。
+    // 枠作成時に発行済みの共有 URL を渡すだけ。予約時に Zoom 会議は生成しない。
     $zoomUrl = $slot['zoom_url'] ?? null;
-    if (($zoomUrl === null || $zoomUrl === '') && zoom_enabled()) {
-        $duration = $kind === 'seminar' ? 40 : 30;
-        $topic = $kind === 'seminar' ? 'Enlink 説明会' : 'Enlink 個別面談';
-        $meeting = zoom_create_meeting($topic, (int) $slot['start_at'], $duration);
-        if ($meeting !== null) {
-            $zoomUrl = $meeting['join_url'];
-            $u = db()->prepare('UPDATE slots SET zoom_meeting_id = ?, zoom_url = ? WHERE id = ?');
-            $u->execute([$meeting['id'], $zoomUrl, $slotId]);
-        }
-    }
+    $zoomUrl = is_string($zoomUrl) && $zoomUrl !== '' ? $zoomUrl : null;
 
     $bookingId = generate_booking_id();
     $ins = db()->prepare(
         'INSERT INTO bookings (id, kind, line_user_id, member_id, slot_id, status, zoom_url, created_at)
          VALUES (?,?,?,?,?,?,?,?)'
     );
-    $ins->execute([$bookingId, $kind, $lineUserId, $memberId, $slotId, 'booked', $zoomUrl, time()]);
+    try {
+        $ins->execute([$bookingId, $kind, $lineUserId, $memberId, $slotId, 'booked', $zoomUrl, time()]);
+    } catch (\Throwable $e) {
+        // 予約行を作れなかったら、先に確保した席を戻す（数だけ減って予約が無い状態を防ぐ）。
+        db()->prepare('UPDATE slots SET booked_count = MAX(0, booked_count - 1) WHERE id = ?')->execute([$slotId]);
+        return null;
+    }
 
     return ['booking_id' => $bookingId, 'zoom_url' => $zoomUrl];
 }
 
-/** 予約のステータスを更新する。 */
+/**
+ * 枠の Zoom 会議を「強制的に」再発行する（既存 URL があっても新規作成する）。
+ * 当日にリンクが壊れた等の復旧用。成功時は slots と当該枠の全予約(booked)の zoom_url を
+ * 新 URL に更新し、新 URL を返す。Zoom 未設定・作成失敗なら null。
+ */
+function regenerate_slot_zoom(string $slotId): ?string
+{
+    $slot = find_slot($slotId);
+    if ($slot === null || !zoom_enabled()) {
+        return null;
+    }
+    $kind = (string) $slot['kind'];
+    $duration = $kind === 'seminar' ? 40 : 30;
+    $topic = $kind === 'seminar' ? 'Enlink 説明会' : 'Enlink 個別面談';
+    $meeting = zoom_create_meeting($topic, (int) $slot['start_at'], $duration);
+    if ($meeting === null) {
+        return null;
+    }
+    db()->prepare('UPDATE slots SET zoom_meeting_id = ?, zoom_url = ? WHERE id = ?')
+        ->execute([$meeting['id'], $meeting['join_url'], $slotId]);
+    db()->prepare("UPDATE bookings SET zoom_url = ? WHERE slot_id = ? AND status = 'booked'")
+        ->execute([$meeting['join_url'], $slotId]);
+    // 未発行時に告知していた宛先へも自動送信（保留キューを消化）。
+    flush_slot_url_pending($slotId, $meeting['join_url']);
+    return $meeting['join_url'];
+}
+
+/**
+ * 枠の予約者（booked）へ LINE 通知するための line_user_id 一覧（重複排除）。
+ * 予約に line_user_id が無い会員予約は members.line_user_id で補う。
+ *
+ * @return array<int,string>
+ */
+function slot_booking_line_users(string $slotId): array
+{
+    $stmt = db()->prepare(
+        "SELECT COALESCE(b.line_user_id, m.line_user_id) AS uid
+           FROM bookings b LEFT JOIN members m ON m.id = b.member_id
+          WHERE b.slot_id = ? AND b.status = 'booked'"
+    );
+    $stmt->execute([$slotId]);
+    $uids = [];
+    foreach ($stmt->fetchAll() as $r) {
+        $uid = $r['uid'] ?? null;
+        if (is_string($uid) && $uid !== '') {
+            $uids[$uid] = true;
+        }
+    }
+    return array_keys($uids);
+}
+
+/**
+ * 未発行の枠を告知した宛先を保留キューに積む（発行時に自動送信するため）。
+ *
+ * @param array<int,string> $lineUserIds
+ */
+function enqueue_slot_url_pending(string $slotId, array $lineUserIds): void
+{
+    if ($slotId === '' || $lineUserIds === []) {
+        return;
+    }
+    $ins = db()->prepare('INSERT OR IGNORE INTO slot_url_pending (slot_id, line_user_id, created_at) VALUES (?,?,?)');
+    foreach ($lineUserIds as $uid) {
+        if (is_string($uid) && $uid !== '') {
+            $ins->execute([$slotId, $uid, time()]);
+        }
+    }
+}
+
+/**
+ * 枠のZoom URLが発行されたら、保留キューの宛先へ固定文面で自動送信し、キューを消化する。
+ * 発行成功時（ensure_slot_zoom / regenerate_slot_zoom）から呼ぶ。
+ */
+function flush_slot_url_pending(string $slotId, string $url): int
+{
+    $slot = find_slot($slotId);
+    if ($slot === null || $url === '') {
+        return 0;
+    }
+    $stmt = db()->prepare('SELECT line_user_id FROM slot_url_pending WHERE slot_id = ?');
+    $stmt->execute([$slotId]);
+    $uids = array_column($stmt->fetchAll(), 'line_user_id');
+    if ($uids === []) {
+        return 0;
+    }
+    $text = slot_zoom_notice_body($slot, $url);
+    $sent = 0;
+    foreach ($uids as $uid) {
+        if (is_string($uid) && $uid !== '' && line_push($uid, [line_text($text)])) {
+            $sent++;
+        }
+    }
+    // 送信可否に関わらずキューは消化（再送ループ防止）。
+    db()->prepare('DELETE FROM slot_url_pending WHERE slot_id = ?')->execute([$slotId]);
+    return $sent;
+}
+
+/**
+ * 枠のZoom案内の「固定文面」を組み立てる（再送・友だち配信の添付で共通利用）。
+ * $url を渡せばそれを、無ければ枠の zoom_url を使う。URLが無ければ日時のみ。
+ */
+function slot_zoom_notice_body(array $slot, ?string $url = null): string
+{
+    $label = ($slot['kind'] ?? '') === 'seminar' ? '説明会' : '個別面談';
+    $when = date('Y-m-d H:i', (int) ($slot['start_at'] ?? 0));
+    $u = $url !== null ? $url : (string) ($slot['zoom_url'] ?? '');
+    $t = "【{$label}】Zoom参加URLのご案内です。\n日時：{$when}（JST）";
+    if ($u !== '') {
+        $t .= "\n参加URL：{$u}";
+    }
+    return $t;
+}
+
+/**
+ * 枠の申込者(booked)へ Zoom 参加URLを LINE 送信する。送信可能な宛先数と実送信数を返す。
+ * 送信前に呼び出し側で「発行に成功していること」を確認すること。固定文面を使用。
+ *
+ * @return array{total:int, sent:int}
+ */
+function push_zoom_url_to_slot_bookings(string $slotId, string $url): array
+{
+    $slot = find_slot($slotId);
+    if ($slot === null) {
+        return ['total' => 0, 'sent' => 0];
+    }
+    $text = slot_zoom_notice_body($slot, $url);
+    $uids = slot_booking_line_users($slotId);
+    $sent = 0;
+    foreach ($uids as $uid) {
+        if (line_push($uid, [line_text($text)])) {
+            $sent++;
+        }
+    }
+    return ['total' => count($uids), 'sent' => $sent];
+}
+
+/**
+ * 予約のステータスを更新する。
+ * キャンセル／不参加にするときは、枠の予約数(booked_count)も戻す。
+ * これが無いと、取り消した席が埋まったままになり以後その枠が取れなくなる。
+ */
 function set_booking_status(string $bookingId, string $status): void
 {
+    $allowed = ['booked', 'done', 'cancelled', 'noshow'];
+    if (!in_array($status, $allowed, true)) {
+        return;
+    }
+    $cur = db()->prepare('SELECT slot_id, status FROM bookings WHERE id = ?');
+    $cur->execute([$bookingId]);
+    $row = $cur->fetch();
+    if ($row === false) {
+        return;
+    }
+    $was = (string) $row['status'];
+    $freed = in_array($status, ['cancelled', 'noshow'], true) && $was === 'booked';
+    $retaken = $status === 'booked' && in_array($was, ['cancelled', 'noshow'], true);
+    if ($freed) {
+        db()->prepare('UPDATE slots SET booked_count = MAX(0, booked_count - 1) WHERE id = ?')->execute([$row['slot_id']]);
+    } elseif ($retaken) {
+        db()->prepare('UPDATE slots SET booked_count = booked_count + 1 WHERE id = ?')->execute([$row['slot_id']]);
+    }
     $stmt = db()->prepare('UPDATE bookings SET status = ? WHERE id = ?');
     $stmt->execute([$status, $bookingId]);
 }

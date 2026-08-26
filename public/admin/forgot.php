@@ -7,7 +7,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 $done = false;
 
@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (rate_limit_check('forgot', 5, 3600) && captcha_verify($_POST['cf-turnstile-response'] ?? null)) {
         $token = create_password_reset($email);
         if ($token !== null) {
-            $link = base_url() . '/admin/reset.php?token=' . $token;
+            $link = admin_abs_url(__DIR__, 'reset?token=' . $token);
             $body = "パスワード再設定のご依頼を受け付けました。\n\n"
                 . "以下のリンクから1時間以内に新しいパスワードを設定してください。\n"
                 . $link . "\n\n"
@@ -40,7 +40,7 @@ require __DIR__ . '/_auth_header.php';
         <p>ご入力のメールアドレスにアカウントがあれば、再設定リンクを送信しました。</p>
         <p class="muted">メールが届かない場合は、アドレスをご確認のうえ再度お試しください。</p>
     </div>
-    <p class="muted"><a href="login.php">ログインに戻る</a></p>
+    <p class="muted"><a href="login">ログインに戻る</a></p>
 <?php else: ?>
     <p class="muted">登録メールアドレスに再設定リンクを送ります。</p>
     <form method="post" class="card">
@@ -50,6 +50,6 @@ require __DIR__ . '/_auth_header.php';
         <?= captcha_widget_html() ?>
         <p style="margin-top:14px;"><button type="submit" class="btn">再設定リンクを送る</button></p>
     </form>
-    <p class="muted"><a href="login.php">ログインに戻る</a></p>
+    <p class="muted"><a href="login">ログインに戻る</a></p>
 <?php endif; ?>
 <?php require __DIR__ . '/_auth_footer.php'; ?>

@@ -8,10 +8,10 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__, 2) . '/src/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/src/bootstrap.php';
 
 // PW変更中も入れるように allowDuringPwChange=true
-$member = require_member(true);
+$member = require_member(true, true);
 $forced = (int) ($member['must_change_pw'] ?? 0) === 1;
 $error = '';
 
@@ -33,7 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             update_member_password($member['id'], $new);
             audit_log('member.password_change', ['member' => $member['id'], 'forced' => $forced ? 1 : 0]);
-            header('Location: /member/dashboard.php?msg=' . rawurlencode('パスワードを変更しました。') . '&type=ok');
+            // 共有URLから来ていた場合はその画面へ。覚えたままにしないよう、ここでも必ず取り出す。
+            $back = take_login_return_path();
+            header('Location: ' . ($back !== ''
+                ? $back
+                : '/member/dashboard?msg=' . rawurlencode('パスワードを変更しました。') . '&type=ok'));
             exit;
         } catch (\InvalidArgumentException $e) {
             $error = $e->getMessage(); // 強度不足など
@@ -50,7 +54,11 @@ require __DIR__ . '/_header.php';
 <?php if ($forced): ?>
     <p class="muted">安全のため、仮パスワードから<strong>ご自身のパスワードへ変更</strong>してください。変更するまで他の画面はご利用いただけません。</p>
 <?php endif; ?>
-<?php if ($error !== ''): ?><p class="err"><?= e($error) ?></p><?php endif; ?>
+<?php if ($error !== ''): ?>
+    <div class="flash flash--ng"><?= e($error) ?>
+        <div style="font-size:.82rem;margin-top:6px;font-weight:400;">パスワードは<strong>8文字以上</strong>で、新しいパスワードと確認用が一致している必要があります。</div>
+    </div>
+<?php endif; ?>
 <form method="post" class="card">
     <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
     <?php if (!$forced): ?>

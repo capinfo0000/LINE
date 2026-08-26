@@ -14,7 +14,7 @@
 
 declare(strict_types=1);
 
-require dirname(__DIR__) . '/src/bootstrap.php';
+require_once dirname(__DIR__) . '/src/bootstrap.php';
 
 $lockPath = APP_ROOT . '/data/.installed';
 $selfPath = __FILE__;
@@ -28,7 +28,10 @@ function install_is_done(string $lockPath): bool
     try {
         return (int) db()->query('SELECT COUNT(*) FROM tenants')->fetchColumn() > 0;
     } catch (\Throwable $e) {
-        return false;
+        // DBが読めないときに「未インストール」と判定すると、障害時にインストーラが
+        // 誰にでも開いてしまう（＝管理者を新規作成され .env を上書きされる）。
+        // 判定できない場合はインストール済みとみなして閉じる（フェイルクローズ）。
+        return true;
     }
 }
 
@@ -151,6 +154,9 @@ $token = $alreadyInstalled ? '' : csrf_token();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>初期セットアップ - Enlink</title>
+    <?php echo page_meta_tags(['title' => '初期セットアップ', 'noindex' => true]); ?>
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
+    <link rel="apple-touch-icon" href="/assets/icon-180.png">
     <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
@@ -161,14 +167,14 @@ $token = $alreadyInstalled ? '' : csrf_token();
     <div class="card">
         <h1>セットアップは完了しています</h1>
         <p>既に初期設定が済んでいるため、このページは無効です。安全のため、サーバー上に <code>public/install.php</code> が残っている場合は削除してください。</p>
-        <p><a class="btn" href="/admin/login.php">運営ログインへ</a></p>
+        <p><a class="btn" href="/admin/login">運営ログインへ</a></p>
     </div>
 <?php elseif ($done): ?>
     <div class="card">
-        <h1>✅ セットアップ完了</h1>
+        <h1>セットアップ完了</h1>
         <p><code>.env</code> の生成・データベース初期化・運営管理者の作成が完了しました。
            このセットアップ画面は削除済みです。</p>
-        <p><a class="btn" href="/admin/login.php">運営ログインへ</a></p>
+        <p><a class="btn" href="/admin/login">運営ログインへ</a></p>
     </div>
     <div class="card">
         <div class="card__title">次にやること（任意・後からでOK）</div>

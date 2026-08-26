@@ -6,7 +6,7 @@ Enlink（PHP + SQLite + Stripe + LINE + Zoom）を CORESERVER V2 に **SSH で g
 
 ```
 ~/enlink/               ← git clone 先（Web非公開）
-├── public/             ← ★ここをドキュメントルートにする（Web公開）
+├── public/             ← ここをドキュメントルートにする（Web公開）
 ├── src/ vendor/ bin/   ← Web非公開（公開ディレクトリの外）
 ├── data/app.sqlite     ← Web非公開（DB。uploads/=顔写真も。バックアップ対象）
 └── .env                ← Web非公開（Stripe/LINE/Zoom の鍵など）
@@ -98,6 +98,22 @@ rm -rf public_html/xxxx.coreserver.jp
 ln -s ~/enlink/public public_html/xxxx.coreserver.jp
 ```
 
+## 6-2. 運営画面のフォルダ名を変える（推奨）
+
+`public/admin/` はURLを推測されやすいので、設置時に**推測しにくい名前へリネーム**して運用する。
+（例：`public/admin_599383181b73d79e83452421de67f6/`）
+
+```bash
+mv public/admin public/admin_$(openssl rand -hex 15)
+```
+
+リネームしても壊れないように、運営画面の中は**相対リンク・相対リダイレクト**で書いてある。
+人に渡すURL（招待リンク・パスワード再設定メール）は `admin_abs_url()`（`src/admin.php`）が
+実フォルダ名から組み立てるので、こちらも追従する。
+
+**注意**：更新用のZIPを作るときは、毎回このリネームを忘れないこと。
+`public/admin/` のまま上げると、リネーム前のフォルダが復活して両方が公開状態になる。
+
 ## 7. Webhook 設定
 
 - **Stripe**：ダッシュボード → 開発者 → Webhook → エンドポイント追加
@@ -118,8 +134,8 @@ ln -s ~/enlink/public public_html/xxxx.coreserver.jp
 ## 9. 動作確認
 
 - 会員入口: `https://xxxx.coreserver.jp/`
-- 運営ログイン: `https://xxxx.coreserver.jp/admin/login.php`（手順5の管理者で）
-- 会員ログイン: `https://xxxx.coreserver.jp/member/login.php`
+- 運営ログイン: `https://xxxx.coreserver.jp/<リネームした運営フォルダ>/login`（手順5の管理者で）
+- 会員ログイン: `https://xxxx.coreserver.jp/member/login`
 - 決済テスト: 運営で予約枠・OpenChat URL を登録 →（またはテスト用 `make-member`）→ `checkout.php` でテストカード `4242 4242 4242 4242`
 - 露出確認: `/.env` と `/data/app.sqlite` が 403/404 であること
 
@@ -139,6 +155,56 @@ composer install --no-dev -o      # 依存に変更があれば
 - SQLite はホットコピーを避け、`sqlite3 data/app.sqlite ".backup ~/private/backup.sqlite"` 等で取得を推奨。
 - 顔写真 `data/uploads/` も併せて保全。
 
+## 12. URL の形（.php を出さない）
+
+画面のURLは拡張子なしで出している。`.htaccess`（プロジェクト直下と `public/` の2枚）が
+次の3つをやっている。**設置時にこの2枚を必ず一緒に上げること**（無いと拡張子なしのURLが404になる）。
+
+| 入ってきたURL | 動き |
+|---|---|
+| `/member/directory` | 同名の `member/directory.php` があれば、それを内部で実行（URLはそのまま） |
+| `/member/directory.php` | 拡張子なし `/member/directory` へ301（GETのみ） |
+| `/u/<共有コード>` | `u.php` に渡す（プロフィールの共有URL） |
+
+**次の4つは `.php` のまま受ける。**外部サービスに登録済みのURLなので、勝手に転送しない。
+
+- `/webhook.php`（Stripe）
+- `/line_webhook.php`（LINE）
+- `/cron.php`（サーバーの定期実行）
+- `/install.php`（初期設定。設置後は削除推奨）
+
+以前に配ったリンクやブックマークが `.php` 付きで来ても301で拾うので、リンク切れにはならない。
+POST は転送しない（301でPOSTを転送すると中身が落ちるため）。
+
+## 13. 独自ドメインへの切り替え
+
+初期ドメイン（`xxxx.coreserver.jp`）から独自ドメイン（例 `enlink.tokyo`）へ移すときの手順。
+アプリ側にドメインの直書きは無いので、`.env` の1行と、外部サービス側の登録URLを直せば済む。
+
+1. コントロールパネルでドメインを追加し、無料SSL（Let's Encrypt）を発行する。
+   `https://<新ドメイン>/` が開くようになるまで待つ（DNS 反映に時間がかかる）。
+2. `.env` の `APP_BASE_URL` を新ドメインに変える（末尾の `/` は付けない）。
+
+   ```
+   APP_BASE_URL=https://enlink.tokyo
+   ```
+
+   これで決済の戻り先・メールのリンク・**プロフィールの共有URL（`/u/<コード>`）** が
+   すべて新ドメインで出るようになる。
+3. 外部サービスに登録してあるURLを差し替える。
+
+   | サービス | 直す場所 |
+   |---|---|
+   | Stripe | Webhook エンドポイント `https://<新ドメイン>/webhook.php` |
+   | LINE Developers | Webhook URL `https://<新ドメイン>/line_webhook.php` |
+   | Zoom（OAuth を使う場合） | リダイレクトURL |
+   | cron（サーバーの定期実行） | 呼び出し先URLのドメイン |
+
+4. 旧ドメインは、しばらくは生かしたまま新ドメインへ転送しておくと、
+   すでに配ってしまった共有URLや決済リンクが切れない。
+5. 切り替え後の確認：`cron.php?job=diag` が動くこと、会員ログイン、
+   プロフィールの「共有URL」が新ドメインで出ること、テスト決済の戻り先。
+
 ## 本番移行チェック
 
 - [ ] `STRIPE_SECRET_KEY` を `sk_live_` に、Webhook を本番エンドポイントで登録
@@ -147,3 +213,6 @@ composer install --no-dev -o      # 依存に変更があれば
 - [ ] Zoom 自動発行（予約→URL 生成）／失敗時は手動URL案内で運用可
 - [ ] 特商法・規約・プライバシーの ［ ］ を実情報に置換
 - [ ] `data/` バックアップ運用を決定
+- [ ] 独自ドメインに移す場合は「13. 独自ドメインへの切り替え」を実施
+- [ ] `public/install.php` を削除（初期設定が済んだら不要。認証なしで開ける画面を残さない）
+- [ ] 運営画面のフォルダをリネーム（「6-2」）。更新ZIPを作るたびに同じ名前にそろえる

@@ -12,6 +12,13 @@ declare(strict_types=1);
 
 /** 会員セッションのアイドルタイムアウト（秒）。最終操作からこの時間で失効。 */
 const MEMBER_IDLE_TIMEOUT = 3600; // 60分
+// ログイン後に戻す先を覚えておく時間。共有URLから飛ばされた直後に使うためのもので、
+// 長く持たせると「ずっと前に開いたプロフィールに、次のログインで飛ばされる」ことになる。
+const LOGIN_RETURN_TTL = 900; // 15分
+// ログインしてから、この時間を過ぎたらもう一度ログインしてもらう。
+// アイドルタイムアウト（60分）だけだと、毎日使う人のセッションは無期限に延びる。
+// 会員の氏名・写真・連絡先を扱うので、上限そのものを設けておく。
+const MEMBER_SESSION_MAX = 30 * 86400; // 30日
 
 /* ------------------------- ID/PW 発行 ------------------------- */
 
@@ -41,6 +48,143 @@ function generate_member_login_id(): string
         $id = 'el' . random_safe_string(8);
     } while (find_member_by_login_id($id) !== null);
     return $id;
+}
+
+/**
+ * プロフィール共有用の短いコード。
+ *
+ * 会員の内部ID（mem_xxxxxxxxxxxx）をURLに出したくないので、URL向けの短いコードを別に持つ。
+ * ログインIDや紹介コードとは別物で、これが漏れても入会や乗っ取りには使えない
+ * （見られるのはプロフィール詳細だけで、閲覧側のログインと公開設定は従来どおり効く）。
+ */
+function public_code_exists(string $code): bool
+{
+    $stmt = db()->prepare('SELECT 1 FROM members WHERE public_code = ? LIMIT 1');
+    $stmt->execute([$code]);
+    return (bool) $stmt->fetchColumn();
+}
+
+/** 重複しない共有コードを生成する（紛らわしい文字を避けた小文字英数字8桁）。 */
+function generate_member_public_code(): string
+{
+    do {
+        $code = random_safe_string(8);
+    } while (public_code_exists($code));
+    return $code;
+}
+
+/**
+ * 会員の共有コードを返す（未発行ならその場で発行して保存）。
+ * 渡す配列の会員IDのキーは id でも member_id でもよい（検索結果の行をそのまま渡せるように）。
+ */
+function member_public_code(array $member): string
+{
+    $code = trim((string) ($member['public_code'] ?? ''));
+    if ($code !== '') {
+        return $code;
+    }
+    $id = (string) ($member['id'] ?? $member['member_id'] ?? '');
+    if ($id === '') {
+        return '';
+    }
+    $code = generate_member_public_code();
+    db()->prepare('UPDATE members SET public_code = ? WHERE id = ?')->execute([$code, $id]);
+    return $code;
+}
+
+/** 共有コードから会員を探す。 */
+function find_member_by_public_code(string $code): ?array
+{
+    $code = trim($code);
+    if ($code === '' || !preg_match('/^[a-z0-9]{4,32}$/', $code)) {
+        return null;
+    }
+    $stmt = db()->prepare('SELECT * FROM members WHERE public_code = ? LIMIT 1');
+    $stmt->execute([$code]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+/**
+ * サイト内で使うプロフィールのパス（例 /u/k3f9qa2m）。
+ * 共有コードがどうしても引けない場合だけ、従来の内部ID付きURLに落とす。
+ */
+function member_public_path(array $member): string
+{
+    $code = member_public_code($member);
+    if ($code === '') {
+        $id = (string) ($member['id'] ?? $member['member_id'] ?? '');
+        return '/member/member_view?id=' . rawurlencode($id);
+    }
+    return '/u/' . $code;
+}
+
+/** 人に渡す用の絶対URL（例 https://example.com/u/k3f9qa2m）。コピー・共有はこちらを使う。 */
+function member_public_url(array $member): string
+{
+    return rtrim(base_url(), '/') . member_public_path($member);
+}
+
+/**
+ * 他会員の画像の配信URL。
+ *
+ * 内部ID（mem_...）ではなく共有コードで指す。プロフィールのURLだけ短くしても、
+ * ページの中の画像URLに内部IDが残っていては隠したことにならないため。
+ * 配信側（photo.php）の認可はどちらの指定でも同じ。
+ *
+ * @param array $row public_code か member_id/id を含む行
+ */
+function member_photo_url(array $row, string $kind = 'photo', int $version = 0): string
+{
+    $code = trim((string) ($row['public_code'] ?? ''));
+    if ($code === '') {
+        // 共有コードが未発行の行（旧データ）はその場で発行して使う。
+        $id = (string) ($row['member_id'] ?? $row['id'] ?? '');
+        if ($id === '') {
+            return '/member/photo';
+        }
+        $code = member_public_code(['id' => $id, 'public_code' => '']);
+    }
+    $q = 'c=' . rawurlencode($code);
+    if ($kind !== 'photo') {
+        $q .= '&kind=' . rawurlencode($kind);
+    }
+    if ($version > 0) {
+        $q .= '&v=' . $version;
+    }
+    return '/member/photo?' . $q;
+}
+
+/** 紹介コードが既に使われているか。 */
+function referral_code_exists(string $code): bool
+{
+    $stmt = db()->prepare('SELECT 1 FROM members WHERE referral_code = ? LIMIT 1');
+    $stmt->execute([$code]);
+    return (bool) $stmt->fetchColumn();
+}
+
+/**
+ * 重複しない紹介専用コード（例 8F3KQ9MN）を生成する。
+ * ログインIDとは別物。紛らわしい文字を避けた大文字英数字8桁。
+ */
+function generate_referral_code(): string
+{
+    do {
+        $code = random_safe_string(8, 'ABCDEFGHJKMNPQRSTUVWXYZ23456789');
+    } while (referral_code_exists($code));
+    return $code;
+}
+
+/** 会員の紹介コードを返す（未発行なら発行して保存）。 */
+function member_referral_code(array $member): string
+{
+    $code = (string) ($member['referral_code'] ?? '');
+    if ($code !== '') {
+        return $code;
+    }
+    $code = generate_referral_code();
+    db()->prepare('UPDATE members SET referral_code = ? WHERE id = ?')->execute([$code, $member['id']]);
+    return $code;
 }
 
 /**
@@ -81,11 +225,14 @@ function issue_member_credentials(
     $memberId = generate_member_id();
     $loginId = generate_member_login_id();
     $tempPassword = generate_temp_password();
+    $referralCode = generate_referral_code();
     $email = ($email !== null && trim($email) !== '') ? strtolower(trim($email)) : null;
 
+    $publicCode = generate_member_public_code();
+
     $stmt = db()->prepare(
-        'INSERT INTO members (id, login_id, password_hash, must_change_pw, display_name, email, line_user_id, status, joined_at, created_at)
-         VALUES (:id, :login_id, :hash, 1, :name, :email, :line, :status, :joined, :created)'
+        'INSERT INTO members (id, login_id, password_hash, must_change_pw, display_name, email, line_user_id, status, referral_code, public_code, joined_at, created_at)
+         VALUES (:id, :login_id, :hash, 1, :name, :email, :line, :status, :ref, :code, :joined, :created)'
     );
     $stmt->execute([
         ':id'       => $memberId,
@@ -95,6 +242,8 @@ function issue_member_credentials(
         ':email'    => $email,
         ':line'     => $lineUserId,
         ':status'   => $status,
+        ':ref'      => $referralCode,
+        ':code'     => $publicCode,
         ':joined'   => $status === 'active' ? time() : null,
         ':created'  => time(),
     ]);
@@ -108,6 +257,117 @@ function find_member_by_login_id(string $loginId): ?array
 {
     $stmt = db()->prepare('SELECT * FROM members WHERE login_id = ?');
     $stmt->execute([strtolower(trim($loginId))]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+/**
+ * ログインIDを変更する。半角英数字と _ . - の4〜20文字。小文字で保存し重複を禁止。
+ *
+ * @return array{ok:bool, message:string}
+ */
+function change_member_login_id(string $memberId, string $newId): array
+{
+    $newId = strtolower(trim($newId));
+    if ($newId === '') {
+        return ['ok' => false, 'message' => '新しいログインIDを入力してください。'];
+    }
+    if (!preg_match('/^[a-z0-9_.\-]{4,20}$/', $newId)) {
+        return ['ok' => false, 'message' => 'ログインIDは半角英数字と _ . - の4〜20文字で入力してください。'];
+    }
+    $current = find_member_by_id($memberId);
+    if ($current === null) {
+        return ['ok' => false, 'message' => '会員が見つかりません。'];
+    }
+    if ((string) $current['login_id'] === $newId) {
+        return ['ok' => false, 'message' => '現在のログインIDと同じです。'];
+    }
+    $other = find_member_by_login_id($newId);
+    if ($other !== null && (string) $other['id'] !== $memberId) {
+        return ['ok' => false, 'message' => 'このログインIDは既に使われています。別のIDをお試しください。'];
+    }
+    $stmt = db()->prepare('UPDATE members SET login_id = ? WHERE id = ?');
+    $stmt->execute([$newId, $memberId]);
+    audit_log('member.login_id_change', ['member' => $memberId]);
+    return ['ok' => true, 'message' => 'ログインIDを変更しました。次回から新しいIDでログインしてください。'];
+}
+
+/** 公式LINEへの自己紹介が送信済みか。 */
+function member_intro_submitted(array $member): bool
+{
+    return (int) ($member['intro_submitted_at'] ?? 0) > 0;
+}
+
+/** 自己紹介の送信を記録する（冪等：既に記録済みなら何もしない）。 */
+function mark_intro_submitted(string $memberId): void
+{
+    $stmt = db()->prepare('UPDATE members SET intro_submitted_at = ? WHERE id = ? AND (intro_submitted_at IS NULL OR intro_submitted_at = 0)');
+    $stmt->execute([time(), $memberId]);
+}
+
+/**
+ * 自己紹介ロックを一括で免除する（ロックをOFFにしたときに呼ぶ）。
+ * 対象：LINE連携あり・自己紹介が未送信・まだ免除されていない会員。
+ * 「実際に送った人数」を汚さないため intro_submitted_at は触らず、免除フラグだけを立てる。
+ *
+ * @return int 免除した人数
+ */
+function intro_gate_exempt_all(): int
+{
+    $stmt = db()->prepare(
+        "UPDATE members SET intro_gate_exempt = 1
+          WHERE line_user_id IS NOT NULL AND line_user_id <> ''
+            AND (intro_submitted_at IS NULL OR intro_submitted_at = 0)
+            AND intro_gate_exempt = 0"
+    );
+    $stmt->execute();
+    return $stmt->rowCount();
+}
+
+/** 個別の免除を取り消す（管理画面で1名だけロックし直すとき）。 */
+function intro_gate_unexempt(string $memberId): void
+{
+    db()->prepare('UPDATE members SET intro_gate_exempt = 0 WHERE id = ?')->execute([$memberId]);
+}
+
+/** この会員は自己紹介ロックを免除されているか。 */
+function member_intro_exempt(array $member): bool
+{
+    return (int) ($member['intro_gate_exempt'] ?? 0) === 1;
+}
+
+/** 自己紹介ロック（公式LINEに送るまで さがすを見せない）が有効か。既定ON。 */
+function intro_gate_enabled(): bool
+{
+    return app_setting_get('intro_gate', '1') !== '0';
+}
+
+/**
+ * この会員は「さがす」閲覧前に自己紹介の送信が必要か。
+ * ロックONかつ、LINE連携あり（公式LINEに送れる）かつ、免除でなく、未送信のとき true。
+ */
+function member_needs_intro(array $member): bool
+{
+    if (!intro_gate_enabled()) {
+        return false;
+    }
+    if ((string) ($member['line_user_id'] ?? '') === '') {
+        return false; // LINE未連携（管理発行・サンプル等）はロック対象外
+    }
+    if (member_intro_exempt($member)) {
+        return false; // ロックOFF期間中に在籍していた会員は免除（ON に戻しても再ロックしない）
+    }
+    return !member_intro_submitted($member);
+}
+
+/** LINEのuserIdから会員を探す（連絡先の紐付けが無い場合のフォールバック用）。 */
+function find_member_by_line_user_id(string $lineUserId): ?array
+{
+    if ($lineUserId === '') {
+        return null;
+    }
+    $stmt = db()->prepare('SELECT * FROM members WHERE line_user_id = ? LIMIT 1');
+    $stmt->execute([$lineUserId]);
     $row = $stmt->fetch();
     return $row ?: null;
 }
@@ -163,13 +423,17 @@ function login_member(string $loginId, string $password): bool
     session_regenerate_id(true);
     $_SESSION['member_id'] = $member['id'];
     $_SESSION['member_last_activity'] = time();
+    $_SESSION['member_login_at'] = time();
     return true;
 }
 
 function logout_member(): void
 {
     session_boot();
-    unset($_SESSION['member_id'], $_SESSION['member_last_activity']);
+    // キーを消すだけでは、共有端末でセッションID（とCSRFトークン）が生き残る。
+    // 運営側の logout_tenant() と同じく、セッションごと破棄する。
+    $_SESSION = [];
+    session_destroy();
 }
 
 /** 現在ログイン中の会員（未ログイン・失効なら null）。 */
@@ -180,10 +444,18 @@ function current_member(): ?array
     if ($id === '') {
         return null;
     }
-    // アイドルタイムアウト
     $now = time();
+    // アイドルタイムアウト（最後の操作から一定時間で切る）
     $last = (int) ($_SESSION['member_last_activity'] ?? $now);
     if ($now - $last > MEMBER_IDLE_TIMEOUT) {
+        logout_member();
+        return null;
+    }
+    // ログインからの上限。毎日使っていてもここで一度切る。
+    // 古いセッションが残っていた場合（member_login_at を持たない）も、
+    // この時点で切って作り直させる。
+    $since = (int) ($_SESSION['member_login_at'] ?? 0);
+    if ($since <= 0 || $now - $since > MEMBER_SESSION_MAX) {
         logout_member();
         return null;
     }
@@ -200,18 +472,79 @@ function current_member(): ?array
  * 会員ログイン必須。未ログインならログイン画面へ。
  * 初回PW強制変更が必要な場合は、変更ページ以外へのアクセスを change_password.php へ誘導する。
  */
-function require_member(bool $allowDuringPwChange = false): array
+function require_member(bool $allowDuringPwChange = false, bool $allowUnsubscribed = false): array
 {
     $member = current_member();
     if ($member === null) {
-        header('Location: /member/login.php');
+        header('Location: /member/login');
         exit;
     }
     if (!$allowDuringPwChange && (int) ($member['must_change_pw'] ?? 0) === 1) {
-        header('Location: /member/change_password.php');
+        header('Location: /member/change_password');
         exit;
     }
+    // 未サブスクでもここでは止めない。塞ぐのは「さがす」関連だけで、
+    // マイページ・プロフィール編集・ポイント・支払いは引き続き使えるようにする
+    // （自分の情報に触れないと、支払う判断もできず退会にしかつながらないため）。
+    // $allowUnsubscribed は呼び出し側の互換のために残している。
     return $member;
+}
+
+/**
+ * この会員は「さがす」関連（会員検索・おすすめ・他会員のプロフィールと画像）が
+ * 課金の都合でロックされているか。
+ */
+function member_search_locked(array $member): bool
+{
+    return function_exists('member_requires_subscription') && member_requires_subscription($member);
+}
+
+/**
+ * ログイン後に戻したい場所を覚えておく（共有URLを開いた人がログイン後に
+ * ダッシュボードへ飛ばされて、見に来たプロフィールを見失わないようにする）。
+ *
+ * 保存先はセッションで、URLのパラメータにはしない（他所へ飛ばす踏み台に使えないようにするため）。
+ * 受け付けるのは「/」1個で始まる自サイト内のパスだけ。「//」始まりは外部サイトになるので拒否する。
+ */
+function set_login_return_path(string $path): void
+{
+    if ($path === '' || strncmp($path, '/', 1) !== 0 || strncmp($path, '//', 2) === 0) {
+        return;
+    }
+    if (!preg_match('#^/[A-Za-z0-9._~/?=&%+-]{0,300}$#', $path)) {
+        return;
+    }
+    session_boot();
+    $_SESSION['member_return_to'] = $path;
+    // 保存した時刻も持つ。これが無いと、いつ覚えたか分からない戻り先が
+    // セッションに残り続け、ずっとあとのログインで突然そこへ飛ばされる。
+    $_SESSION['member_return_to_at'] = time();
+}
+
+/**
+ * 覚えておいた戻り先を取り出して消す。無ければ空文字。
+ *
+ * 覚えてから LOGIN_RETURN_TTL を過ぎたものは捨てる。
+ * 戻り先が意味を持つのは「ログイン画面へ飛ばされた直後」だけで、
+ * 何時間も前に開いた共有URLへ飛ばされるのは、本人の意図と違う。
+ */
+function take_login_return_path(): string
+{
+    session_boot();
+    $path = (string) ($_SESSION['member_return_to'] ?? '');
+    $at = (int) ($_SESSION['member_return_to_at'] ?? 0);
+    unset($_SESSION['member_return_to'], $_SESSION['member_return_to_at']);
+    if ($path === '' || $at <= 0 || time() - $at > LOGIN_RETURN_TTL) {
+        return '';
+    }
+    return $path;
+}
+
+/** 覚えておいた戻り先を、使わずに捨てる。 */
+function forget_login_return_path(): void
+{
+    session_boot();
+    unset($_SESSION['member_return_to'], $_SESSION['member_return_to_at']);
 }
 
 /* ------------------------- パスワード変更／再設定 ------------------------- */
