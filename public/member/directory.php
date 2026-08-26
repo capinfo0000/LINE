@@ -307,7 +307,7 @@ if ($showRail) {
         <!-- 課金フェーズ：紹介で月額を無料にできるので、キャンペーンを出す。 -->
         <a class="tp-coupon" href="/member/points">
             <span class="tp-cbadge">紹介</span>
-            <span class="tp-ctext"><b>ご紹介した<?= (int) referral_waiver_min() ?>人が会費を登録すると月額0円</b>／一度達成すればずっと無料</span>
+            <span class="tp-ctext"><b>ご紹介した<?= (int) referral_waiver_min() ?>人が会費を登録すると月額0円</b>／その<?= (int) referral_waiver_min() ?>人も<?= (int) referral_waiver_min() ?>人紹介すると以後ずっと無料</span>
             <span class="tp-chelp" aria-hidden="true">?</span>
         </a>
     <?php elseif (billing_grace_active()): ?>
@@ -321,7 +321,7 @@ if ($showRail) {
         </a>
         <a class="tp-coupon" href="/member/points">
             <span class="tp-cbadge">紹介</span>
-            <span class="tp-ctext"><b>ご紹介した<?= (int) referral_waiver_min() ?>人が会費を登録すると、あなたの月額は0円</b>／一度達成すればずっと無料</span>
+            <span class="tp-ctext"><b>ご紹介した<?= (int) referral_waiver_min() ?>人が会費を登録すると、あなたの月額は0円</b>／その<?= (int) referral_waiver_min() ?>人も<?= (int) referral_waiver_min() ?>人紹介すると以後ずっと無料</span>
             <span class="tp-chelp" aria-hidden="true">?</span>
         </a>
     <?php else: ?>

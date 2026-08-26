@@ -65,6 +65,25 @@ require __DIR__ . '/_header.php';
 </div>
 
 <div class="card">
+    <div class="card__title">紹介特典（月額会費が無料になります）</div>
+    <?php $__min = (int) referral_waiver_min(); ?>
+    <?php if (member_waiver_earned($member)): ?>
+        <p style="margin:.3rem 0;"><span class="badge badge--info">永久無料</span>
+            条件を達成されています。<strong>今後ずっと月額会費は無料</strong>です（あとでご紹介先が減っても戻りません）。</p>
+    <?php else: ?>
+        <p style="margin:.3rem 0;">ご契約中のご紹介先：<strong><?= (int) referral_waiver_count($memberId) ?></strong> / <?= $__min ?> 名
+            <?php if (referral_waiver_count($memberId) >= $__min): ?><span class="badge badge--info">月額0円</span><?php endif; ?></p>
+        <p style="margin:.3rem 0;"><?= $__min ?>名ずつご紹介された方：<strong><?= (int) count_qualified_referrals($memberId, referral_waiver_mode() === 'B', $__min) ?></strong> / <?= $__min ?> 名
+            <span class="muted" style="font-size:.85rem;">（<?= $__min ?>名になると永久無料）</span></p>
+        <p class="muted" style="font-size:.85rem;margin:.3rem 0 0;">
+            ご紹介した方が<?= $__min ?>名、月額会費をご契約されると<strong>あなたの月額会費は無料</strong>になります。
+            <?= $__min ?>名を下回ると翌月から通常額に戻りますが、その<?= $__min ?>名が<strong>それぞれ<?= $__min ?>名ずつ</strong>ご紹介くださると、<strong>以後ずっと無料</strong>になります。<br>
+            ※ご紹介先ご自身が紹介特典で無料になった場合も、ご契約は続いているので人数に含まれます。
+        </p>
+    <?php endif; ?>
+</div>
+
+<div class="card">
     <div class="card__title">紹介コードを入力（入会時に1回のみ）</div>
     <?php if ($alreadyReferred): ?>
         <p class="muted">紹介者は登録済みです。</p>

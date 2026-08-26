@@ -14,7 +14,7 @@ $member = require_member(false, true); // 無料フェーズ/未サブスクで�
 $customerId = (string) ($member['stripe_customer_id'] ?? '');
 $subStatus = (string) ($member['subscription_status'] ?? '');
 $waived = (int) ($member['subscription_waived'] ?? 0) === 1;
-$earned = member_waiver_earned($member);      // 紹介特典の資格（一度達成したら消えない）
+$earned = member_waiver_earned($member);      // 永久無料の資格（第2段を達成済み）
 $canSubscribe = member_can_subscribe_now($member); // 猶予期間・課金フェーズで、まだ未登録なら true
 $error = '';
 
@@ -75,9 +75,15 @@ require __DIR__ . '/_header.php';
     <?php if (billing_started() && $curPlan !== 'premium'): ?>
         <p class="muted" style="font-size:.85rem;margin-top:8px;">プレミアムにすると、おすすめの表示数無制限・全条件での検索・一覧での優先表示などがご利用いただけます。アップグレードをご希望の場合は運営までご連絡ください。</p>
     <?php endif; ?>
-    <?php if ($waived || $earned): ?>
-        <p class="muted" style="margin:.3rem 0;">ご紹介の条件（<?= (int) referral_waiver_min() ?>名）を達成いただいたため、月額会費は<strong>無料</strong>です。
-            一度条件を満たすと、<strong>その後はずっと無料</strong>のままです（あとでご紹介先が減っても通常額には戻りません）。</p>
+    <?php $__min = (int) referral_waiver_min(); ?>
+    <?php if ($earned): ?>
+        <p class="muted" style="margin:.3rem 0;"><span class="badge badge--info">永久無料</span>
+            ご紹介いただいた<?= $__min ?>名が、それぞれ<?= $__min ?>名ずつご紹介くださったため、月額会費は<strong>今後ずっと無料</strong>です。
+            あとでご紹介先が減っても通常額には戻りません。</p>
+    <?php elseif ($waived): ?>
+        <p class="muted" style="margin:.3rem 0;">ご紹介いただいた方が<?= $__min ?>名、月額会費をご契約中のため、現在の月額会費は<strong>無料</strong>です。
+            <strong><?= $__min ?>名を下回ると、翌月から通常額に戻ります</strong>（ご紹介先ご自身が紹介特典で無料になった場合は、ご契約は続いているので人数に含まれます）。<br>
+            ご紹介いただいた<?= $__min ?>名が<strong>それぞれ<?= $__min ?>名ずつ</strong>ご紹介くださると、<strong>以後ずっと無料</strong>になります。</p>
     <?php endif; ?>
 </div>
 

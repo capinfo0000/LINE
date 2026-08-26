@@ -611,6 +611,12 @@ function count_active_referrals(string $referrerId, bool $payingOnly): int
     return (int) $stmt->fetchColumn();
 }
 
+/** 「永久無料」の資格を得た会員数（モニター用）。 */
+function waiver_permanent_count(): int
+{
+    return (int) db()->query('SELECT COUNT(*) FROM members WHERE waiver_earned_at IS NOT NULL AND waiver_earned_at > 0')->fetchColumn();
+}
+
 /** 現在、紹介特典で無料化されている会員数（モニター用）。 */
 function waived_member_count(): int
 {
@@ -667,42 +673,37 @@ function apply_subscription_waiver(array $member): bool
 }
 
 /**
- * 会員のサブスクからクーポンを外して通常額に戻し、紹介特典の資格も取り消す。
+ * 会員のサブスクからクーポンを外して通常額に戻す（冪等）。
+ * すでに通常額(subscription_waived=0)なら何もしない。
  *
- * 定期実行からは呼ばない（一度得た資格は自動では失われない運用）。
- * 不正な紹介が判明したときなどに、運営が管理画面から手動で剥奪するための関数。
+ * クーポンを外しても当月分は請求済み（0円）のままなので、
+ * 通常額になるのは次回の請求から＝「来月から」になる。
  *
- * @return bool 何かしら取り消したら true
+ * @return bool 新たに解除したら true
  */
 function remove_subscription_waiver(array $member): bool
 {
-    $memberId = (string) $member['id'];
     $subId = (string) ($member['stripe_subscription_id'] ?? '');
-    $wasWaived = (int) ($member['subscription_waived'] ?? 0) === 1;
-    $wasEarned = member_waiver_earned($member);
-    if (!$wasWaived && !$wasEarned) {
+    if ($subId === '' || (int) ($member['subscription_waived'] ?? 0) === 0) {
         return false;
     }
-    if ($wasWaived && $subId !== '') {
-        try {
-            \Stripe\Subscription::deleteDiscount($subId);
-        } catch (\Throwable $e) {
-            // すでに割引が無い場合などは無視（フラグだけ戻す）。
-        }
+    try {
+        \Stripe\Subscription::deleteDiscount($subId);
+    } catch (\Throwable $e) {
+        // すでに割引が無い場合などは無視（フラグだけ戻す）。
     }
-    db()->prepare('UPDATE members SET subscription_waived = 0, waiver_earned_at = NULL WHERE id = ?')
-        ->execute([$memberId]);
-    audit_log('waiver.removed', ['member' => $memberId]);
+    db()->prepare('UPDATE members SET subscription_waived = 0 WHERE id = ?')->execute([$member['id']]);
+    audit_log('waiver.removed', ['member' => $member['id']]);
     return true;
 }
 
 /**
- * 紹介特典の判定に使う人数。
+ * 紹介特典の判定に使う人数（第1段：通常の無料化）。
  *
- * 数えるのは「紹介した相手のうち、実際に会費を払っている人」。
- * 登録しただけの人は数えない（無料の会員を5人集めれば自分も無料、だと
- * 会費を払う人が一人も増えないまま無料が広がってしまうため）。
- * この線引きは referral_waiver_mode() で切り替えられる。
+ * A案（既定）で数えるのは「紹介した相手のうち、月額会費を契約している人」。
+ * 紹介したあとにその人が自分も無料化された場合も、契約は続いているので数え続ける。
+ * 抜けるのは完全に解約した人だけ。
+ * B案に切り替えると「実際に会費を払っている人」だけに絞られる。
  */
 function referral_waiver_count(string $memberId): int
 {
@@ -710,10 +711,42 @@ function referral_waiver_count(string $memberId): int
 }
 
 /**
- * 紹介特典の「資格」を既に得ているか。
+ * 永久無料の判定に使う人数（第2段）。
  *
- * 一度条件を満たしたら、あとで紹介先が減っても無料のまま——という運用なので、
- * 「いま何人か」ではなく「一度でも達したか」をこの列で覚えておく。
+ * 「紹介した相手のうち、その人自身も min 人を紹介している人」の数を返す。
+ * つまり自分の下に min×min 名（既定なら 5×5＝25名）が育っている状態を数える。
+ *
+ * 第1段と同じ数え方（A案／B案）を内側にも適用する。
+ */
+function count_qualified_referrals(string $referrerId, bool $payingOnly, int $min): int
+{
+    $waivedCond = $payingOnly ? ' AND COALESCE(%s.subscription_waived, 0) = 0' : '';
+    $sql = "SELECT COUNT(*)
+              FROM referrals r
+              JOIN members m ON m.id = r.joiner_id
+             WHERE r.referrer_id = ?
+               AND m.subscription_status = 'active'" . sprintf($waivedCond, 'm') . "
+               AND (
+                    SELECT COUNT(*)
+                      FROM referrals r2
+                      JOIN members m2 ON m2.id = r2.joiner_id
+                     WHERE r2.referrer_id = m.id
+                       AND m2.subscription_status = 'active'" . sprintf($waivedCond, 'm2') . "
+                   ) >= ?";
+    // ※ min は必ず整数として渡すこと。PDO の既定では文字列としてバインドされ、
+    //    SQLite は「数値 < 文字列」で型どうしを比較するため COUNT(*) >= '5' が常に偽になる。
+    $stmt = db()->prepare($sql);
+    $stmt->bindValue(1, $referrerId, \PDO::PARAM_STR);
+    $stmt->bindValue(2, $min, \PDO::PARAM_INT);
+    $stmt->execute();
+    return (int) $stmt->fetchColumn();
+}
+
+/**
+ * 永久無料の資格を既に得ているか。
+ *
+ * 第2段の条件（紹介した5人が、それぞれ5人ずつ紹介した）を一度満たすと、
+ * あとで下の人数が減っても無料のままになる。
  */
 function member_waiver_earned(array $member): bool
 {
@@ -721,9 +754,9 @@ function member_waiver_earned(array $member): bool
 }
 
 /**
- * 紹介特典の資格を記録する（初回だけ true）。
+ * 永久無料の資格を記録する（初回だけ true）。
  *
- * 「まだ資格が無い行だけを更新する」という条件付き UPDATE の rowCount で判定するので、
+ * 「まだ資格が無い行だけを更新する」条件付き UPDATE の rowCount で判定するので、
  * 同時に2回走っても二重にはならない（record_stripe_event_once() と同じ claim-first の流儀）。
  */
 function claim_waiver_earned(string $memberId): bool
@@ -740,11 +773,20 @@ function claim_waiver_earned(string $memberId): bool
     return true;
 }
 
+/** いま第2段（永久無料）の条件を満たしているか。 */
+function member_qualifies_for_permanent_waiver(array $member): bool
+{
+    $min = referral_waiver_min();
+    return count_qualified_referrals((string) $member['id'], referral_waiver_mode() === 'B', $min) >= $min;
+}
+
 /**
- * 月額を無料にできるか。
+ * いま月額を無料にできるか。
  *
- * 「一度でも資格を得ている」か「いまの人数が条件に達している」かのどちらかで true。
- * 前者を見ることで、解約したあとに再登録しても初回から無料になる。
+ * 永久無料の資格を得ているか、そのときどきの人数が条件に達していれば無料。
+ * 資格が無い場合は、紹介先が解約して人数を割れば翌月から通常額に戻る。
+ * ※ A案では「紹介したあとに自分も無料になった紹介先」は active のままなので、
+ *    人数に残り続ける。抜けるのは完全に解約した紹介先だけ。
  */
 function member_qualifies_for_waiver(array $member): bool
 {
@@ -755,16 +797,20 @@ function member_qualifies_for_waiver(array $member): bool
 }
 
 /**
- * 紹介特典（月額無料化）を判定・反映する。cron から定期実行する。
+ * 紹介特典（月額無料化）の付け外しを判定・反映する。cron から定期実行する。
  *
- * 2段構えにしている。
- *  第1段：資格の記録（Stripe を叩かない）。サブスク未登録の会員も対象にする。
- *         こうしておくと、猶予期間に5人達成した人が後から登録したとき、
- *         初回の請求から無料になる（subscribe.php がこの資格を見る）。
- *  第2段：既にサブスクを持っている会員にだけ、実際にクーポンを適用する。
+ * 2段階の運用。
+ *  第1段（通常の無料）：紹介先のうち契約中の人が min 人以上いれば無料にする。
+ *      割り込んだらクーポンを外す。当月分は請求済み(0円)なので、
+ *      通常額になるのは次回の請求から＝「来月から」になる。
+ *  第2段（永久無料）：その紹介先が「それぞれ min 人ずつ」紹介していれば、
+ *      waiver_earned_at に資格を記録する。以後は人数が減っても外さない。
  *
- * 資格の自動取り消しは行わない（一度達成したらずっと無料）。剥奪は運営が手動で行う。
- * 戻り値の removed は 0 固定だが、呼び出し元（cron.php / bin/*.php）が参照するのでキーは残す。
+ * サブスクを持たない会員は対象にしない（Stripe に問い合わせても意味がないため）。
+ * 猶予期間中に条件を達成した未登録の会員は、申込時に subscribe.php が
+ * member_qualifies_for_waiver() を見てクーポンを付けるので取りこぼさない。
+ *
+ * Stripe を叩くので冪等ガード付き。
  *
  * @return array{scanned:int, earned:int, applied:int, removed:int, errors:int, mode:string}
  */
@@ -773,50 +819,42 @@ function evaluate_referral_waiver(): array
     $mode = referral_waiver_mode();
     $payingOnly = ($mode === 'B');
     $min = referral_waiver_min();
-    $scanned = $earned = $applied = $errors = 0;
+    $scanned = $earned = $applied = $removed = $errors = 0;
 
-    // ---- 第1段：資格の記録（Stripe を叩かない） ----
-    // 紹介した実績がある会員だけを見る（全会員をなめる必要はない）。
-    $candidates = db()->query(
-        "SELECT DISTINCT m.* FROM members m
-           JOIN referrals r ON r.referrer_id = m.id
-          WHERE m.status = 'active'
-            AND (m.waiver_earned_at IS NULL OR m.waiver_earned_at = 0)"
-    )->fetchAll();
-    foreach ($candidates as $m) {
-        try {
-            if (count_active_referrals((string) $m['id'], $payingOnly) >= $min) {
-                if (claim_waiver_earned((string) $m['id'])) {
-                    $earned++;
-                }
-            }
-        } catch (\Throwable $e) {
-            $errors++;
-            error_log('waiver earn error member=' . ($m['id'] ?? '-') . ': ' . $e->getMessage());
-        }
-    }
-
-    // ---- 第2段：サブスクを持っている会員にクーポンを適用 ----
-    // サブスクを持たない会員を Stripe に問い合わせないよう、対象をここで絞る。
     $rows = db()->query(
         "SELECT * FROM members
           WHERE subscription_status = 'active'
-            AND stripe_subscription_id IS NOT NULL AND stripe_subscription_id <> ''
-            AND COALESCE(subscription_waived, 0) = 0
-            AND waiver_earned_at IS NOT NULL AND waiver_earned_at > 0"
+            AND stripe_subscription_id IS NOT NULL AND stripe_subscription_id <> ''"
     )->fetchAll();
     foreach ($rows as $m) {
         $scanned++;
         try {
-            if (apply_subscription_waiver($m)) {
-                $applied++;
+            $isPermanent = member_waiver_earned($m);
+            // 第2段：永久無料の条件を満たしたら資格を記録する（一度きり）。
+            if (!$isPermanent && count_qualified_referrals((string) $m['id'], $payingOnly, $min) >= $min) {
+                if (claim_waiver_earned((string) $m['id'])) {
+                    $earned++;
+                    $isPermanent = true;
+                }
+            }
+            // 第1段：いまの人数で無料かどうか。永久資格があれば人数に関わらず無料。
+            $shouldBeFree = $isPermanent || count_active_referrals((string) $m['id'], $payingOnly) >= $min;
+            $isFree = (int) ($m['subscription_waived'] ?? 0) === 1;
+            if ($shouldBeFree && !$isFree) {
+                if (apply_subscription_waiver($m)) {
+                    $applied++;
+                }
+            } elseif (!$shouldBeFree && $isFree) {
+                if (remove_subscription_waiver($m)) {
+                    $removed++;
+                }
             }
         } catch (\Throwable $e) {
             $errors++;
             error_log('waiver eval error member=' . ($m['id'] ?? '-') . ': ' . $e->getMessage());
         }
     }
-    return ['scanned' => $scanned, 'earned' => $earned, 'applied' => $applied, 'removed' => 0, 'errors' => $errors, 'mode' => $mode];
+    return ['scanned' => $scanned, 'earned' => $earned, 'applied' => $applied, 'removed' => $removed, 'errors' => $errors, 'mode' => $mode];
 }
 
 /* ============================ サブスク（月額会費） ============================ */

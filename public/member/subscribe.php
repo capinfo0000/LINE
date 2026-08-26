@@ -117,7 +117,9 @@ require __DIR__ . '/_header.php';
         <p style="margin:0;"><span class="badge badge--info">紹介特典の条件を達成済み</span>
             このままお申し込みいただくと、<strong>最初のご請求から月額会費は無料</strong>になります。</p>
     <?php else: ?>
-        <p class="muted" style="margin:0;">ご紹介いただいた方が<strong><?= (int) referral_waiver_min() ?>名</strong>会費のご登録をされると、あなたの月額会費は無料になります。一度条件を満たせば<strong>その後はずっと無料</strong>です。詳しくは
+        <?php $__min = (int) referral_waiver_min(); ?>
+        <p class="muted" style="margin:0;">ご紹介いただいた方が<strong><?= $__min ?>名</strong>会費のご登録をされると、あなたの月額会費は<strong>無料</strong>になります（<?= $__min ?>名を下回ると翌月から通常額に戻ります）。
+            さらにその<?= $__min ?>名が<strong>それぞれ<?= $__min ?>名ずつ</strong>ご紹介くださると、<strong>以後ずっと無料</strong>です。詳しくは
             <a href="/member/points">ポイント・紹介</a> をご覧ください。</p>
     <?php endif; ?>
 </div>

@@ -403,16 +403,11 @@ function db_migrate(\PDO $pdo): void
     // 紹介特典で月額無料化（100%割引クーポン適用中）なら 1。cron が付け外しする。
     // ＝「いま Stripe 側でクーポンが付いているか」を表す。Stripe の実態と1:1で対応させる。
     db_add_column_if_missing($pdo, 'members', 'subscription_waived', 'INTEGER NOT NULL DEFAULT 0');
-    // 紹介特典の「資格」を得た日時。一度条件を満たしたら、あとで紹介先が減っても無料のまま。
-    // subscription_waived（＝Stripeの実態）とは別の列にする。混ぜると冪等ガードが壊れる。
+    // 「永久無料」の資格を得た日時（第2段：紹介した min 人が、それぞれ min 人ずつ紹介した）。
+    // 一度これを満たすと、あとで下の人数が減っても無料のままになる。
+    // subscription_waived（＝いま Stripe 側にクーポンが付いているか）とは別の列にする。
+    // 混ぜると apply/remove_subscription_waiver() の冪等ガードが壊れる。
     db_add_column_if_missing($pdo, 'members', 'waiver_earned_at', 'INTEGER');
-    // 【1回だけの移行】自動解除をやめた時点で無料化されていた会員に、資格を遡って付ける。
-    // これをしないと「クーポンは付いているのに資格が無い」状態になり、解約→再登録で無料に戻らない。
-    $pdo->prepare(
-        'UPDATE members SET waiver_earned_at = ?
-          WHERE COALESCE(subscription_waived, 0) = 1
-            AND (waiver_earned_at IS NULL OR waiver_earned_at = 0)'
-    )->execute([time()]);
 
     // サブスクのプラン種別（basic/premium）。無料フェーズ(〜100名)は判定側で全員 premium 相当に扱う。
     db_add_column_if_missing($pdo, 'members', 'plan', "TEXT NOT NULL DEFAULT 'basic'");

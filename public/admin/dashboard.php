@@ -188,7 +188,7 @@ $__csrf = csrf_token();
         <div><span class="stat__num" style="font-size:1.3rem;"><?= (int) $__freeRatio ?>%</span> <span class="muted">無料比率</span></div>
     </div>
     <?php if ($__freeRatio >= 40): ?>
-        <p class="flash flash--ng" style="margin:.4rem 0;">無料比率が高くなっています。<strong>一度達成した無料はB案に切り替えても外れません</strong>（資格は永続）。すでに無料化された会員を通常額に戻すには、会員詳細から個別に剥奪してください。B案への切替は、これから達成する人に効きます。</p>
+        <p class="flash flash--ng" style="margin:.4rem 0;">無料比率が高くなっています。収益を守るには「B案（課金中のみカウント）」への切替を検討してください。<strong>ただし「永久無料」を達成済みの会員は、切り替えても無料のままです。</strong></p>
     <?php endif; ?>
     <?php endif; ?>
 
@@ -200,7 +200,8 @@ $__csrf = csrf_token();
             <button type="submit" name="mode" value="A" class="btn btn--sm <?= $__mode === 'A' ? '' : 'btn--ghost' ?>" data-confirm="A案（無料化した紹介先もカウント）に切り替えますか？">A案（拡散重視）</button>
             <button type="submit" name="mode" value="B" class="btn btn--sm <?= $__mode === 'B' ? '' : 'btn--ghost' ?>" data-confirm="B案（課金中の紹介先のみカウント）に切り替えますか？">B案（収益重視）</button>
         </form>
-        <p class="muted" style="font-size:.78rem;margin:6px 0 0;">A案＝無料化した紹介先も<?= (int) referral_waiver_min() ?>名に数える（無料が連鎖して広がる）／B案＝実際に課金している紹介先だけ数える。次回のcron判定から反映されます。<strong>すでに達成済みの会員の無料は、どちらに切り替えても外れません。</strong></p>
+        <p class="muted" style="font-size:.78rem;margin:6px 0 0;">A案＝無料化した紹介先も<?= (int) referral_waiver_min() ?>名に数える（無料が連鎖して広がる）／B案＝実際に課金している紹介先だけ数える。次回のcron判定から反映されます。<br>
+            通常の無料は<strong>人数を割ると翌月から通常額に戻ります</strong>。紹介した<?= (int) referral_waiver_min() ?>名がそれぞれ<?= (int) referral_waiver_min() ?>名ずつ紹介すると<strong>「永久無料」</strong>になり、以後は人数が減っても外れません（<?= (int) waiver_permanent_count() ?>名）。</p>
     </div>
 </div>
 
