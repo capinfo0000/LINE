@@ -25,7 +25,8 @@ require_once dirname(__DIR__) . '/src/bootstrap.php';
     <h1>お支払いは完了していません</h1>
     <div class="card">
         <p>お支払いがキャンセルされました。もう一度お手続きいただけます。</p>
-        <p style="margin-top:16px;"><a class="btn" href="checkout">月額会費のお申し込みへ戻る</a></p>
+        <p style="margin-top:16px;"><a class="btn" href="/member/subscribe">月額会費のお申し込みへ戻る</a></p>
+        <p class="muted" style="margin-top:12px;"><a href="/member/dashboard">← 会員トップへ</a></p>
     </div>
 </div>
 </body>

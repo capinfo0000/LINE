@@ -516,34 +516,45 @@ function member_can_subscribe_now(array $member): bool
 /* ============================ 無料入会（無料フェーズ：LINE申込→承認発行） ============================ */
 
 /**
- * まだ使われていない会員に、ログイン情報を送り直す。
+ * まだ使われていない会員の仮パスワードを作り直す。
  *
  * 友だち追加をやり直した場合など、line_contacts の行が残っていると
  * 新規発行の経路に入らず「登録ありがとう」だけが届いてID/PWが来ない。
- * 仮パスワードは保存していないので、送り直すには作り直すしかない。
+ * 仮パスワードは保存していないので、渡し直すには作り直すしかない。
  *
- * すでにご自身のパスワードへ変更済みの会員には何もしない。
+ * すでにご自身のパスワードへ変更済みの会員には何もしない（null を返す）。
  * ここで作り直すと、いま使えているパスワードが使えなくなってしまうため。
  *
- * @return bool 送り直したら true
+ * @param bool $deliver false なら送らずに資格情報だけ返す。
+ *                      呼び出し元が1通にまとめて返信する場合に使う（LINEの無料枠を消費しない）。
+ * @return array{login_id:string, temp_password:string}|null 作り直したら資格情報、しなければ null
  */
-function deliver_credentials_if_never_used(array $member): bool
+function reissue_credentials_if_never_used(array $member, bool $deliver = true): ?array
 {
     if ((int) ($member['must_change_pw'] ?? 0) !== 1) {
-        return false; // 本人のパスワードで運用中。触らない
+        return null; // 本人のパスワードで運用中。触らない
     }
     $memberId = (string) $member['id'];
     $temp = generate_temp_password();
     db()->prepare('UPDATE members SET password_hash = ?, must_change_pw = 1 WHERE id = ?')
         ->execute([password_hash($temp, PASSWORD_DEFAULT), $memberId]);
-    // LINE への再配布を通すため、配布済みフラグを戻す。
     $lineUserId = (string) ($member['line_user_id'] ?? '');
-    if ($lineUserId !== '') {
-        db()->prepare('UPDATE line_contacts SET credentials_sent = 0 WHERE line_user_id = ?')->execute([$lineUserId]);
-    }
     audit_log('credentials.resent', ['member' => $memberId]);
     $fresh = find_member_by_id($memberId);
-    return $fresh !== null && deliver_member_credentials($fresh, (string) $fresh['login_id'], $temp);
+    if ($fresh === null) {
+        return null;
+    }
+    if ($deliver) {
+        // LINE への再配布を通すため、配布済みフラグを戻す。
+        if ($lineUserId !== '') {
+            db()->prepare('UPDATE line_contacts SET credentials_sent = 0 WHERE line_user_id = ?')->execute([$lineUserId]);
+        }
+        deliver_member_credentials($fresh, (string) $fresh['login_id'], $temp);
+    } elseif ($lineUserId !== '') {
+        // 呼び出し元が返信に載せる。あとで別経路が二重に push しないよう立てておく。
+        db()->prepare('UPDATE line_contacts SET credentials_sent = 1 WHERE line_user_id = ?')->execute([$lineUserId]);
+    }
+    return ['login_id' => (string) $fresh['login_id'], 'temp_password' => $temp];
 }
 
 /**
@@ -553,11 +564,12 @@ function deliver_credentials_if_never_used(array $member): bool
  * @return array{status:string, member_id:?string, issued:bool}
  *   status: 'done'（新規発行）/ 'linked'（既存会員に紐付け済み）/ 'ignored'（連絡先なし）
  */
-function provision_free_member_from_contact(string $userId): array
+function provision_free_member_from_contact(string $userId, bool $deliver = true): array
 {
+    $none = ['status' => 'ignored', 'member_id' => null, 'issued' => false, 'login_id' => null, 'temp_password' => null];
     $c = find_line_contact($userId);
     if ($c === null) {
-        return ['status' => 'ignored', 'member_id' => null, 'issued' => false];
+        return $none;
     }
     // すでに会員が紐付いていれば新規発行はしない（冪等）。
     // ただしログイン情報が届いていない可能性があるので、送り直せるなら送る。
@@ -565,10 +577,11 @@ function provision_free_member_from_contact(string $userId): array
     // ここで何もしないと「登録ありがとう」だけが届いてID/PWが来ない。
     if (!empty($c['member_id'])) {
         $linked = find_member_by_id((string) $c['member_id']);
-        if ($linked !== null) {
-            deliver_credentials_if_never_used($linked);
-        }
-        return ['status' => 'linked', 'member_id' => (string) $c['member_id'], 'issued' => false];
+        $re = $linked !== null ? reissue_credentials_if_never_used($linked, $deliver) : null;
+        return [
+            'status' => 'linked', 'member_id' => (string) $c['member_id'], 'issued' => false,
+            'login_id' => $re['login_id'] ?? null, 'temp_password' => $re['temp_password'] ?? null,
+        ];
     }
     // メール一致の既存会員があれば紐付けのみ（重複アカウント防止）。
     $email = (string) ($c['email'] ?? '');
@@ -578,10 +591,11 @@ function provision_free_member_from_contact(string $userId): array
         link_line_contact_member($userId, (string) $existing['id']);
         set_line_contact_state($userId, 'paid');
         $fresh = find_member_by_id((string) $existing['id']);
-        if ($fresh !== null) {
-            deliver_credentials_if_never_used($fresh);
-        }
-        return ['status' => 'linked', 'member_id' => (string) $existing['id'], 'issued' => false];
+        $re = $fresh !== null ? reissue_credentials_if_never_used($fresh, $deliver) : null;
+        return [
+            'status' => 'linked', 'member_id' => (string) $existing['id'], 'issued' => false,
+            'login_id' => $re['login_id'] ?? null, 'temp_password' => $re['temp_password'] ?? null,
+        ];
     }
 
     // 新規会員を無料で発行（active・初回PW強制変更）。
@@ -590,14 +604,22 @@ function provision_free_member_from_contact(string $userId): array
     link_line_contact_member($userId, (string) $member['id']);
     set_line_contact_state($userId, 'paid');
     audit_log('member.free_provisioned', ['member' => $member['id'], 'line' => substr($userId, 0, 10)]);
-    deliver_member_credentials($member, $cred['login_id'], $cred['temp_password']);
-    return ['status' => 'done', 'member_id' => (string) $member['id'], 'issued' => true];
+    if ($deliver) {
+        deliver_member_credentials($member, $cred['login_id'], $cred['temp_password']);
+    } else {
+        // 呼び出し元が1通にまとめて返信する。あとで別経路が二重に push しないよう、
+        // 配布済みフラグはここで消費しておく。
+        claim_credentials_send($userId);
+    }
+    return [
+        'status' => 'done', 'member_id' => (string) $member['id'], 'issued' => true,
+        'login_id' => $cred['login_id'], 'temp_password' => $cred['temp_password'],
+    ];
 }
 
 /**
- * LINE連絡先を「承認」する。料金フェーズに応じて発行方法を切り替える。
- *  - 無料フェーズ：決済なしで会員資格を発行して配布。
- *  - 課金フェーズ：入会金/月額の決済リンクを送る（従来どおり）。
+ * LINE連絡先を「承認」する。会員資格を発行して配布する。
+ * 決済は会員サイト（/member/subscribe）で本人が行うため、ここでは決済リンクを送らない。
  *
  * @return array{ok:bool, phase:string, message:string, member_id:?string}
  */
@@ -608,21 +630,13 @@ function approve_line_contact(string $userId): array
     }
     set_line_contact_approved($userId, true);
 
-    if (billing_started()) {
-        // 課金フェーズ：決済リンクを送信。
-        $ok = send_payment_link_to_contact($userId);
-        return [
-            'ok' => $ok,
-            'phase' => 'paid',
-            'message' => $ok ? '承認し、決済リンクを送信しました。' : '承認しましたが送信に失敗しました（LINE設定をご確認ください）。',
-            'member_id' => null,
-        ];
-    }
-
-    // 無料フェーズ：決済なしで会員資格を発行。
+    // フェーズによらず会員資格を発行する。決済は本人が会員サイトで行う。
+    // 以前は課金フェーズだけ決済リンク（/checkout）を LINE に送っていたが、
+    // その経路は create_subscription_checkout() を通らず、初回請求の先送りも
+    // 紹介特典のクーポンも付かなかった。決済導線は会員サイトに一本化する。
     $r = provision_free_member_from_contact($userId);
     if ($r['status'] === 'done') {
-        return ['ok' => true, 'phase' => 'free', 'message' => '承認し、会員資格（無料）を発行してLINEに送信しました。', 'member_id' => $r['member_id']];
+        return ['ok' => true, 'phase' => 'free', 'message' => '承認し、会員資格を発行してLINEに送信しました。', 'member_id' => $r['member_id']];
     }
     if ($r['status'] === 'linked') {
         return ['ok' => true, 'phase' => 'free', 'message' => '承認しました。既存の会員に紐付けました。', 'member_id' => $r['member_id']];

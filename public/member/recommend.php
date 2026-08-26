@@ -95,7 +95,9 @@ require __DIR__ . '/_header.php';
     <?php if ($recCapped): ?>
         <div class="card" style="text-align:center;background:#f8fafc;">
             <p style="margin:.2rem 0;">ベーシックプランでは1日に表示できるおすすめは <strong><?= (int) $recMax ?>人</strong>までです。</p>
-            <p style="margin:.2rem 0;"><a class="btn" href="/member/billing">プレミアムで全員を見る</a></p>
+            <?php /* 登録できる時期なら申込画面へ直接。billing には手続きボタンが無く、
+                     「運営までご連絡ください」で行き止まりになるため。 */ ?>
+            <p style="margin:.2rem 0;"><a class="btn" href="<?= member_can_subscribe_now($member) ? '/member/subscribe' : '/member/billing' ?>">プレミアムで全員を見る</a></p>
         </div>
     <?php endif; ?>
 <?php endif; ?>

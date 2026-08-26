@@ -259,7 +259,7 @@ if ($showRail) {
                 <p style="margin:12px 0 4px;font-weight:700;font-size:.85rem;">目的</p>
                 <div><?php $renderChecks($grouped['purpose'] ?? [], 'purpose', $checkedPurpose); ?></div>
             <?php else: ?>
-                <p class="muted" style="font-size:.8rem;margin:10px 0 0;">仕事ジャンル・目的・キーワード検索は<strong>プレミアム</strong>限定です。<a href="/member/billing">プレミアムにする</a></p>
+                <p class="muted" style="font-size:.8rem;margin:10px 0 0;">仕事ジャンル・目的・キーワード検索は<strong>プレミアム</strong>限定です。<a href="<?= member_can_subscribe_now($member) ? '/member/subscribe' : '/member/billing' ?>">プレミアムにする</a></p>
             <?php endif; ?>
             <div class="tp-filteractions">
                 <button type="submit" class="btn">この条件で検索</button>

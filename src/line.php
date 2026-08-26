@@ -387,18 +387,90 @@ function set_signup_mode(string $mode): void
 }
 
 /**
- * 初期運用（auto）の友だち追加時メッセージ：即・無料会員を発行して案内する。
- * 認証情報の送信は provision → deliver_member_credentials が別途 Push する。
+ * 友だち追加のときに送る本文（概要説明＋ログイン情報）。
+ *
+ * 1通にまとめているのは、これを返信（reply）で返せば公式LINEの無料枠を
+ * 消費しないため。push で別送りにすると、友だち1人につき1通ずつ減る。
+ *
+ * 人数・金額・URLはすべて設定から引く。べた書きすると、料金やしきい値を
+ * 変えたときに本文だけ古い数字のまま残る。
+ *
+ * @param ?string $loginId      発行できた場合のログインID。null ならログイン情報の段落を出さない
+ * @param ?string $tempPassword 同上（仮パスワード）
+ */
+function line_welcome_text(?string $loginId, ?string $tempPassword): string
+{
+    $base = rtrim(base_url(), '/');
+    $t = "ご登録ありがとうございます。Enlink（縁リンク）です。\n\n"
+        . "Enlinkは「提供できること」と「求めていること」が噛み合う相手だけに出会える、"
+        . "会員制のビジネスマッチングです。交流会のように総当たりで名刺を配る必要がありません。";
+
+    // ---- ログイン情報 ----
+    if ($loginId !== null && $tempPassword !== null) {
+        $t .= "\n\n■ 会員サイトのログイン情報\n"
+            . "ログインURL: {$base}/\n"
+            . "ログインID: {$loginId}\n"
+            . "仮パスワード: {$tempPassword}\n"
+            . "※この情報は第三者に共有しないでください。";
+    } else {
+        // すでにご自身のパスワードをお使いの方。作り直すと今のパスワードが使えなくなる。
+        $t .= "\n\n■ 会員サイト\n{$base}/ からログインしてご利用ください。";
+    }
+
+    // ---- はじめにやること ----
+    $t .= "\n\n■ はじめにやること\n";
+    if ($loginId !== null) {
+        $t .= "1. 上のURLからログイン\n2. ご自身のパスワードへ変更\n3. プロフィールと自己紹介を入力";
+    } else {
+        $t .= "1. 上のURLからログイン\n2. プロフィールと自己紹介を入力";
+    }
+    if (intro_gate_enabled()) {
+        $t .= "\n   （自己紹介を入れると「さがす」が使えるようになります）";
+    }
+
+    // ---- 料金 ----
+    $fee = monthly_fee_text();
+    $min = referral_waiver_min();
+    $t .= "\n\n■ 料金について\n";
+    if (billing_started()) {
+        $t .= "会員機能のご利用には月額会費（{$fee}）が必要です。";
+    } elseif (billing_grace_active()) {
+        $startsAt = billing_starts_at();
+        $t .= date('n月j日', (int) $startsAt) . "から月額会費（{$fee}）が始まります。それまでは無料でご利用いただけます。";
+    } else {
+        $t .= "いまは無料でご利用いただけます。"
+            . "会員数が" . billing_free_limit() . "名を超えた翌月から月額会費（{$fee}）が始まります。";
+    }
+    $t .= "\nご紹介した{$min}名が会費を登録されると、あなたの会費は無料になります。\n"
+        . "詳しくは {$base}/pricing";
+
+    // ---- 説明会（希望者のみ）----
+    $t .= "\n\n■ 説明会について（ご希望の方のみ）\n"
+        . "使い方の説明会（Zoom・約30分）をご希望の方は、"
+        . "このトークに「説明会」とお送りください。日程をご案内します。";
+
+    // ---- 交流用オープンチャット（未登録なら段落ごと出さない）----
+    $openChatUrl = active_openchat_url();
+    if ($openChatUrl !== null) {
+        $t .= "\n\n■ 交流用オープンチャット\n{$openChatUrl}";
+    }
+
+    $t .= "\n\nご不明点はこのトークからお気軽にどうぞ。";
+    return $t;
+}
+
+/**
+ * 初期運用（auto）の友だち追加時メッセージ。
+ *
+ * その場で会員を発行し、概要説明とログイン情報を1通にまとめて返す。
+ * ここで返したものは webhook が reply で送るので、公式LINEの無料枠を消費しない。
+ * そのため provision には $deliver = false を渡し、別途 push させない。
  */
 function line_auto_signup_messages(string $userId): array
 {
-    $r = provision_free_member_from_contact($userId);
+    $r = provision_free_member_from_contact($userId, false);
     if (($r['status'] ?? '') === 'done' || ($r['status'] ?? '') === 'linked') {
-        return [line_text(
-            "友だち追加ありがとうございます。Enlinkです。\n\n"
-            . "そのままご利用いただけます。別途、会員サイトの【ログインID・仮パスワード】をお送りします。\n\n"
-            . "ログイン後、プロフィールを設定してください。ご不明点はこのトークからお気軽にどうぞ。"
-        )];
+        return [line_text(line_welcome_text($r['login_id'] ?? null, $r['temp_password'] ?? null))];
     }
     // 発行に失敗した場合は従来の案内にフォールバック。
     return line_onboarding_messages();
@@ -488,32 +560,6 @@ function line_booking_confirm(string $kind, string $slotId): array
 
 /* ------------------------- 決済リンク配信（承認後） ------------------------- */
 
-/**
- * 承認済みの相手に月額会費の決済リンクを Push する（任意の承認ゲート）。
- * 未承認・連絡先不明なら false。
- */
-function send_payment_link_to_contact(string $userId): bool
-{
-    $c = find_line_contact($userId);
-    if ($c === null) {
-        return false;
-    }
-    if ((int) ($c['approved'] ?? 0) !== 1) {
-        return false; // 承認ゲート
-    }
-    $url = base_url() . '/checkout?lu=' . rawurlencode($userId);
-    if (!empty($c['email'])) {
-        $url .= '&email=' . rawurlencode((string) $c['email']);
-    }
-    $monthly = (int) env('MONTHLY_FEE_AMOUNT', '0');
-    $amountLabel = $monthly > 0 ? '（' . format_amount($monthly) . '／月）' : '';
-    $text = "ご入会手続きのご案内です。\n\n"
-        . "下記より月額会費{$amountLabel}のご登録をお願いします。\n{$url}\n\n"
-        . "ご登録完了後、会員サイトのログイン情報をこのトークにお送りします。\nいつでも解約いただけます。";
-    $ok = line_push($userId, [line_text($text)]);
-    set_line_contact_state($userId, 'payment_sent');
-    return $ok;
-}
 
 /* ------------------------- ファネル状態機械（Webhookイベント処理） ------------------------- */
 

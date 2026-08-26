@@ -117,8 +117,9 @@ require __DIR__ . '/_app_header.php';
                         <input type="hidden" name="csrf_token" value="<?= e($token) ?>">
                         <input type="hidden" name="action" value="approve">
                         <input type="hidden" name="line_user_id" value="<?= e($c['line_user_id']) ?>">
-                        <button type="submit" class="btn btn--sm" data-confirm="<?= $billing ? 'この申込者に決済リンクを送信しますか？' : 'この申込者に無料の会員資格を発行して送信しますか？' ?>">
-                            <?= $billing ? '承認して案内' : '承認して発行' ?>
+                        <?php /* 決済は会員サイトで本人が行うため、フェーズによらず会員資格を発行する。 */ ?>
+                        <button type="submit" class="btn btn--sm" data-confirm="この申込者に会員資格を発行してLINEに送信しますか？">
+                            承認して発行
                         </button>
                     </form>
                 <?php endif; ?>
