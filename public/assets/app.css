@@ -507,7 +507,12 @@ div.tp-pslide{ cursor:default; }
 .tp-sec:last-of-type{ border-bottom:0; }
 .tp-sec__t{ font-size:.78rem; font-weight:800; letter-spacing:.03em; color:var(--coral-d); margin:0 0 10px; }
 .tp-lead{ font-size:1.05rem; font-weight:700; margin:0; line-height:1.5; }
-.tp-bio{ margin:0; white-space:pre-wrap; }
+/* 自己紹介は長くなりやすく、どこで終わるのかが分かりにくかった
+   （見出しと本文が地の色に溶けていて、次の「タグ」との境目が読み取れない）。
+   淡い面で囲い、左に見出しと同じアクセント色の線を引いて範囲を示す。 */
+.tp-bio{ margin:0; white-space:pre-wrap; line-height:1.75;
+  background:var(--bg); border:1px solid var(--border); border-left:3px solid var(--brand);
+  border-radius:10px; padding:14px 16px; }
 .tp-kv{ display:grid; grid-template-columns:auto 1fr; gap:9px 14px; margin:0; }
 .tp-kv dt{ color:var(--muted); font-size:.9rem; font-weight:600; white-space:nowrap; }
 .tp-kv dd{ margin:0; font-weight:600; }
