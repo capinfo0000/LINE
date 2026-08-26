@@ -111,7 +111,7 @@ try {
         } else {
             init_stripe();
             $r = evaluate_referral_waiver();
-            $out = "waiver mode={$r['mode']} earned={$r['earned']} scanned={$r['scanned']} applied={$r['applied']} removed={$r['removed']} errors={$r['errors']}";
+            $out = "waiver mode={$r['mode']} earned={$r['earned']} scanned={$r['scanned']} applied={$r['applied']} removed={$r['removed']} notified={$r['notified']} errors={$r['errors']}";
         }
     } elseif ($job === 'seed') {
         // 開発用サンプル会員を投入（冪等）。確認後は unseed で削除する。

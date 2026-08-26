@@ -797,6 +797,72 @@ function member_qualifies_for_waiver(array $member): bool
 }
 
 /**
+ * 「紹介先が減って無料が外れました」と伝える本文を組み立てる。
+ *
+ * 送信そのものからは切り離してある（送らずに中身を検査できるようにするため）。
+ * 人数・金額はすべて設定から引くこと。べた書きすると、しきい値や会費を変えたときに
+ * 本文だけ古い数字のまま残る。
+ */
+function waiver_lost_message(array $member): string
+{
+    $min = referral_waiver_min();
+    $now = referral_waiver_count((string) $member['id']);
+    $fee = monthly_fee_text();
+
+    return "【Enlink】月額会費のご請求再開のお知らせ\n\n"
+        . "ご契約中のご紹介先が{$min}名を下回ったため、次回のご請求から月額会費（{$fee}）に戻ります。\n"
+        . "現在のご契約中のご紹介先：{$now}名\n\n"
+        . "※今月分のご請求は発生しません。通常額になるのは次回のご請求からです。\n\n"
+        . "別の方を新たにご紹介いただき、その方が月額会費をご契約されて{$min}名に戻れば、"
+        . "再び無料になります。解約された方ご本人が再契約される必要はありません。\n\n"
+        . "条件の詳細： " . base_url() . "/pricing";
+}
+
+/**
+ * 無料が外れたことを本人へ知らせる（1回だけ）。
+ *
+ * 公式LINEを優先し、未連携ならメールで補う（deliver_member_credentials() と同じ考え方）。
+ * cron は毎日回るので、外れている限り毎日送らないよう claim-first で1回に絞る。
+ * 送信に完全に失敗したら claim を戻し、次回の cron で再試行できるようにする。
+ * （途中で落ちたときに二重送信するより、無音のほうがマシなので claim を先に行う）
+ *
+ * @return bool 実際に送れたら true
+ */
+function notify_waiver_lost(array $member): bool
+{
+    $memberId = (string) $member['id'];
+    $claim = db()->prepare(
+        'UPDATE members SET waiver_lost_notified_at = ?
+          WHERE id = ? AND (waiver_lost_notified_at IS NULL OR waiver_lost_notified_at = 0)'
+    );
+    $claim->execute([time(), $memberId]);
+    if ($claim->rowCount() === 0) {
+        return false; // 既に通知済み
+    }
+
+    $body = waiver_lost_message($member);
+    $sent = false;
+    $lineUserId = (string) ($member['line_user_id'] ?? '');
+    if ($lineUserId !== '') {
+        $sent = line_push($lineUserId, [line_text($body)]);
+    }
+    // LINE未連携、または push が失敗した場合はメールで補う。
+    $email = (string) ($member['email'] ?? '');
+    if (!$sent && $email !== '') {
+        $sent = send_mail($email, 'Enlink 月額会費のご請求再開のお知らせ', $body);
+    }
+
+    if (!$sent) {
+        // どこにも届かなかった。次回の cron で再試行できるよう claim を戻す。
+        db()->prepare('UPDATE members SET waiver_lost_notified_at = NULL WHERE id = ?')->execute([$memberId]);
+        audit_log('waiver.lost_notify_failed', ['member' => $memberId]);
+        return false;
+    }
+    audit_log('waiver.lost_notified', ['member' => $memberId, 'via' => $lineUserId !== '' ? 'line' : 'mail']);
+    return true;
+}
+
+/**
  * 紹介特典（月額無料化）の付け外しを判定・反映する。cron から定期実行する。
  *
  * 2段階の運用。
@@ -812,14 +878,14 @@ function member_qualifies_for_waiver(array $member): bool
  *
  * Stripe を叩くので冪等ガード付き。
  *
- * @return array{scanned:int, earned:int, applied:int, removed:int, errors:int, mode:string}
+ * @return array{scanned:int, earned:int, applied:int, removed:int, notified:int, errors:int, mode:string}
  */
 function evaluate_referral_waiver(): array
 {
     $mode = referral_waiver_mode();
     $payingOnly = ($mode === 'B');
     $min = referral_waiver_min();
-    $scanned = $earned = $applied = $removed = $errors = 0;
+    $scanned = $earned = $applied = $removed = $notified = $errors = 0;
 
     $rows = db()->query(
         "SELECT * FROM members
@@ -843,10 +909,21 @@ function evaluate_referral_waiver(): array
             if ($shouldBeFree && !$isFree) {
                 if (apply_subscription_waiver($m)) {
                     $applied++;
+                    // 無料に戻ったので、解除の通知済みフラグを落としておく。
+                    // 次に外れたとき、また1回だけ知らせられるようにするため。
+                    db()->prepare('UPDATE members SET waiver_lost_notified_at = NULL WHERE id = ?')
+                        ->execute([(string) $m['id']]);
                 }
             } elseif (!$shouldBeFree && $isFree) {
                 if (remove_subscription_waiver($m)) {
                     $removed++;
+                    // 本人に知らせる。何も言わずに翌月から請求すると必ず問い合わせになる。
+                    // ※ remove_subscription_waiver() の中には入れない。運営の手動剥奪
+                    //    （revoke_member_waiver）も同じ関数を通るため、
+                    //    「紹介先が5名を割ったため」という文面が実態と食い違う。
+                    if (notify_waiver_lost($m)) {
+                        $notified++;
+                    }
                 }
             }
         } catch (\Throwable $e) {
@@ -854,7 +931,7 @@ function evaluate_referral_waiver(): array
             error_log('waiver eval error member=' . ($m['id'] ?? '-') . ': ' . $e->getMessage());
         }
     }
-    return ['scanned' => $scanned, 'earned' => $earned, 'applied' => $applied, 'removed' => $removed, 'errors' => $errors, 'mode' => $mode];
+    return ['scanned' => $scanned, 'earned' => $earned, 'applied' => $applied, 'removed' => $removed, 'notified' => $notified, 'errors' => $errors, 'mode' => $mode];
 }
 
 /**

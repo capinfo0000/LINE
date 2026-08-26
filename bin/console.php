@@ -144,7 +144,7 @@ switch ($cmd) {
         }
         init_stripe();
         $r = evaluate_referral_waiver();
-        echo "紹介特典判定(mode={$r['mode']}): earned={$r['earned']} scanned={$r['scanned']} applied={$r['applied']} removed={$r['removed']} errors={$r['errors']}\n";
+        echo "紹介特典判定(mode={$r['mode']}): earned={$r['earned']} scanned={$r['scanned']} applied={$r['applied']} removed={$r['removed']} notified={$r['notified']} errors={$r['errors']}\n";
         break;
 
     default:

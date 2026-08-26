@@ -40,13 +40,14 @@ try {
     init_stripe();
     $r = evaluate_referral_waiver();
     fwrite(STDOUT, sprintf(
-        "[%s] 紹介特典判定(mode=%s): earned=%d scanned=%d applied=%d removed=%d errors=%d\n",
+        "[%s] 紹介特典判定(mode=%s): earned=%d scanned=%d applied=%d removed=%d notified=%d errors=%d\n",
         date('c'),
         $r['mode'],
         $r['earned'],
         $r['scanned'],
         $r['applied'],
         $r['removed'],
+        $r['notified'],
         $r['errors']
     ));
 } catch (\Throwable $e) {

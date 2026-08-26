@@ -408,6 +408,10 @@ function db_migrate(\PDO $pdo): void
     // subscription_waived（＝いま Stripe 側にクーポンが付いているか）とは別の列にする。
     // 混ぜると apply/remove_subscription_waiver() の冪等ガードが壊れる。
     db_add_column_if_missing($pdo, 'members', 'waiver_earned_at', 'INTEGER');
+    // 「紹介先が減って無料が外れました」と本人へ通知した日時。
+    // cron は毎日回るので、これが無いと外れている限り毎日送ってしまう。
+    // 無料に戻ったら NULL に戻し、次に外れたときまた送れるようにする。
+    db_add_column_if_missing($pdo, 'members', 'waiver_lost_notified_at', 'INTEGER');
 
     // サブスクのプラン種別（basic/premium）。無料フェーズ(〜100名)は判定側で全員 premium 相当に扱う。
     db_add_column_if_missing($pdo, 'members', 'plan', "TEXT NOT NULL DEFAULT 'basic'");
