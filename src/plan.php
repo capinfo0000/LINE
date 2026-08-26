@@ -11,14 +11,35 @@
 
 declare(strict_types=1);
 
-/** 会員の実効プラン（'premium' または 'basic'）。無料フェーズは全員 premium 扱い。 */
+/**
+ * 会員の実効プラン（'premium' または 'basic'）。
+ *
+ * 無料フェーズ（〜100名）は全員 premium 扱いで全機能開放。
+ *
+ * 課金フェーズに入ったあとは、いま有料プランが1本しかない。会費を払っている
+ * 会員はその1本を契約している人なので、全機能を開ける。
+ * ここを members.plan だけで判定すると、決済で plan が設定されないため
+ * （set_member_plan は運営画面からしか呼ばれない）払っている会員が basic のまま
+ * になり、課金が始まった瞬間に検索条件が地域だけに減る＝払った人ほど不便になる。
+ *
+ * 紹介特典で無料化された会員も subscription_status='active' なので同じ扱いになる。
+ *
+ * プランを増やすときは、members.plan に段（standard 等）を保存して、
+ * 下の分岐をその値で行う形にする。
+ */
 function member_plan(array $member): string
 {
     if (function_exists('billing_started') && !billing_started()) {
         return 'premium'; // 無料フェーズ（〜100名）は全機能開放
     }
     $p = strtolower((string) ($member['plan'] ?? ''));
-    return $p === 'premium' ? 'premium' : 'basic';
+    if ($p === 'premium') {
+        return 'premium'; // 運営が個別に上げた場合
+    }
+    if ((string) ($member['subscription_status'] ?? '') === 'active') {
+        return 'premium'; // 会費を払っている（または紹介特典で無料化された）
+    }
+    return 'basic';
 }
 
 /** プランごとの機能制限テーブル。recommend_max は 0 で無制限。 */

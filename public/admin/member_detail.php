@@ -131,13 +131,20 @@ require __DIR__ . '/_app_header.php';
         <button type="button" class="btn btn--ghost" data-copy-target="shareUrl"
                 style="width:auto;padding:4px 12px;font-size:.82rem;">コピー</button>
     </p>
-    <?php $curPlan = ($member['plan'] ?? 'basic') === 'premium' ? 'premium' : 'basic'; ?>
+    <?php
+    // 表示は実効プラン（member_plan）に合わせる。列の値だけを見ると、
+    // 会費を払っている会員が「ベーシック」と出てしまう。
+    // 切り替えボタンが操作するのは列の値なので、そちらは別に持つ。
+    $curPlan = member_plan($member);
+    $storedPlan = ($member['plan'] ?? 'basic') === 'premium' ? 'premium' : 'basic';
+    ?>
     <p style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
-        プラン：<span class="badge badge--<?= $curPlan === 'premium' ? 'info' : 'mute' ?>"><?= e(plan_label($curPlan)) ?></span><?php if (!billing_started()): ?> <span class="muted" style="font-size:.82rem;">（無料フェーズ中は全員プレミアム相当）</span><?php endif; ?>
+        プラン：<span class="badge badge--<?= $curPlan === 'premium' ? 'info' : 'mute' ?>"><?= e(plan_label($curPlan)) ?></span><?php if (!billing_started()): ?> <span class="muted" style="font-size:.82rem;">（無料フェーズ中は全員プレミアム相当）</span>
+        <?php elseif ($storedPlan !== 'premium' && $curPlan === 'premium'): ?> <span class="muted" style="font-size:.82rem;">（会費のお支払いにより全機能）</span><?php endif; ?>
         <form method="post" style="display:inline;">
             <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>"><input type="hidden" name="action" value="set_plan">
-            <input type="hidden" name="plan" value="<?= $curPlan === 'premium' ? 'basic' : 'premium' ?>">
-            <button class="btn btn--sm btn--ghost" data-confirm="プランを<?= $curPlan === 'premium' ? 'ベーシック' : 'プレミアム' ?>に変更しますか？"><?= $curPlan === 'premium' ? 'ベーシックに戻す' : 'プレミアムにする' ?></button>
+            <input type="hidden" name="plan" value="<?= $storedPlan === 'premium' ? 'basic' : 'premium' ?>">
+            <button class="btn btn--sm btn--ghost" data-confirm="プランの設定を<?= $storedPlan === 'premium' ? 'ベーシック' : 'プレミアム' ?>に変更しますか？"><?= $storedPlan === 'premium' ? '設定をベーシックに戻す' : '設定をプレミアムにする' ?></button>
         </form>
         <span class="muted" style="font-size:.8rem;">※無料フェーズ中は全員プレミアム相当（制限なし）</span>
     </p>

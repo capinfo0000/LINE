@@ -57,7 +57,7 @@ if (member_search_locked($member)) {
     <div class="card" style="text-align:center;">
         <div class="card__title" style="justify-content:center;">「さがす」は月額会員のみご利用いただけます</div>
         <p class="muted" style="margin:0 auto 16px;max-width:24em;">
-            先着<?= (int) billing_free_limit() ?>名の無料期間が終了しました。会員どうしの検索・閲覧を続けるには、
+            会員が<?= (int) billing_free_limit() ?>名を超え、無料期間が終了しました。会員どうしの検索・閲覧を続けるには、
             月額会費（<?= e(monthly_fee_text()) ?>）のご登録が必要です。<br>
             プロフィールの編集やポイントの確認は、引き続きご利用いただけます。
         </p>
@@ -318,19 +318,29 @@ if ($showRail) {
             <span class="tp-chelp" aria-hidden="true">?</span>
         </a>
     <?php else: ?>
-        <!-- 無料フェーズ：先着枠の残りを進捗バーで見せる。 -->
-        <?php $bp = billing_progress(); ?>
+        <?php
+        /* 無料フェーズ：あと何名で有料に切り替わるかを進捗バーで見せる。
+           「先着◯名」「締め切り」という言い方はしない。先に入ればずっと無料だと
+           受け取られるが、実際は人数を超えた翌月から既存の会員も含めて全員が
+           有料になるため。（HTMLコメントで書くとこの文言自体が会員に届くので、
+           PHPのコメントにしている） */
+        $bp = billing_progress();
+        ?>
         <div class="tp-progress">
             <div class="tp-progress__top">
-                <span class="tp-cbadge">先着<?= (int) $bp['limit'] ?>名</span>
-                <b>いまなら無料でご利用いただけます</b>
+                <span class="tp-cbadge">無料期間</span>
+                <b>いまは無料でご利用いただけます</b>
             </div>
             <div class="tp-progress__bar"><span style="width:<?= (int) $bp['percent'] ?>%;"></span></div>
             <div class="tp-progress__foot">
                 <span><?= (int) $bp['count'] ?> / <?= (int) $bp['limit'] ?> 名</span>
-                <span>あと<b><?= (int) $bp['remaining'] ?></b>名で締め切り</span>
+                <span>あと<b><?= (int) $bp['remaining'] ?></b>名で有料に</span>
             </div>
         </div>
+        <p class="hint" style="margin:-2px 2px 12px;">
+            会員が<?= (int) $bp['limit'] ?>名を超えると、その翌月1日から
+            <strong>全員</strong>が月額会費（<?= e(monthly_fee_text()) ?>）の対象になります。
+        </p>
     <?php endif; ?>
 <?php endif; ?>
 
