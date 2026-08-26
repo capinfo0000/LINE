@@ -493,3 +493,67 @@ function admin_stats(): array
         'push_this_month' => $one("SELECT COUNT(*) FROM line_messages WHERE billable = 1 AND created_at >= strftime('%s', date('now','+9 hours','start of month','-9 hours'))"),
     ];
 }
+
+/**
+ * 発行した月額会費の決済リンクを、会員へ配布する。
+ *
+ * 運営が代理でリンクを作ったとき（admin/member_detail.php）に使う。
+ * リンクは Stripe の仕様で24時間で失効するため、その旨も併せて伝える。
+ *
+ * @param string $deliver 'none'（表示のみ）/ 'line' / 'mail' / 'both'
+ * @return string 画面に出す結果の説明（空文字にはならない）
+ */
+function admin_send_subscription_link(array $member, string $url, string $deliver): string
+{
+    if (!in_array($deliver, ['line', 'mail', 'both'], true)) {
+        return '下のリンクをコピーしてお渡しください。';
+    }
+
+    $lineUserId = (string) ($member['line_user_id'] ?? '');
+    $email = (string) ($member['email'] ?? '');
+    $fee = monthly_fee_text();
+
+    // 猶予期間中なら初回請求日、紹介の条件を満たしていれば無料である旨を本文にも入れる。
+    // リンクだけ送られても、いくら・いつから請求されるのかが分からないと押せない。
+    $lead = "Enlink の月額会費（{$fee}）のお手続きのご案内です。\n下記のリンクからお手続きいただけます。\n\n{$url}\n";
+    $trialEnd = subscription_trial_end();
+    if (member_qualifies_for_waiver($member)) {
+        $lead .= "\n※ご紹介の条件を満たされているため、月額会費は無料です。";
+    } elseif ($trialEnd !== null) {
+        $lead .= "\n※最初のご請求は" . date('n月j日', $trialEnd) . "からです。それまでの分は頂きません。";
+    }
+    $lead .= "\n※このリンクは24時間で無効になります。切れていた場合はご連絡ください。";
+    $lead .= "\n\n条件の詳細： " . base_url() . '/pricing';
+
+    $done = [];
+    $fail = [];
+    if ($deliver === 'line' || $deliver === 'both') {
+        if ($lineUserId === '') {
+            $fail[] = 'LINE（未連携）';
+        } elseif (line_push($lineUserId, [line_text($lead)])) {
+            $done[] = 'LINE';
+        } else {
+            $fail[] = 'LINE（送信失敗）';
+        }
+    }
+    if ($deliver === 'mail' || $deliver === 'both') {
+        if ($email === '') {
+            $fail[] = 'メール（アドレス未登録）';
+        } elseif (send_mail($email, 'Enlink 月額会費のお手続きのご案内', $lead)) {
+            $done[] = 'メール';
+        } else {
+            $fail[] = 'メール（送信失敗）';
+        }
+    }
+    audit_log('admin.sub_link_sent', [
+        'member' => $member['id'],
+        'done'   => implode('/', $done) ?: '-',
+        'fail'   => implode('/', $fail) ?: '-',
+    ]);
+
+    $out = $done === [] ? '' : implode('と', $done) . 'で送信しました。';
+    if ($fail !== []) {
+        $out .= implode('・', $fail) . 'は送信できませんでした。下のリンクを直接お渡しください。';
+    }
+    return $out !== '' ? $out : '下のリンクをコピーしてお渡しください。';
+}

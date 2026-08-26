@@ -17,6 +17,7 @@ if ($member === null) {
 }
 $msg = '';
 $msgType = 'ok';
+$subLink = '';   // 発行した決済リンク（コピー用に画面へ出す）
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
@@ -100,6 +101,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg = $r['message'];
             $msgType = $r['ok'] ? 'ok' : 'ng';
             break;
+        case 'sub_link':
+            // 月額会費の決済リンクを発行して、必要なら会員へ送る。
+            // 会員自身の申込画面（member/subscribe.php）と同じ組み立てを使うので、
+            // 猶予期間中なら初回請求は課金開始日になり、紹介の条件を満たしていれば
+            // 100%OFFクーポンも自動で付く。
+            if (!member_can_subscribe_now($member)) {
+                $msg = billing_reached_at() === null
+                    ? 'まだ課金制度が始まっていないため、決済リンクは発行できません。'
+                    : 'この会員はすでに月額会費をご契約中か、有効な会員ではありません。';
+                $msgType = 'ng';
+                break;
+            }
+            try {
+                $subLink = create_subscription_checkout(
+                    $member,
+                    base_url() . '/member/dashboard?msg=' . rawurlencode('月額登録が完了しました。') . '&type=ok',
+                    base_url() . '/member/billing'
+                );
+                audit_log('admin.sub_link', ['member' => $id]);
+                $deliver = (string) ($_POST['deliver'] ?? 'none');
+                $sent = admin_send_subscription_link($member, $subLink, $deliver);
+                $msg = '決済リンクを発行しました（24時間有効）。' . $sent;
+            } catch (\Throwable $e) {
+                error_log('admin sub_link error: ' . $e->getMessage());
+                $msg = '決済リンクを発行できませんでした：' . $e->getMessage();
+                $msgType = 'ng';
+            }
+            break;
+        case 'waiver_revoke':
+            // 紹介特典の無料を剥奪する（不正な紹介が判明したときなど）。
+            // 取り消しの影響が大きいので、会員の削除と同じく管理者テナント限定にする。
+            if ((int) ($tenant['is_admin'] ?? 0) !== 1) {
+                audit_log('authz.admin_deny', ['tenant' => $tenant['id'], 'path' => 'admin/member_detail.waiver_revoke']);
+                $msg = 'この操作にはプラットフォーム管理者権限が必要です。';
+                $msgType = 'ng';
+                break;
+            }
+            try {
+                init_stripe();
+                $msg = revoke_member_waiver($member)
+                    ? '紹介特典の無料を取り消しました（次回のご請求から通常額になります）。'
+                    : 'この会員は無料化されていません。';
+            } catch (\Throwable $e) {
+                error_log('admin waiver_revoke error: ' . $e->getMessage());
+                $msg = '取り消しに失敗しました：' . $e->getMessage();
+                $msgType = 'ng';
+            }
+            break;
         case 'set_plan':
             $plan = (string) ($_POST['plan'] ?? 'basic');
             set_member_plan($id, $plan);
@@ -168,6 +217,91 @@ require __DIR__ . '/_app_header.php';
         <?php endif; ?>
         <span class="muted" style="font-size:.8rem;">※付与は今の期限に足されます</span>
     </p>
+</div>
+
+<?php
+$__canSub   = member_can_subscribe_now($member);
+$__subLabel = ['active'=>'有効','past_due'=>'お支払い確認中','canceled'=>'解約済み','unpaid'=>'未払い'][(string) ($member['subscription_status'] ?? '')]
+              ?? ((string) ($member['subscription_status'] ?? '') !== '' ? (string) $member['subscription_status'] : '未登録');
+$__waived   = (int) ($member['subscription_waived'] ?? 0) === 1;
+$__earned   = member_waiver_earned($member);
+$__min      = (int) referral_waiver_min();
+$__refNow   = referral_waiver_count($id);
+$__refDeep  = count_qualified_referrals($id, referral_waiver_mode() === 'B', $__min);
+$__trialEnd = subscription_trial_end();
+?>
+<div class="card">
+    <div class="card__title">月額会費</div>
+    <p style="margin:.3rem 0;">状態：<strong><?= e($__subLabel) ?></strong>
+        <?php if ($__earned): ?><span class="badge badge--info">永久無料</span>
+        <?php elseif ($__waived): ?><span class="badge badge--info">紹介特典で無料</span><?php endif; ?>
+    </p>
+    <p class="hint" style="margin:0 0 10px;">
+        ご契約中の紹介先 <strong><?= $__refNow ?></strong> / <?= $__min ?> 名（<?= $__min ?>名以上で無料）　·　
+        <?= $__min ?>名ずつ紹介した紹介先 <strong><?= $__refDeep ?></strong> / <?= $__min ?> 名（<?= $__min ?>名以上で永久無料）
+    </p>
+
+    <?php if ($subLink !== ''): ?>
+        <div style="border-top:1px solid var(--border);margin:10px 0;padding-top:10px;">
+            <label style="margin-top:0;">発行した決済リンク（24時間で失効します）</label>
+            <input class="js-select" type="text" value="<?= e($subLink) ?>" readonly style="width:100%;font-size:.82rem;">
+            <p class="hint" style="margin:6px 0 0;">クリックで全選択されます。会員へお渡しください。</p>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($__canSub): ?>
+    <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+        <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>">
+        <input type="hidden" name="action" value="sub_link">
+        <div><label>送り方</label>
+            <select name="deliver" style="min-width:11em;">
+                <option value="none">リンクを表示するだけ</option>
+                <option value="line"<?= (string) ($member['line_user_id'] ?? '') === '' ? ' disabled' : '' ?>>LINEで送る<?= (string) ($member['line_user_id'] ?? '') === '' ? '（未連携）' : '' ?></option>
+                <option value="mail"<?= (string) ($member['email'] ?? '') === '' ? ' disabled' : '' ?>>メールで送る<?= (string) ($member['email'] ?? '') === '' ? '（未登録）' : '' ?></option>
+                <option value="both">LINEとメールの両方</option>
+            </select>
+        </div>
+        <div><button class="btn" data-confirm="月額会費の決済リンクを発行します。よろしいですか？">決済リンクを発行</button></div>
+    </form>
+    <p class="hint" style="margin:8px 0 0;">
+        会員自身の申込画面と同じ条件で作られます。
+        <?php if (member_qualifies_for_waiver($member)): ?>
+            <strong>この会員は紹介の条件を満たしているため、100%OFFクーポンが付きます（初回から無料）。</strong>
+        <?php elseif ($__trialEnd !== null): ?>
+            現在は猶予期間のため、<strong>初回のご請求は<?= e(date('n月j日', $__trialEnd)) ?>から</strong>になります。
+        <?php endif; ?>
+    </p>
+    <?php else: ?>
+        <p class="hint" style="margin:0;">
+            <?php if (billing_reached_at() === null): ?>
+                まだ課金制度が始まっていないため、決済リンクは発行できません（会員数が<?= (int) billing_free_limit() ?>名を超えると発行できるようになります）。
+            <?php elseif ((string) ($member['subscription_status'] ?? '') === 'active'): ?>
+                すでに月額会費をご契約中のため、新しい決済リンクは発行しません。
+            <?php else: ?>
+                有効な会員ではないため、決済リンクは発行できません。
+            <?php endif; ?>
+        </p>
+    <?php endif; ?>
+
+    <?php if ($__waived || $__earned): ?>
+    <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px;">
+        <label style="margin-top:0;">紹介特典の取り消し</label>
+        <p class="hint" style="margin:0 0 8px;">
+            不正な紹介（同一人物の複数アカウントなど）が判明した場合に、無料を取り消します。
+            Stripe の割引を外し<?= $__earned ? '、永久無料の資格も取り消し' : '' ?>ます。通常額になるのは<strong>次回のご請求から</strong>です。<br>
+            ※通常の無料は、紹介先が<?= $__min ?>名を割れば自動で外れます。この操作が要るのは永久無料か、待たずに外したいときだけです。
+        </p>
+        <?php if ((int) ($tenant['is_admin'] ?? 0) === 1): ?>
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="<?= e($token) ?>"><input type="hidden" name="id" value="<?= e($id) ?>">
+            <button class="btn btn--ghost" name="action" value="waiver_revoke"
+                    data-confirm="この会員の紹介特典（月額無料）を取り消します。よろしいですか？">紹介特典を取り消す</button>
+        </form>
+        <?php else: ?>
+        <p class="hint" style="margin:0;">取り消しはプラットフォーム管理者のみが行えます。</p>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 </div>
 
 <div class="card">

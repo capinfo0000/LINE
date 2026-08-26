@@ -26,11 +26,9 @@ $priceId = (string) (env('STRIPE_PRICE_ID') ?? '');
 $monthlyAmount = (int) env('MONTHLY_FEE_AMOUNT', '0');
 $error = '';
 
-// 初回請求を課金開始日（到達した月の翌月1日）まで先送りできるか。
-// Stripe は trial_end が「およそ48時間より先」でないと受け付けないため、
-// 月末ぎりぎりに到達して猶予が短いときは先送りせず、画面の案内も出し分ける。
-$billingStartsAt = billing_starts_at();
-$trialEnd = ($billingStartsAt !== null && $billingStartsAt > time() + 172800) ? $billingStartsAt : null;
+// 初回請求を課金開始日まで先送りできるか（画面の案内を出し分けるために使う）。
+// 実際に Checkout へ渡すのは create_subscription_checkout() の中。
+$trialEnd = subscription_trial_end();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify($_POST['csrf_token'] ?? null);
@@ -40,45 +38,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = '試行が多すぎます。しばらく時間をおいてお試しください。';
     } else {
         try {
-            init_stripe();
-            $metadata = ['purpose' => 'subscription', 'member_id' => $memberId];
-            $email = (string) ($member['email'] ?? '');
-            if ($email !== '') {
-                $metadata['email'] = $email;
-            }
-            $subscriptionData = ['metadata' => $metadata];
-            // 猶予期間中に申し込んだ人から先に請求しないよう、初回請求日を課金開始日に揃える。
-            // これが無いと「猶予期間は無料」と案内しながら、早く決めた人ほど多く払うことになる。
-            if ($trialEnd !== null) {
-                $subscriptionData['trial_end'] = $trialEnd;
-            }
-            $params = [
-                'mode' => 'subscription',
-                'line_items' => [['quantity' => 1, 'price' => $priceId]],
-                'metadata' => $metadata,
-                'subscription_data' => $subscriptionData,
-            ];
-            // 紹介の条件を満たしていれば、最初の請求から無料にする。
-            // ここで割引を付けないと、定期実行の判定が回るまでの1か月分だけ
-            // 請求されてしまう（「5人紹介したら無料」と案内しているのに、
-            // 初月だけ取られる形になる）。
-            $waiverCoupon = member_qualifies_for_waiver($member) ? waiver_coupon_id() : '';
-            if ($waiverCoupon !== '') {
-                $params['discounts'] = [['coupon' => $waiverCoupon]];
-            }
-            $params += [
-                'success_url' => base_url() . '/member/dashboard?msg=' . rawurlencode('月額登録が完了しました。') . '&type=ok',
-                'cancel_url' => base_url() . '/member/subscribe',
-            ];
-            if ($email !== '') {
-                $params['customer_email'] = $email;
-            }
-            if (!empty($member['stripe_customer_id'])) {
-                $params['customer'] = (string) $member['stripe_customer_id'];
-                unset($params['customer_email']);
-            }
-            $session = \Stripe\Checkout\Session::create($params);
-            header('Location: ' . $session->url);
+            // 組み立ては create_subscription_checkout() に一本化している。
+            // 運営が代理でリンクを発行する画面（admin/member_detail.php）と
+            // 条件が食い違わないようにするため、ここでパラメータを組まない。
+            $url = create_subscription_checkout(
+                $member,
+                base_url() . '/member/dashboard?msg=' . rawurlencode('月額登録が完了しました。') . '&type=ok',
+                base_url() . '/member/subscribe'
+            );
+            header('Location: ' . $url);
             exit;
         } catch (\Throwable $e) {
             error_log('subscribe create error: ' . $e->getMessage());
