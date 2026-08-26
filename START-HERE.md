@@ -128,6 +128,7 @@ src/              非公開ロジック
   admin.php       運営操作     mail.php/captcha.php/crypto.php
 bin/              CLI/cron（console.php / reconcile.php / remind.php / recommend.php）
 docs/             deploy-coreserver.md / setup-credentials.md ほか
+                  billing-and-referral-rules.md ← 料金・紹介特典・LINE運用の決まりごと
 data/             実行時生成（DB・顔写真・ログ）※ZIPには含めない
 .env              実行時生成（秘密）※ZIPには含めない
 PLAN.md           確定仕様書   README.md 概要
@@ -135,7 +136,7 @@ PLAN.md           確定仕様書   README.md 概要
 
 ## 8. 別のAIセッションで続きを頼むときの指示文（コピペ用）
 
-> このZIPは PHP+SQLite の会員制マッチングサービス「Enlink」です。`START-HERE.md` と `PLAN.md` を読んで現状を把握してください。Phase 0〜8は実装済み・ローカル検証済みです。
+> このZIPは PHP+SQLite の会員制マッチングサービス「Enlink」です。`START-HERE.md` と `PLAN.md`、それに **`docs/billing-and-referral-rules.md`（料金・紹介特典・公式LINE運用の決まりごとと、その理由）** を読んで現状を把握してください。Phase 0〜8は実装済み・ローカル検証済みです。
 > まず `php -S localhost:8000 -t public` で起動し `/install.php` で初期設定できることを確認してください。
 > 次にお願いしたいのは【ここに依頼内容：例「法務ページの事業者情報を入れる」「運営画面からLINE/Stripeの鍵を設定する画面を追加」「デザイン調整」など】です。
 > 変更したら `php -l` で構文確認し、ローカルの組み込みサーバで実際に動かして検証してから知らせてください。
